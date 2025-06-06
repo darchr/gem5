@@ -1,3 +1,5 @@
+from typing import List
+
 import m5
 from m5.objects import (
     Addr,
@@ -8,6 +10,7 @@ from m5.objects import (
     CowDiskImage,
     IdeDisk,
     IOXBar,
+    NoncoherentXBar,
     OutgoingRequestBridge,
     Pc,
     Port,
@@ -16,61 +19,64 @@ from m5.objects import (
     Terminal,
     VncServer,
     VoltageDomain,
-    X86E820Entry,
     X86ACPIMadt,
-    NoncoherentXBar,
+    X86ACPIMadtIntSourceOverride,
+    X86E820Entry,
     X86IntelMPBus,
     X86IntelMPBusHierarchy,
     X86IntelMPIOAPIC,
     X86IntelMPIOIntAssignment,
-    X86ACPIMadtIntSourceOverride,
     X86IntelMPProcessor,
     X86SMBiosBiosInformation,
 )
 
-from gem5.components.memory.simple import SingleChannelSimpleMemory 
 from gem5.components.boards.abstract_board import AbstractBoard
 from gem5.components.boards.x86_board import X86Board
 from gem5.components.cachehierarchies.abstract_cache_hierarchy import (
     AbstractCacheHierarchy,
 )
 from gem5.components.memory.abstract_memory_system import AbstractMemorySystem
+from gem5.components.memory.simple import SingleChannelSimpleMemory
 from gem5.components.processors.abstract_processor import AbstractProcessor
 from gem5.utils.override import overrides
 
-from typing import List
 
 class X86PermissionBoard(X86Board):
     """
     This class extends the existing X86Board with MMP-like checks.
     """
-    def __init__(self,
-                clk_freq: str,
-                processor: AbstractProcessor,
-                cache_hierarchy: AbstractCacheHierarchy,
-                memory: AbstractMemorySystem,
-                os_memory_range: str,
-                permission_table_range: AddrRange = None):
+
+    def __init__(
+        self,
+        clk_freq: str,
+        processor: AbstractProcessor,
+        cache_hierarchy: AbstractCacheHierarchy,
+        memory: AbstractMemorySystem,
+        os_memory_range: str,
+        permission_table_range: AddrRange = None,
+    ):
         """
         The board accepts the standard inputs of any given board with the
         exception of the permission table's address range. This is the region
         of the memory reserved for the permission table.
         """
-        super().__init__(clk_freq=clk_freq,
-                        processor = processor,
-                        cache_hierarchy = cache_hierarchy,
-                        memory = memory)
-        
+        super().__init__(
+            clk_freq=clk_freq,
+            processor=processor,
+            cache_hierarchy=cache_hierarchy,
+            memory=memory,
+        )
+
         # make sure that the address range of the dual_port object is correctly
         # set. can also be done in connect things tbh.
         # This is needed for the traffic generator later.
-        if permission_table_range is not None:
-            self.cache_hierarchy.get_permission_table().addr_range = permission_table_range
+        # if permission_table_range is not None:
+        #     self.cache_hierarchy.get_permission_table().addr_range = permission_table_range
 
         self._os_memory_range = os_memory_range
         # This board fixes the I/O hole with a certain margin of error.
         # self.initial_memory = SingleChannelSimpleMemory(size="3GiB", latency="50ns", latency_var="0", bandwidth="100GiB/s")
-        
+
         # for port in self.initial_memory.get_memory_controllers():
         #     port = self.get_cache_hierarchy().membus
 
@@ -94,7 +100,7 @@ class X86PermissionBoard(X86Board):
 
         self.mem_ranges = [
             # Make sure that the initial 3GiB is backed up some sort of memory.
-            # This is the error rate of the system. 
+            # This is the error rate of the system.
             AddrRange(start=0x0, size="3GiB"),
             AddrRange(0xC0000000, size=0x100000),  # For I/0
             # The next range is for the permission table.
@@ -129,7 +135,7 @@ class X86PermissionBoard(X86Board):
 
         Note: This is mostly copy-paste from prior X86 FS setups. Some of it
         may not be documented and there may be bugs.
-        
+
 
         # Constants similar to x86_traits.hh
         IO_address_space_base = 0x8000000000000000
@@ -331,7 +337,7 @@ class X86PermissionBoard(X86Board):
         bug is fixed, this ordering must be maintained.
         * Once this function is called `_connect_things_called` *must* be set
         to `True`.
-        
+
         super()._connect_things()
         self.initial_memory.incorporate_memory(self)
         # if self._connect_things_called:

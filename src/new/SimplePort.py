@@ -1,4 +1,4 @@
-# Copyright (c) 2021-25 The Regents of the University of California
+# Copyright (c) 2017 Jason Lowe-Power
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -24,22 +24,15 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-Import('*')
+from m5.params import *
+from m5.SimObject import SimObject
 
-# SimObject('DualPort.py', sim_objects=['DualPort'])
-# SimObject('SimpleBlockingPort.py', sim_objects=['SimpleBlockingPort'])
-# SimObject('SimplePort.py', sim_objects=['SimplePort'])
-SimObject('ClockedPermission.py', sim_objects=['ClockedPermission'])
 
-# Source('dual_port.cc')
-# Source('simple_blocking_port.cc')
-# Source('simple_port.cc')
-Source('clocked_permission.cc')
+class SimplePort(SimObject):
+    type = "SimplePort"
+    cxx_header = "new/simple_port.hh"
+    cxx_class = "gem5::SimplePort"
 
-# Here are the debug flags used in the source code.
-# DebugFlag('DualPort', "Making sure everything works!")
-DebugFlag('PermissionTable', "Making sure that the permission table works!")
-DebugFlag('PermissionTableEvent', "Making sure that the permission table works!")
-# DebugFlag('SimpleBlockingPort', "The other implementation")
-# DebugFlag('SimplePort', "The simple implementation")
-DebugFlag('ClockedPermissionDebug', "For the latency memory object")
+    # inst_port = ResponsePort("CPU side port, receives requests")
+    data_port = ResponsePort("CPU side port, receives requests")
+    mem_side = RequestPort("Memory side port, sends requests")

@@ -26,17 +26,16 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "new/dual_port.hh"
+#include "new/simple_blocking_port.hh"
 
 #include "base/trace.hh"
-#include "debug/DualPort.hh"
+#include "debug/SimpleBlockingPort.hh"
 #include "debug/PermissionTable.hh"
-#include "debug/PermissionTableEvent.hh"
 
 namespace gem5
 {
 
-DualPort::DualPort(const DualPortParams &params) :
+SimpleBlockingPort::SimpleBlockingPort(const SimpleBlockingPortParams &params) :
     SimObject(params),
     event(this),
     stats(this),
@@ -49,8 +48,8 @@ DualPort::DualPort(const DualPortParams &params) :
     totalMemorySize(params.total_memory_size),
     cacheSize(params.cache_size),
     segmentSize(params.segment_size),
-    cachePolicy(params.cache_policy),
-    blocked(false)
+    cachePolicy(params.cache_policy)
+    // blocked(false)
 {
     // make sure that the user has defined the totla memory size
     panic_if(totalMemorySize == 0,
@@ -70,13 +69,13 @@ DualPort::DualPort(const DualPortParams &params) :
     // Now set up the cache. We don't really need a lot of cache to maintain
     // this table.
     // We maintain a couple of states of the address in the cache. I am keeping
-    // a couple of values to make sure that it is compatible with all tyoes of
+    // a couple of values to make sure that it is compatible with all tyoes of 
     // caches.
     // address, [is_cached (bool), last_accessed (Tick), access_count (int)]
     // The map is initialized with a dummy entry in the beginning. We might
     // remove this in the future.
     // permission_table.insert({uint64_t(-1), new struct cache_entry_vector});
-
+    
     // Whether an entry is cached or not is detemined by the number of
     // is_cache number.
     total_cached_entries = 0;
@@ -88,11 +87,11 @@ DualPort::DualPort(const DualPortParams &params) :
 }
 
 Port &
-DualPort::getPort(const std::string &if_name, PortID idx)
+SimpleBlockingPort::getPort(const std::string &if_name, PortID idx)
 {
     panic_if(idx != InvalidPortID, "This object doesn't support vector ports");
 
-    // This is the name from the Python SimObject declaration (DualPort.py)
+    // This is the name from the Python SimObject declaration (SimpleBlockingPort.py)
     if (if_name == "mem_side_port") {
         return memSidePort;
     } else if (if_name == "cpu_side_port") {
@@ -103,182 +102,130 @@ DualPort::getPort(const std::string &if_name, PortID idx)
     }
 }
 
-// This function is not needed.
-// void
-// DualPort::CPUSidePort::sendPacket(PacketPtr pkt)
-// {
-//     // Note: This flow control is very simple since the memobj is blocking.
-
-//     // panic_if(blockedPacket != nullptr, "Should never try to send if blocked!");
-//     assert(blockedPacket != nullptr);
-
-//     // If we can't send the packet across the port, store it for later.
-//     if (!sendTimingResp(pkt)) {
-//         blockedPacket = pkt;
-//         // make sure to push this packet to the queue.
-//         // blockedPackets.push(pkt);
-//     //    return false;
-//     }
-//     // else {
-//     //     // The packet was sent successfully!
-//     //     return true;
-//     // }
-
-// }
-
 AddrRangeList
-DualPort::CPUSidePort::getAddrRanges() const
+SimpleBlockingPort::CPUSidePort::getAddrRanges() const
 {
     return owner->getAddrRanges();
 }
 
-// void
-// DualPort::CPUSidePort::trySendRetry()
-// {
-//     if (needRetry && blockedPacket == nullptr) { // blockedPackets.size() == 0) { //  == nullptr) {
-//         // Only send a retry if the port is now completely free
-//         needRetry = false;
-//         DPRINTF(DualPort, "Sending retry req for %d\n", id);
-//         sendRetryReq();
-//     }
-// }
-
 Tick
-DualPort::CPUSidePort::recvAtomic(PacketPtr pkt)
+SimpleBlockingPort::CPUSidePort::recvAtomic(PacketPtr pkt)
 {
     // Just forward to the memobj.
     owner->handleAtomic(pkt);
     return Tick();
 }
 void
-DualPort::CPUSidePort::recvFunctional(PacketPtr pkt)
+SimpleBlockingPort::CPUSidePort::recvFunctional(PacketPtr pkt)
 {
     // Just forward to the memobj.
     return owner->handleFunctional(pkt);
 }
 
 bool
-DualPort::CPUSidePort::recvTimingReq(PacketPtr pkt)
+SimpleBlockingPort::CPUSidePort::recvTimingReq(PacketPtr pkt)
 {
     // rewriting this method in a simpler way
-    DPRINTF(DualPort, "Got request for addr %#x\n", pkt->getAddr());
+    DPRINTF(SimpleBlockingPort, "Got request for addr %#x\n", pkt->getAddr());
 
-    // make sure to create the permission table enty and the cache
-    owner->class_latency = owner->isCachedRequest(pkt->getAddr());
+    // owner->processEvent();
 
-    // clean design
-    // see if there is a blocked packet:
-    if (owner->blocked) {
-        DPRINTF(DualPort, "this port this blocked!\n");
-        needRetry = true;
-        // the port is already blocked
-        return false;
+    if (owner->memSidePort.sendTimingReq(pkt)) {
+        requestMap[pkt->getAddr()] = pkt;
+        return true;
     }
-    // start processing this packet
-    owner->blocked = true;
-    // make sure that there are no blocked packets
-    panic_if(blockedPacket != nullptr, "There is an outstanding packet!");
 
-    if (!owner->memSidePort.sendTimingReq(pkt)) {
-        // memory port can't handle this request
-        blockedPacket = pkt;
-        needRetry = true;
-        DPRINTF(DualPort, "Couldn't forwared addr %#x, retry %d\n", pkt->getAddr(), needRetry);
-        return false;
-    }
-    DPRINTF(DualPort, "Forwared addr %#x\n", pkt->getAddr());
-
-    return true;
-
-
+    DPRINTF(SimpleBlockingPort, "Failed to send %#x\n", pkt->getAddr());
+    blockedRequests.push(pkt);
+    return false;
 }
 
 void
-DualPort::CPUSidePort::recvRespRetry()
+SimpleBlockingPort::CPUSidePort::recvRespRetry()
 {
-    // If retry is called by the cpu side port, then it is important to send
+    // If retry is called by the cpu side port, then it is important to send 
     // the packet to the memside request.
-    DPRINTF(DualPort, "Retry logic called for outstanding responses.\n");
+    DPRINTF(SimpleBlockingPort, "Retry logic called for outstanding responses.\n");
 
-    // clean design
-    assert(blockedPacket != nullptr);
-    PacketPtr pkt = blockedPacket;
-    blockedPacket = nullptr;
-
-    panic_if(blockedPacket != nullptr, "Should never try to send if blocked!");
-    if (!sendTimingResp(pkt))
-        blockedPacket = pkt;
+    while (!owner->memSidePort.blockedResponses.empty()) {
+        PacketPtr pkt = owner->memSidePort.blockedResponses.front();
+        if (!owner->cpuSidePort.sendTimingResp(pkt)) {
+            owner->memSidePort.blockedResponses.pop();
+            owner->memSidePort.responseMap.erase(pkt->getAddr()); // = pkt;
+        }
+        else
+            break;
+    }
 }
 
 bool
-DualPort::CPUSidePort::isBlocked() {
-    // XXX: Must be from the response queue. The memsideport expects a
-    // response.
-    return !requestPackets.empty();
-}
-
-// void
-// DualPort::MemSidePort::sendPacket(PacketPtr pkt)
-// {
-// }
-
-bool
-DualPort::MemSidePort::recvTimingResp(PacketPtr pkt)
+SimpleBlockingPort::MemSidePort::recvTimingResp(PacketPtr pkt)
 {
     // find the request for which the response is received!
-    DPRINTF(DualPort, "Received response for %#x\n", pkt->getAddr());
+    auto it = owner->cpuSidePort.requestMap.find(pkt->getAddr());
+    DPRINTF(SimpleBlockingPort, "Received response for %#x\n", pkt->getAddr());
+    assert(pkt->isResponse() && !pkt->isRequest());
+    // assert(pkt)
+    // we must find it! why?
+    if (it != owner->cpuSidePort.requestMap.end()) {
+        // we no longer need to keep a track of this request.
+        // owner->outstandingRequests.erase(it);
 
-    // clean design
-    assert(owner->blocked);
-    owner->blocked = false;
+        // now the response packet can be blocked as well.
+        if (owner->cpuSidePort.sendTimingResp(pkt)) {
+            DPRINTF(SimpleBlockingPort, "Successfully responded to the cpu port!\n");
+            // delete the response now
+            owner->cpuSidePort.requestMap.erase(pkt->getAddr());
+            return true;
+        }
+        else {
+            // We'll call response retry for these packets.
+            DPRINTF(SimpleBlockingPort, "Couldn't respond to the cpu with %#x!\n", pkt->getAddr());
+            owner->memSidePort.blockedResponses.push(pkt);
+            owner->memSidePort.responseMap[pkt->getAddr()] = pkt;
+            return false; 
 
-    panic_if(owner->cpuSidePort.blockedPacket != nullptr, "Should not receive a response for an empty packet");
-
-    if (!owner->cpuSidePort.sendTimingResp(pkt)) {
-        DPRINTF(DualPort, "Coundn't forward response for %#x\n", pkt->getAddr());
-        owner->cpuSidePort.blockedPacket = pkt;
-
-        return false;
+        }
+        // return owner->cpuSidePort.sendTimingResp(pkt);
     }
-    DPRINTF(DualPort, "Forward response for %#x, retry: %d blocked: %d\n",
-                         pkt->getAddr(), owner->cpuSidePort.needRetry, owner->cpuSidePort.blockedPacket == nullptr);
-    if (owner->cpuSidePort.needRetry  && owner->cpuSidePort.blockedPacket == nullptr) {
-        owner->cpuSidePort.needRetry = false;
-        DPRINTF(DualPort, "Sending retry req for %d\n", id);
-        owner->cpuSidePort.sendRetryReq();
-
+    else {
+        panic("Saw an unexpected response for %#x\n", pkt->getAddr());
     }
-    return true;
+
+    // unreachable code!
+    return false;
 }
 
 void
-DualPort::MemSidePort::recvReqRetry()
+SimpleBlockingPort::MemSidePort::recvReqRetry()
 {
     // start clearing the request queue!
-    DPRINTF(DualPort, "Retry logic called for outstanding requests.\n");
+    DPRINTF(SimpleBlockingPort, "Retry logic called for outstanding requests.\n");
 
-    // clean design
-    // can't have retry called without a blocked packet
-    panic_if(blockedPacket == nullptr, "Can't forwared a null packet!");
-    PacketPtr pkt = blockedPacket;
-    blockedPacket = nullptr;
 
-    // try sending this packet again. can fail again tho
-    if (!sendTimingReq(pkt)) {
-        blockedPacket = pkt;
+    // want to see all the packets that are queued
+    std::queue<gem5::PacketPtr> temp(owner->cpuSidePort.blockedRequests);
+    while (!temp.empty()) {
+        DPRINTF(SimpleBlockingPort, "Printing request elements: %#x!\n", temp.front()->getAddr());
+        temp.pop();
     }
+
+    while(!owner->cpuSidePort.blockedRequests.empty()) {
+        PacketPtr pkt = owner->cpuSidePort.blockedRequests.front();
+        if (owner->memSidePort.sendTimingReq(pkt)) {
+            DPRINTF(SimpleBlockingPort, "Retry successful for packet with addr %#x\n",
+                                                            pkt->getAddr());
+            owner->cpuSidePort.requestMap[pkt->getAddr()] = pkt;
+            owner->cpuSidePort.blockedRequests.pop();
+        }
+        else
+            break;
+    }
+    owner->cpuSidePort.sendRetryReq();
 }
 
-// This needs to be in the parent class. Then what about the blockedPackets for
-// the CPUSidePort?
-bool
-DualPort::MemSidePort::isBlocked() {
-    // XXX: Must be from the response queue. The memsideport expects a
-    // response.
-    return !responsePackets.empty();
-}
 void
-DualPort::MemSidePort::recvRangeChange()
+SimpleBlockingPort::MemSidePort::recvRangeChange()
 {
     owner->sendRangeChange();
 }
@@ -286,19 +233,19 @@ DualPort::MemSidePort::recvRangeChange()
 // make sure to implement the caching methods here to quickly copy paste them,
 // if needed.
 gem5::Tick
-DualPort::isCachedRequest(gem5::Addr addr) {
+SimpleBlockingPort::isCachedRequest(gem5::Addr addr) {
     /*
     Simple caching function that determines the caching variable from the
     class contructor and then makes sure to return where the given address
     has the values in the cache.
-
+    
     @params
     addr: address to check inside the cache
-
+    
     :returns:
         A latency value to tell the user if this is a cache hit.
     */
-
+    
     // figure out what kind of cache I am using.
     ++stats.numPermissionTableAccesses;
 
@@ -320,7 +267,7 @@ DualPort::isCachedRequest(gem5::Addr addr) {
 }
 
 gem5::Tick
-DualPort::simpleLRU(gem5::Addr addr) {
+SimpleBlockingPort::simpleLRU(gem5::Addr addr) {
     // ideally see if there is an entry (MMP)
     auto lookup = permission_table.find(addr);
 
@@ -356,7 +303,7 @@ DualPort::simpleLRU(gem5::Addr addr) {
                 gem5::Addr key;
                 for (auto it = permission_table.begin();
                         it !=  permission_table.end(); it++) {
-                    if (min_count > it->second->access_count &&
+                    if (min_count < it->second->access_count &&
                                             it->second->is_cached == true) {
                         min_count = it->second->access_count;
                         key = it->first;
@@ -369,7 +316,7 @@ DualPort::simpleLRU(gem5::Addr addr) {
                 // make sure to update the current lookup
                 lookup->second->is_cached = true;
                 lookup->second->access_count = 1;
-
+                
             }
         }
     }
@@ -402,7 +349,7 @@ DualPort::simpleLRU(gem5::Addr addr) {
             gem5::Addr key;
             for (auto it = permission_table.begin();
                             it !=  permission_table.end(); it++) {
-                if (min_count > it->second->access_count &&
+                if (min_count < it->second->access_count && 
                                             it->second->is_cached == true) {
                     min_count = it->second->access_count;
                     key = it->first;
@@ -418,11 +365,11 @@ DualPort::simpleLRU(gem5::Addr addr) {
 
     // check if this address is in the cache
     return latency;
-
+    
 }
 
 gem5::Tick
-DualPort::simpleMRU(gem5::Addr addr) {
+SimpleBlockingPort::simpleMRU(gem5::Addr addr) {
     // ideally see if there is an entry (MMP)
     auto lookup = permission_table.find(addr);
 
@@ -454,7 +401,7 @@ DualPort::simpleMRU(gem5::Addr addr) {
                 gem5::Addr key;
                 for (auto it = permission_table.begin();
                         it !=  permission_table.end(); it++) {
-                    if (max_count < it->second->last_accessed &&
+                    if (max_count > it->second->last_accessed &&
                                             it->second->is_cached == true) {
                         max_count = it->second->last_accessed;
                         key = it->first;
@@ -496,7 +443,7 @@ DualPort::simpleMRU(gem5::Addr addr) {
             gem5::Addr key;
             for (auto it = permission_table.begin();
                             it !=  permission_table.end(); it++) {
-                if (max_count < it->second->last_accessed &&
+                if (max_count > it->second->last_accessed && 
                                             it->second->is_cached == true) {
                     max_count = it->second->last_accessed;
                     key = it->first;
@@ -513,7 +460,7 @@ DualPort::simpleMRU(gem5::Addr addr) {
     return latency;
 }
 gem5::Tick
-DualPort::simpleRandom(gem5::Addr addr) {
+SimpleBlockingPort::simpleRandom(gem5::Addr addr) {
     // ideally see if  is an entry (MMP)
     auto lookup = permission_table.find(addr);
 
@@ -599,53 +546,16 @@ DualPort::simpleRandom(gem5::Addr addr) {
     // check if this address is in the cache
     return latency;
 }
-bool
-DualPort::handleRequest(PacketPtr pkt)
-{
-    assert(false && "making sure these methods are never called!\n");
-    // if (blocked) {
-    //     // There is currently an outstanding request. Stall.
-    //     return false;
-    // }
-
-    // DPRINTF(DualPort, "Got request for addr %#x\n", pkt->getAddr());
-
-    // // This memobj is now blocked waiting for the response to this packet.
-    // blocked = true;
-
-    // Simply forward to the memory port
-    return memSidePort.sendTimingReq(pkt);
-
-    // return true;
-}
-void
-DualPort::trySendRetry() {
-
-    assert(false && "Now this should not be called!\n");
-    while (!requestQueue.empty()) {
-        PacketPtr pkt = requestQueue.front();
-        DPRINTF(DualPort, "Retrying packet %#x!\n", pkt->getAddr());
-
-        // the packet needs to go back to the CPU side ports
-        if (memSidePort.sendTimingReq(pkt)) {
-            requestQueue.pop();
-            outstandingRequests[pkt->getAddr()] = pkt;
-        }
-        // else
-            // break;
-    }
-}
-
 
 Tick
-DualPort::handleAtomic(PacketPtr pkt)
+SimpleBlockingPort::handleAtomic(PacketPtr pkt)
 {
     // Just pass this on to the memory side to handle for now and do nothing!
     memSidePort.sendAtomic(pkt);
     return Tick();
 }
 void
-DualPort::handleFunctional(PacketPtr pkt)
+SimpleBlockingPort::handleFunctional(PacketPtr pkt)
 {
     // Just pass this on to the memory side to handle for now.
     memSidePort.sendFunctional(pkt);
@@ -653,49 +563,45 @@ DualPort::handleFunctional(PacketPtr pkt)
 
 // make sure the event is correctly set for this simobject
 void
-DualPort::processEvent() {
+SimpleBlockingPort::processEvent() {
     // This is only called if the user wants to add permission checks
     // make sure that this address is scheduled with some additional latency.
     // DPRINTF(PermissionTable, "Scheduling addr %#x with %lu latency\n",
     //                                     pkt->getAddr(), class_latency);
     // the class latency must be set before the event can be called.
-    DPRINTF(PermissionTableEvent, "Scheduling this* with %lu latency\n",
+    DPRINTF(PermissionTable, "Scheduling this* with %lu latency\n",
                                     class_latency);
-    // the latency must be lookup, hit or miss (including creation latency)
-    assert(class_latency == hitLatency ||
-                class_latency == creationLatency + missLatency ||
-                class_latency == missLatency);
-    scheduleLookup();
+    // assert(class_latency == hitLatency || 
+    //             class_latency == creationLatency + missLatency || 
+    //             class_latency == missLatency);
+    scheduleNewEvent();
 }
-
-
 void
-DualPort::scheduleLookup() {
-    schedule(event, curTick() + class_latency);
+SimpleBlockingPort::startup()
+{
+    schedule(event, 10);
 }
 
 void
-DualPort::startup() {
-    DPRINTF(PermissionTableEvent, "Startup called!\n",
-                                    class_latency);
-    // schedule(event, 10);
+SimpleBlockingPort::scheduleNewEvent() {
+    schedule(event, curTick() + 10);
 }
 
 AddrRangeList
-DualPort::getAddrRanges() const
+SimpleBlockingPort::getAddrRanges() const
 {
-    DPRINTF(DualPort, "Sending new ranges\n");
+    DPRINTF(SimpleBlockingPort, "Sending new ranges\n");
     // Just use the same ranges as whatever is on the memory side.
     return memSidePort.getAddrRanges();
 }
 
 void
-DualPort::sendRangeChange()
+SimpleBlockingPort::sendRangeChange()
 {
     cpuSidePort.sendRangeChange();
 }
 
-DualPort::StatGroup::StatGroup(statistics::Group *parent)
+SimpleBlockingPort::StatGroup::StatGroup(statistics::Group *parent)
     : statistics::Group(parent),
     ADD_STAT(numIncomingCPUSidePackets, statistics::units::Count::get(),
         "Number of LLC incoming packets"),

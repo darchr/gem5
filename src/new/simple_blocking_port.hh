@@ -29,8 +29,8 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef __NEW_DUAL_PORT_HH__
-#define __NEW_DUAL_PORT_HH__
+#ifndef __NEW_SIMPLE_BLOCKING_PORT_HH__
+#define __NEW_SIMPLE_BLOCKING_PORT_HH__
 
 #include <queue>
 #include <map>
@@ -39,7 +39,7 @@
 #include "base/statistics.hh"
 #include "base/trace.hh"
 #include "mem/port.hh"
-#include "params/DualPort.hh"
+#include "params/SimpleBlockingPort.hh"
 #include "sim/sim_object.hh"
 #include "sim/stats.hh"
 #include "sim/sim_exit.hh"
@@ -74,7 +74,7 @@ namespace gem5
  * This memobj is fully blocking (not non-blocking). Only a single request can
  * be outstanding at a time.
  */
-class DualPort : public SimObject
+class SimpleBlockingPort : public SimObject
 {
   private:
 
@@ -87,21 +87,18 @@ class DualPort : public SimObject
     {
       private:
         /// The object that owns this object (SimpleMemobj)
-        DualPort *owner;
-
+        SimpleBlockingPort *owner;
 
         // Instead of keeping a single blockedPacket, we keep a map of
         // blockedPackets.
         /// If we tried to send a packet and it was blocked, store it here
-        std::queue<PacketPtr> requestPackets;
 
       public:
         /**
          * Constructor. Just calls the superclass constructor.
          */
-        CPUSidePort(const std::string& name, DualPort *owner) :
-            ResponsePort(name), owner(owner), needRetry(false),
-            blockedPacket(nullptr)
+        CPUSidePort(const std::string& name, SimpleBlockingPort *owner) :
+            ResponsePort(name), owner(owner)
         {
             // TODO
             // Ideally we also want to initialize a traffic generator object
@@ -109,9 +106,6 @@ class DualPort : public SimObject
             // permission table.
         }
 
-        /// True if the port needs to send a retry req.
-        bool needRetry;
-        PacketPtr blockedPacket;
         /**
          * Send a packet across this port. This is called by the owner and
          * all of the flow control is hanled in this function.
@@ -129,8 +123,8 @@ class DualPort : public SimObject
          */
         AddrRangeList getAddrRanges() const override;
 
-        bool isBlocked();
-
+        std::queue<PacketPtr> blockedRequests;
+        std::unordered_map<gem5::Addr, gem5::PacketPtr> requestMap;
         /**
          * Send a retry to the peer port only if it is needed. This is called
          * from the SimpleMemobj whenever it is unblocked.
@@ -178,20 +172,18 @@ class DualPort : public SimObject
     {
       private:
         /// The object that owns this object (SimpleMemobj)
-        DualPort *owner;
+        SimpleBlockingPort *owner;
 
         // Make sure that this is a queue so that the SimObject is
         // non-blocking.
         /// If we tried to send a packet and it was blocked, store it here
-        PacketPtr blockedPacket;
-        std::queue<PacketPtr> responsePackets;
 
       public:
         /**
          * Constructor. Just calls the superclass constructor.
          */
-        MemSidePort(const std::string& name, DualPort *owner) :
-            RequestPort(name), owner(owner), blockedPacket(nullptr)
+        MemSidePort(const std::string& name, SimpleBlockingPort *owner) :
+            RequestPort(name), owner(owner)
         {
             //
             // TODO
@@ -206,14 +198,14 @@ class DualPort : public SimObject
          */
         // void sendPacket(PacketPtr pkt);
 
+        std::queue<PacketPtr> blockedResponses;
+        std::unordered_map<gem5::Addr, gem5::PacketPtr> responseMap;
       protected:
         /**
          * Receive a timing response from the response port.
          */
         bool recvTimingResp(PacketPtr pkt) override;
 
-
-        bool isBlocked();
         /**
          * Called by the response port if sendTimingReq was called on this
          * request port (causing recvTimingReq to be called on the responder
@@ -231,24 +223,7 @@ class DualPort : public SimObject
         void recvRangeChange() override;
     };
 
-    /**
-     * Handle the request from the CPU side
-     *
-     * @param requesting packet
-     * @return true if we can handle the request this cycle, false if the
-     *         requestor needs to retry later
-     */
-    bool handleRequest(PacketPtr pkt);
-    void trySendRetry();
-
-    /**
-     * Handle the respone from the memory side
-     *
-     * @param responding packet
-     * @return true if we can handle the response this cycle, false if the
-     *         responder needs to retry later
-     */
-    bool handleResponse(PacketPtr pkt);
+    // void trySendRetry();
 
     /**
      * Handle a packet functionally. Update the data on a write and get the
@@ -280,9 +255,11 @@ class DualPort : public SimObject
 
     // The permission table needs to schedule events
     void processEvent();
+
+    void scheduleNewEvent();
     // This event is responsible for queueing the permission lookup and
     // creation latency
-    EventWrapper<DualPort, &DualPort::processEvent> event;
+    EventWrapper<SimpleBlockingPort, &SimpleBlockingPort::processEvent> event;
     // We need dual port stats for verification and results.
     struct StatGroup : public statistics::Group
     {
@@ -330,7 +307,11 @@ class DualPort : public SimObject
     /// Instantiation of the memory-side port
     MemSidePort memSidePort;
 
+    // To enable or disable permission checks
     bool enablePermissionCheck;
+
+    /// True if this is currently blocked waiting for a response.
+    // bool blocked;
 
     // make sure to use these variables for the MMP lookup
     gem5::Tick creationLatency;
@@ -367,18 +348,10 @@ class DualPort : public SimObject
     // We need a  variable for the total number of enteies
     uint64_t total_entries;
     std::string cachePolicy;
-    /// True if this is currently blocked waiting for a response. Making sure
-    /// that this is re-enabled.
-    bool blocked;
-
 
     std::map<gem5::Addr, cache_entry_vector*> permission_table;
 
     // for non-blocking memory requests. these objects must be of the owner
-    std::queue<PacketPtr> requestQueue;
-    std::queue<PacketPtr> responseQueue;
-    std::unordered_map<gem5::Addr, PacketPtr> outstandingRequests;
-    std::unordered_map<gem5::Addr, PacketPtr> outstandingResponses;
 
 
 
@@ -399,11 +372,8 @@ class DualPort : public SimObject
 
     /** constructor
      */
-    DualPort(const DualPortParams &params);
-
+    SimpleBlockingPort(const SimpleBlockingPortParams &params);
     void startup() override;
-
-    void scheduleLookup();
 
     /**
      * Get a port with a given name and index. This is used at
@@ -423,4 +393,4 @@ class DualPort : public SimObject
 
 } // namespace gem5
 
-#endif // __NEW_DUAL_PORT_HH__
+#endif // __NEW_SIMPLE_BLOCKING_PORT_HH__

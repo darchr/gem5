@@ -28,7 +28,14 @@ from cachehierarchies.private_l1_private_l2_shared_l3_cache_hierarchy import (
     PrivateL1PrivateL2SharedL3CacheHierarchy,
 )
 
-from m5.objects import L2XBar, DualPort, PortTerminator
+from m5.objects import (
+    # DualPort,
+    L2XBar,
+    PortTerminator,
+    # SimpleBlockingPort,
+    # SimplePort,
+    ClockedPermission
+)
 
 from gem5.components.boards.abstract_board import AbstractBoard
 from gem5.components.cachehierarchies.classic.caches.l1dcache import L1DCache
@@ -61,10 +68,12 @@ class ClassicPrivateL1PrivateL2SharedL3CacheHierarchyWChecks(
             l3_assoc=l3_assoc,
         )
         # Make sure to add the permission table object here
-        self.permission_table = DualPort()
-    
+        # self.permission_table = SimplePort()
+        self.permission_table = ClockedPermission()
+        # self.permission_table = SimpleBlockingPort()
+
     # We need new APIs to get the permission_atble
-    def get_permission_table(self) -> DualPort:
+    def get_permission_table(self) -> ClockedPermission:
         return self.permission_table
 
     @overrides(PrivateL1PrivateL2SharedL3CacheHierarchy)
@@ -87,8 +96,7 @@ class ClassicPrivateL1PrivateL2SharedL3CacheHierarchyWChecks(
             L2XBar() for i in range(board.get_processor().get_num_cores())
         ]
         self.l2caches = [
-            L2Cache(size=self._l2_size,
-                    writeback_clean=True)
+            L2Cache(size=self._l2_size, writeback_clean=True)
             for i in range(board.get_processor().get_num_cores())
         ]
 
@@ -100,7 +108,7 @@ class ClassicPrivateL1PrivateL2SharedL3CacheHierarchyWChecks(
             response_latency=self._l3_response_latency,
             mshrs=self._l3_mshrs,
             tgts_per_mshr=self._l3_tgts_per_mshr,
-            writeback_clean=False
+            writeback_clean=False,
         )
         self.l3cache.write_buffers = 16
         # self.l3cache.clusivity = "mostly_incl"
@@ -148,8 +156,10 @@ class ClassicPrivateL1PrivateL2SharedL3CacheHierarchyWChecks(
         self.l3bus.mem_side_ports = self.l3cache.cpu_side
 
         # Connect the l3cache.mem_side to the dual port object
-        self.l3cache.mem_side = self.permission_table.cpu_side_port
+        self.l3cache.mem_side = self.permission_table.cpu_side_ports
         self.permission_table.mem_side_port = self.membus.cpu_side_ports
+        # self.l3cache.mem_side = self.permission_table.data_port
+        # self.permission_table.mem_side = self.membus.cpu_side_ports
 
 
 class ClassicPrivateL1PrivateL2DMCache(PrivateL1PrivateL2CacheHierarchy):
@@ -172,13 +182,13 @@ class ClassicPrivateL1PrivateL2DMCache(PrivateL1PrivateL2CacheHierarchy):
         """
         super().__init__(l1i_size, l1d_size, l2_size)
         # Make sure to add the permission table object here
-        self.permission_table = DualPort()
-        self.killer = PortTerminator()
+        # self.permission_table = DualPort()
+        # self.killer = PortTerminator()
         # self.permission_table.cpu_side_port = self.killer.req_ports
         # self.permission_table.mem_side_port = self.killer.resp_ports
-    
+
     # We need new APIs to get the permission_atble
-    def get_permission_table(self) -> DualPort:
+    def get_permission_table(self) -> ClockedPermission:
         return self.permission_table
 
     @overrides(PrivateL1PrivateL2CacheHierarchy)

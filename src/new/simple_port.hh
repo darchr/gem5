@@ -2,9 +2,6 @@
  * Copyright (c) 2017 Jason Lowe-Power
  * All rights reserved.
  *
- * Copyright (c) 2025 Regents of the University of California
- * All rights reserved.
- *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
  * met: redistributions of source code must retain the above copyright
@@ -29,44 +26,15 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef __NEW_DUAL_PORT_HH__
-#define __NEW_DUAL_PORT_HH__
+#ifndef __NEW_SIMPLE_PORT_HH__
+#define __NEW_SIMPLE_PORT_HH__
 
-#include <queue>
-#include <map>
-
-#include "sim/eventq.hh"
-#include "base/statistics.hh"
-#include "base/trace.hh"
 #include "mem/port.hh"
-#include "params/DualPort.hh"
+#include "params/SimplePort.hh"
 #include "sim/sim_object.hh"
-#include "sim/stats.hh"
-#include "sim/sim_exit.hh"
 
 namespace gem5
 {
-/**
- * This SimObject is created from the simple memory object that can have
- * multiple requests coming in and going out with and without additional
- * latency. This extra latency is added for the permission checks against a
- * given memory address. The SimObject will be extended (TODO) to cache some of
- * these requests.
- *
- * Features:
- *
- *
- * Limitations:
- * The only thing that is missing is the extra memory access to access the
- * permission table. This can be done using a simple traffic generator that
- * accesses the permission table without the OS getting involved.
- *
- * The original Mondrian paper doesn't do any of the stuff they mention in
- * their paper. They "create" permission tables from a trace with marked mmaped
- * instructions. We are annotating mmaps to create the permission table. The
- * creation latency is ignored but the lookup latency is added to every memory
- * request.
- */
 
 /**
  * A very simple memory object. Current implementation doesn't even cache
@@ -74,7 +42,7 @@ namespace gem5
  * This memobj is fully blocking (not non-blocking). Only a single request can
  * be outstanding at a time.
  */
-class DualPort : public SimObject
+class SimplePort : public SimObject
 {
   private:
 
@@ -86,39 +54,31 @@ class DualPort : public SimObject
     class CPUSidePort : public ResponsePort
     {
       private:
-        /// The object that owns this object (SimpleMemobj)
-        DualPort *owner;
+        /// The object that owns this object (SimplePort)
+        SimplePort *owner;
 
+        /// True if the port needs to send a retry req.
+        bool needRetry;
 
-        // Instead of keeping a single blockedPacket, we keep a map of
-        // blockedPackets.
         /// If we tried to send a packet and it was blocked, store it here
-        std::queue<PacketPtr> requestPackets;
+        PacketPtr blockedPacket;
 
       public:
         /**
          * Constructor. Just calls the superclass constructor.
          */
-        CPUSidePort(const std::string& name, DualPort *owner) :
+        CPUSidePort(const std::string& name, SimplePort *owner) :
             ResponsePort(name), owner(owner), needRetry(false),
             blockedPacket(nullptr)
-        {
-            // TODO
-            // Ideally we also want to initialize a traffic generator object
-            // that creates memory packets going to the memory to read the
-            // permission table.
-        }
+        { }
 
-        /// True if the port needs to send a retry req.
-        bool needRetry;
-        PacketPtr blockedPacket;
         /**
          * Send a packet across this port. This is called by the owner and
          * all of the flow control is hanled in this function.
          *
          * @param packet to send.
          */
-        // void sendPacket(PacketPtr pkt);
+        void sendPacket(PacketPtr pkt);
 
         /**
          * Get a list of the non-overlapping address ranges the owner is
@@ -129,20 +89,19 @@ class DualPort : public SimObject
          */
         AddrRangeList getAddrRanges() const override;
 
-        bool isBlocked();
-
         /**
          * Send a retry to the peer port only if it is needed. This is called
-         * from the SimpleMemobj whenever it is unblocked.
+         * from the SimplePort whenever it is unblocked.
          */
-        // void trySendRetry();
+        void trySendRetry();
 
       protected:
         /**
          * Receive an atomic request packet from the request port.
          * No need to implement in this simple memobj.
          */
-        Tick recvAtomic(PacketPtr pkt) override;
+        Tick recvAtomic(PacketPtr pkt) override
+        { panic("recvAtomic unimpl."); }
 
         /**
          * Receive a functional request packet from the request port.
@@ -177,26 +136,19 @@ class DualPort : public SimObject
     class MemSidePort : public RequestPort
     {
       private:
-        /// The object that owns this object (SimpleMemobj)
-        DualPort *owner;
+        /// The object that owns this object (SimplePort)
+        SimplePort *owner;
 
-        // Make sure that this is a queue so that the SimObject is
-        // non-blocking.
         /// If we tried to send a packet and it was blocked, store it here
         PacketPtr blockedPacket;
-        std::queue<PacketPtr> responsePackets;
 
       public:
         /**
          * Constructor. Just calls the superclass constructor.
          */
-        MemSidePort(const std::string& name, DualPort *owner) :
+        MemSidePort(const std::string& name, SimplePort *owner) :
             RequestPort(name), owner(owner), blockedPacket(nullptr)
-        {
-            //
-            // TODO
-            // Add host_id for the disaggregated memory changes.
-        }
+        { }
 
         /**
          * Send a packet across this port. This is called by the owner and
@@ -204,7 +156,7 @@ class DualPort : public SimObject
          *
          * @param packet to send.
          */
-        // void sendPacket(PacketPtr pkt);
+        void sendPacket(PacketPtr pkt);
 
       protected:
         /**
@@ -212,8 +164,6 @@ class DualPort : public SimObject
          */
         bool recvTimingResp(PacketPtr pkt) override;
 
-
-        bool isBlocked();
         /**
          * Called by the response port if sendTimingReq was called on this
          * request port (causing recvTimingReq to be called on the responder
@@ -239,7 +189,6 @@ class DualPort : public SimObject
      *         requestor needs to retry later
      */
     bool handleRequest(PacketPtr pkt);
-    void trySendRetry();
 
     /**
      * Handle the respone from the memory side
@@ -259,13 +208,6 @@ class DualPort : public SimObject
     void handleFunctional(PacketPtr pkt);
 
     /**
-     * Handle a packet atomically. Update the data on a write and get the
-     * data on a read.
-     *
-     * @param packet to functionally handle
-     */
-    Tick handleAtomic(PacketPtr pkt);
-    /**
      * Return the address ranges this memobj is responsible for. Just use the
      * same as the next upper level of the hierarchy.
      *
@@ -278,132 +220,21 @@ class DualPort : public SimObject
      */
     void sendRangeChange();
 
-    // The permission table needs to schedule events
-    void processEvent();
-    // This event is responsible for queueing the permission lookup and
-    // creation latency
-    EventWrapper<DualPort, &DualPort::processEvent> event;
-    // We need dual port stats for verification and results.
-    struct StatGroup : public statistics::Group
-    {
-        StatGroup(statistics::Group *parent);
-        /** Count the number of incoming LLC packets */
-        statistics::Scalar numIncomingCPUSidePackets;
-
-        /** Count the number of outgoing memory packets */
-        statistics::Scalar numOutgoingMemSidePackets;
-
-        /** Count the number of traffic packets */
-        statistics::Scalar numOutgoingTrafficPackets;
-
-        /** Number of entries in the permission table */
-        statistics::Scalar numPermissionTableEntries;
-
-        /** Number of hits in the permission table cache */
-        statistics::Scalar numPermissionTableCacheHits;
-
-        /** total number of accesses into the permission table (redundant!) */
-        statistics::Scalar numPermissionTableAccesses;
-
-        // /** Count the number of incoming read packets */
-        // statistics::Scalar numReadIncomingPackets;
-
-        // /** Count the number of incoming write packets */
-        // statistics::Scalar numWriteIncomingPackets;
-
-        // /** Create a histogram of the latencies of packets sent via this port*/
-        // statistics::Histogram packetLatency;
-
-        // /** Create a histogram of the total outstanding packets */
-        // statistics::Histogram outstandingPackets;
-    } stats;
-    // Instantiation of the CPU-side ports. Unlike the instruction and data
-    // ports of the original SimObject, we are only interested in a single
-    // port. Is this a bottle-neck? Yes, but this only connects the L3 cache
-    // to the membus
-    //
-    CPUSidePort cpuSidePort;
-    // TODO
-    // We'd also need a traffic generator port that will start creating traffic
-    // in the memory.
+    /// Instantiation of the CPU-side ports
+    // CPUSidePort instPort;
+    CPUSidePort dataPort;
 
     /// Instantiation of the memory-side port
-    MemSidePort memSidePort;
+    MemSidePort memPort;
 
-    bool enablePermissionCheck;
-
-    // make sure to use these variables for the MMP lookup
-    gem5::Tick creationLatency;
-    gem5::Tick hitLatency;
-    gem5::Tick missLatency;
-
-    // we need a class variable for the additional latency until we find a way
-    // to pass method parameters
-    gem5::Tick class_latency;
-
-    // We may need the total memory size as well :(
-    uint64_t totalMemorySize;
-    // Size of the cache. The table is calculated as the total size of the
-    // memory
-    int cacheSize;
-    // The segment size is defined by the user. We simulate everyrhing with
-    // a fixed segment.
-    int segmentSize;
-
-    // Each entry in the MMP permission will have these values. There are
-    // implementational details.
-    struct cache_entry_vector {
-      bool is_cached;
-      gem5::Tick last_accessed;
-      int access_count;
-    };
-
-    // We need a couple of more variables to keep a track of
-    // total_cached_entries and the maximum number of cached entiers possible
-    // to be stored in the cache.
-    uint64_t total_cached_entries;
-    uint64_t max_cached_entries;
-
-    // We need a  variable for the total number of enteies
-    uint64_t total_entries;
-    std::string cachePolicy;
-    /// True if this is currently blocked waiting for a response. Making sure
-    /// that this is re-enabled.
+    /// True if this is currently blocked waiting for a response.
     bool blocked;
-
-
-    std::map<gem5::Addr, cache_entry_vector*> permission_table;
-
-    // for non-blocking memory requests. these objects must be of the owner
-    std::queue<PacketPtr> requestQueue;
-    std::queue<PacketPtr> responseQueue;
-    std::unordered_map<gem5::Addr, PacketPtr> outstandingRequests;
-    std::unordered_map<gem5::Addr, PacketPtr> outstandingResponses;
-
-
-
-
-    /**
-     * We need a caching implementation and policies. there can be multiple
-     * latencies: lookup if there is an MMP entry (new address)
-     *            create the entry if needed
-     *            lookup in the cache (hit or miss)
-     */
-    gem5::Tick isCachedRequest(gem5::Addr addr);
-    gem5::Tick simpleLRU(gem5::Addr addr);
-    gem5::Tick simpleMRU(gem5::Addr addr);
-    gem5::Tick simpleRandom(gem5::Addr addr);
-
 
   public:
 
     /** constructor
      */
-    DualPort(const DualPortParams &params);
-
-    void startup() override;
-
-    void scheduleLookup();
+    SimplePort(const SimplePortParams &params);
 
     /**
      * Get a port with a given name and index. This is used at
@@ -417,10 +248,8 @@ class DualPort : public SimObject
      */
     Port &getPort(const std::string &if_name,
                   PortID idx=InvalidPortID) override;
-
-
 };
 
 } // namespace gem5
 
-#endif // __NEW_DUAL_PORT_HH__
+#endif // __LEARNING_GEM5_PART2_SIMPLE_MEMOBJ_HH__

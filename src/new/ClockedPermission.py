@@ -28,10 +28,15 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 from m5.params import *
-from m5.SimObject import SimObject
+from m5.objects.ClockedObject import ClockedObject
+from m5.SimObject import (
+    PyBindMethod,
+    SimObject,
+)
 
 
-class DualPort(SimObject):
+
+class ClockedPermission(ClockedObject):
     """
     This is a simple SimObject that sits between the LLC and the memory
     controller that is responsible for performing checks with physical
@@ -65,20 +70,16 @@ class DualPort(SimObject):
     traffic_side_port: The traffic port that receives requests.
     """
 
-    type = "DualPort"
-    cxx_header = "new/dual_port.hh"
-    cxx_class = "gem5::DualPort"
+    type = "ClockedPermission"
+    cxx_header = "new/clocked_permission.hh"
+    cxx_class = "gem5::ClockedPermission"
 
-    cpu_side_port = ResponsePort("CPU side port, receives requests")
-    mem_side_port = RequestPort("Memory side port, sends requests")
+    # Receives request
+    cpu_side_ports = VectorResponsePort("Response side port, sends requests")
+    mem_side_port = RequestPort("Reqeust side port, receives requests")
 
-    # We need a toggle function to enable or disable MMP checks
-    enable_permission_check = Param.Bool(
-        True,
-        "To enable or disable \
-                                                        permission checks.",
-    )
 
+    
     # We need to define a range on where the permission tables are stored in
     # the main memory. By default, the first 1 GiB after 4 GiB is fixed for the
     # permission table. The table is indexed by a binary search on the address
@@ -88,6 +89,10 @@ class DualPort(SimObject):
     addr_range = Param.AddrRange(
         AddrRange(0x100000000, 0x140000000), "MMP table location"
     )
+
+    # We need a toggle function to enable or disable MMP checks
+    enable_permission_check = Param.Bool(True, "To enable or disable \
+                                                        permission checks.")
 
     # TODO
     # Need to add a port to connect this Object to the traffic generator with
@@ -100,9 +105,8 @@ class DualPort(SimObject):
     creation_latency = Param.Tick(
         25,
         "latency to create a new entry in the \
-                                                        permission table.",
+                                        permission table.",
     )
-
     hit_latency = Param.Tick(10, "Latency to forward packets")
     miss_latency = Param.Tick(50, "This must be a variable latency.")
 
@@ -139,3 +143,4 @@ class DualPort(SimObject):
     )
 
     # What else do we need?
+    

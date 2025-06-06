@@ -28,8 +28,8 @@
 
 
 """
-import os
 import argparse
+import os
 import sys
 import time
 
@@ -37,23 +37,27 @@ import time
 sys.path.append(
     os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir))
 )
-import m5
-from m5.objects import Root, AddrRange
-
 from boards.x86_permission_board import X86PermissionBoard
-from gem5.components.memory import DualChannelDDR4_2400
+
+import m5
+from m5.objects import (
+    AddrRange,
+    Root,
+)
+
+from gem5.components.memory import SingleChannelDDR4_2400
 from gem5.components.processors.cpu_types import CPUTypes
 from gem5.components.processors.simple_switchable_processor import (
     SimpleSwitchableProcessor,
 )
 from gem5.isas import ISA
+from gem5.resources.resource import *
 from gem5.resources.resource import obtain_resource
+from gem5.resources.workload import *
 from gem5.simulate.exit_event import ExitEvent
 from gem5.simulate.simulator import Simulator
 from gem5.utils.requires import requires
 
-from gem5.resources.resource import *
-from gem5.resources.workload import *
 requires(
     isa_required=ISA.X86,
     kvm_required=True,
@@ -77,7 +81,7 @@ args = parser.parse_args()
 # Setting up all the fixed system parameters here
 # Caches: MESI Two Level Cache Hierarchy
 
-from cachehierarchies.dm_caches import * # ClassicPrivateL1PrivateL2SharedL3CacheHierarchyWChecks
+from cachehierarchies.dm_caches import *  # ClassicPrivateL1PrivateL2SharedL3CacheHierarchyWChecks
 
 # cache_hierarchy = ClassicPrivateL1PrivateL2DMCache(
 #     l1d_size = "32KiB",
@@ -85,15 +89,20 @@ from cachehierarchies.dm_caches import * # ClassicPrivateL1PrivateL2SharedL3Cach
 #     l2_size = "512 KiB",)
 
 cache_hierarchy = ClassicPrivateL1PrivateL2SharedL3CacheHierarchyWChecks(
-    l1d_size = "32KiB",
-    l1i_size = "32KiB",
-    l2_size = "512 KiB",
-    l3_size = "8MiB",
+    l1d_size="32KiB",
+    l1i_size="32KiB",
+    l2_size="512 KiB",
+    l3_size="8MiB",
 )
+
+# configure the permission table
+cache_hierarchy.get_permission_table().enable_permission_check = True
+cache_hierarchy.get_permission_table().total_memory_size = 0x20000000
+
 # Memory: Dual Channel DDR4 2400 DRAM device.
 # The X86 board only supports 3 GiB of main memory.
 
-memory = DualChannelDDR4_2400(size="2GiB")
+memory = SingleChannelDDR4_2400(size="1GiB")
 
 # Here we setup the processor. This is a special switchable processor in which
 # a starting core type and a switch core type must be specified. Once a
@@ -116,8 +125,8 @@ board = X86PermissionBoard(
     processor=processor,
     cache_hierarchy=cache_hierarchy,
     memory=memory,
-    os_memory_range="2G",
-    permission_table_range=AddrRange(start=0x80000000, size="1GiB")
+    os_memory_range="1G",
+    permission_table_range=AddrRange(start=0x0, size="1GiB"),
 )
 
 # Here we set the FS workload, i.e., gapbs benchmark program
@@ -142,27 +151,31 @@ cmd = [
     # Ignore the boot time stats. Allocate a tiny graph.
     "echo '12345' | sudo /home/gem5/shared-gapbs/allocator -S 1 -x 0 -g 10;",
     # This program can simply exit now.
-    "m5 exit;"
+    "m5 exit;",
 ]
 workload = CustomWorkload(
-        function="set_kernel_disk_workload",
-        parameters={
-            "kernel": CustomResource("/home/kaustavg/kernel/x86/linux-6.9.9/vmlinux"),
-            "disk_image":
-            DiskImageResource("/home/kaustavg/projects/kg-resources-2/src/shared-gapbs/x86-disk-image-24-04/x86-ubuntu"),
-            "readfile_contents": " ".join(cmd),
-            "kernel_args": [
-                "earlyprintk=ttyS0",
-                "console=ttyS0",
-                "lpj=7999923",
-                "root=/dev/sda2",
-                "no_systemd=true", # init=/bin/bash",
-                # "memmap=8G!7G",
-                "mem=2G"
-            ]
-        },
-    )
+    function="set_kernel_disk_workload",
+    parameters={
+        "kernel": CustomResource(
+            "/home/kaustavg/kernel/x86/linux-6.9.9/vmlinux"
+        ),
+        "disk_image": DiskImageResource(
+            "/home/kaustavg/projects/kg-resources-2/src/shared-gapbs/x86-disk-image-24-04/x86-ubuntu"
+        ),
+        "readfile_contents": " ".join(cmd),
+        "kernel_args": [
+            "earlyprintk=ttyS0",
+            "console=ttyS0",
+            "lpj=7999923",
+            "root=/dev/sda2",
+            "no_systemd=true",  # init=/bin/bash",
+            # "memmap=8G!7G",
+            "mem=2G",
+        ],
+    },
+)
 board.set_workload(workload)
+
 
 def handle_workbegin():
     print("Done booting Linux")
@@ -183,11 +196,10 @@ def handle_workend():
 def on_exit():
     yield False
 
+
 simulator = Simulator(
     board=board,
-    on_exit_event={
-        ExitEvent.EXIT: on_exit()
-    },
+    on_exit_event={ExitEvent.EXIT: on_exit()},
 )
 
 # We maintain the wall clock time.
