@@ -1,0 +1,1 @@
+echo 12345 | sudo -S /home/gem5/NPB3.4-OMP/bin/sp.C.x;

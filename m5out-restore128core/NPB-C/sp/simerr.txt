@@ -1,0 +1,205 @@
+warn: The `CustomResource` class is deprecated. Please use an `AbstractResource` subclass instead.
+warn: The `CustomResource` class is deprecated. Please use an `AbstractResource` subclass instead.
+warn: The `CustomWorkload` class is deprecated. Please use the `gem5.resources.resource.WorkloadResource` class instead.
+warn: Setting the checkpoint path via the Simulator constructor is deprecated and will be removed in future releases of gem5. Please set this through via the appropriate workload function (i.e., `set_se_binary_workload` or `set_kernel_disk_workload`). If both are set the workload function set takes precedence.
+warn: No dot file generated. Please install pydot to generate the dot file and pdf.
+src/mem/dram_interface.cc:690: warn: DRAM device capacity (16384 Mbytes) does not match the address range assigned (16 Mbytes)
+src/mem/dram_interface.cc:690: warn: DRAM device capacity (16384 Mbytes) does not match the address range assigned (16 Mbytes)
+src/mem/dram_interface.cc:690: warn: DRAM device capacity (16384 Mbytes) does not match the address range assigned (16 Mbytes)
+src/mem/dram_interface.cc:690: warn: DRAM device capacity (16384 Mbytes) does not match the address range assigned (16 Mbytes)
+src/mem/dram_interface.cc:690: warn: DRAM device capacity (16384 Mbytes) does not match the address range assigned (16 Mbytes)
+src/mem/dram_interface.cc:690: warn: DRAM device capacity (16384 Mbytes) does not match the address range assigned (16 Mbytes)
+src/mem/dram_interface.cc:690: warn: DRAM device capacity (16384 Mbytes) does not match the address range assigned (16 Mbytes)
+src/mem/dram_interface.cc:690: warn: DRAM device capacity (16384 Mbytes) does not match the address range assigned (16 Mbytes)
+src/mem/dram_interface.cc:690: warn: DRAM device capacity (16384 Mbytes) does not match the address range assigned (16 Mbytes)
+src/mem/dram_interface.cc:690: warn: DRAM device capacity (16384 Mbytes) does not match the address range assigned (16 Mbytes)
+src/mem/dram_interface.cc:690: warn: DRAM device capacity (16384 Mbytes) does not match the address range assigned (16 Mbytes)
+src/mem/dram_interface.cc:690: warn: DRAM device capacity (16384 Mbytes) does not match the address range assigned (16 Mbytes)
+src/mem/dram_interface.cc:690: warn: DRAM device capacity (16384 Mbytes) does not match the address range assigned (16 Mbytes)
+src/mem/dram_interface.cc:690: warn: DRAM device capacity (16384 Mbytes) does not match the address range assigned (16 Mbytes)
+src/mem/dram_interface.cc:690: warn: DRAM device capacity (16384 Mbytes) does not match the address range assigned (16 Mbytes)
+src/mem/dram_interface.cc:690: warn: DRAM device capacity (16384 Mbytes) does not match the address range assigned (16 Mbytes)
+src/mem/dram_interface.cc:690: warn: DRAM device capacity (16384 Mbytes) does not match the address range assigned (16 Mbytes)
+src/mem/dram_interface.cc:690: warn: DRAM device capacity (16384 Mbytes) does not match the address range assigned (16 Mbytes)
+src/mem/dram_interface.cc:690: warn: DRAM device capacity (16384 Mbytes) does not match the address range assigned (16 Mbytes)
+src/mem/dram_interface.cc:690: warn: DRAM device capacity (16384 Mbytes) does not match the address range assigned (16 Mbytes)
+src/mem/dram_interface.cc:690: warn: DRAM device capacity (16384 Mbytes) does not match the address range assigned (16 Mbytes)
+src/mem/dram_interface.cc:690: warn: DRAM device capacity (16384 Mbytes) does not match the address range assigned (16 Mbytes)
+src/mem/dram_interface.cc:690: warn: DRAM device capacity (16384 Mbytes) does not match the address range assigned (16 Mbytes)
+src/mem/dram_interface.cc:690: warn: DRAM device capacity (16384 Mbytes) does not match the address range assigned (16 Mbytes)
+src/mem/dram_interface.cc:690: warn: DRAM device capacity (16384 Mbytes) does not match the address range assigned (16 Mbytes)
+src/mem/dram_interface.cc:690: warn: DRAM device capacity (16384 Mbytes) does not match the address range assigned (16 Mbytes)
+src/mem/dram_interface.cc:690: warn: DRAM device capacity (16384 Mbytes) does not match the address range assigned (16 Mbytes)
+src/mem/dram_interface.cc:690: warn: DRAM device capacity (16384 Mbytes) does not match the address range assigned (16 Mbytes)
+src/mem/dram_interface.cc:690: warn: DRAM device capacity (16384 Mbytes) does not match the address range assigned (16 Mbytes)
+src/mem/dram_interface.cc:690: warn: DRAM device capacity (16384 Mbytes) does not match the address range assigned (16 Mbytes)
+src/mem/dram_interface.cc:690: warn: DRAM device capacity (16384 Mbytes) does not match the address range assigned (16 Mbytes)
+src/mem/dram_interface.cc:690: warn: DRAM device capacity (16384 Mbytes) does not match the address range assigned (16 Mbytes)
+src/mem/dram_interface.cc:690: warn: DRAM device capacity (16384 Mbytes) does not match the address range assigned (16 Mbytes)
+src/mem/dram_interface.cc:690: warn: DRAM device capacity (16384 Mbytes) does not match the address range assigned (16 Mbytes)
+src/mem/dram_interface.cc:690: warn: DRAM device capacity (16384 Mbytes) does not match the address range assigned (16 Mbytes)
+src/mem/dram_interface.cc:690: warn: DRAM device capacity (16384 Mbytes) does not match the address range assigned (16 Mbytes)
+src/mem/dram_interface.cc:690: warn: DRAM device capacity (16384 Mbytes) does not match the address range assigned (16 Mbytes)
+src/mem/dram_interface.cc:690: warn: DRAM device capacity (16384 Mbytes) does not match the address range assigned (16 Mbytes)
+src/mem/dram_interface.cc:690: warn: DRAM device capacity (16384 Mbytes) does not match the address range assigned (16 Mbytes)
+src/mem/dram_interface.cc:690: warn: DRAM device capacity (16384 Mbytes) does not match the address range assigned (16 Mbytes)
+src/mem/dram_interface.cc:690: warn: DRAM device capacity (16384 Mbytes) does not match the address range assigned (16 Mbytes)
+src/mem/dram_interface.cc:690: warn: DRAM device capacity (16384 Mbytes) does not match the address range assigned (16 Mbytes)
+src/mem/dram_interface.cc:690: warn: DRAM device capacity (16384 Mbytes) does not match the address range assigned (16 Mbytes)
+src/mem/dram_interface.cc:690: warn: DRAM device capacity (16384 Mbytes) does not match the address range assigned (16 Mbytes)
+src/mem/dram_interface.cc:690: warn: DRAM device capacity (16384 Mbytes) does not match the address range assigned (16 Mbytes)
+src/mem/dram_interface.cc:690: warn: DRAM device capacity (16384 Mbytes) does not match the address range assigned (16 Mbytes)
+src/mem/dram_interface.cc:690: warn: DRAM device capacity (16384 Mbytes) does not match the address range assigned (16 Mbytes)
+src/mem/dram_interface.cc:690: warn: DRAM device capacity (16384 Mbytes) does not match the address range assigned (16 Mbytes)
+src/mem/dram_interface.cc:690: warn: DRAM device capacity (16384 Mbytes) does not match the address range assigned (16 Mbytes)
+src/mem/dram_interface.cc:690: warn: DRAM device capacity (16384 Mbytes) does not match the address range assigned (16 Mbytes)
+src/mem/dram_interface.cc:690: warn: DRAM device capacity (16384 Mbytes) does not match the address range assigned (16 Mbytes)
+src/mem/dram_interface.cc:690: warn: DRAM device capacity (16384 Mbytes) does not match the address range assigned (16 Mbytes)
+src/mem/dram_interface.cc:690: warn: DRAM device capacity (16384 Mbytes) does not match the address range assigned (16 Mbytes)
+src/mem/dram_interface.cc:690: warn: DRAM device capacity (16384 Mbytes) does not match the address range assigned (16 Mbytes)
+src/mem/dram_interface.cc:690: warn: DRAM device capacity (16384 Mbytes) does not match the address range assigned (16 Mbytes)
+src/mem/dram_interface.cc:690: warn: DRAM device capacity (16384 Mbytes) does not match the address range assigned (16 Mbytes)
+src/mem/dram_interface.cc:690: warn: DRAM device capacity (16384 Mbytes) does not match the address range assigned (16 Mbytes)
+src/mem/dram_interface.cc:690: warn: DRAM device capacity (16384 Mbytes) does not match the address range assigned (16 Mbytes)
+src/mem/dram_interface.cc:690: warn: DRAM device capacity (16384 Mbytes) does not match the address range assigned (16 Mbytes)
+src/mem/dram_interface.cc:690: warn: DRAM device capacity (16384 Mbytes) does not match the address range assigned (16 Mbytes)
+src/mem/dram_interface.cc:690: warn: DRAM device capacity (16384 Mbytes) does not match the address range assigned (16 Mbytes)
+src/mem/dram_interface.cc:690: warn: DRAM device capacity (16384 Mbytes) does not match the address range assigned (16 Mbytes)
+src/mem/dram_interface.cc:690: warn: DRAM device capacity (16384 Mbytes) does not match the address range assigned (16 Mbytes)
+src/mem/dram_interface.cc:690: warn: DRAM device capacity (16384 Mbytes) does not match the address range assigned (16 Mbytes)
+src/sim/kernel_workload.cc:46: info: kernel located at: /home/babaie/.cache/gem5/vmlinux-5.4.49-NUMA.arm64
+src/base/loader/symtab.cc:95: warn: Cannot insert a new symbol table due to name collisions. Adding prefix to each symbol's name can resolve this issue.
+src/base/statistics.hh:279: warn: One of the stats is a legacy stat. Legacy stat is a stat that does not belong to any statistics::Group. Legacy stat is deprecated.
+src/base/statistics.hh:279: warn: One of the stats is a legacy stat. Legacy stat is a stat that does not belong to any statistics::Group. Legacy stat is deprecated.
+board.vncserver: Listening for connections on port 5900
+board.terminal: Listening for connections on port 3456
+board.realview.uart1.device: Listening for connections on port 3457
+board.realview.uart2.device: Listening for connections on port 3458
+board.realview.uart3.device: Listening for connections on port 3459
+board.remote_gdb: Listening for connections on port 7000
+src/sim/simulate.cc:200: info: Entering event queue @ 0.  Starting simulation...
+src/dev/arm/energy_ctrl.cc:252: warn: Existing EnergyCtrl, but no enabled DVFSHandler found.
+src/sim/simulate.cc:200: info: Entering event queue @ 10475512360250.  Starting simulation...
+src/mem/ruby/system/Sequencer.cc:704: warn: Replacement policy updates recently became the responsibility of SLICC state machines. Make sure to setMRU() near callbacks in .sm files!
+src/arch/arm/insts/pseudo.cc:174: warn: 	instruction 'bti' unimplemented
+src/arch/arm/insts/pseudo.cc:174: warn: 	instruction 'csdb' unimplemented
+src/arch/arm/insts/pseudo.cc:174: warn: 	instruction 'csdb' unimplemented
+src/arch/arm/insts/pseudo.cc:174: warn: 	instruction 'csdb' unimplemented
+src/arch/arm/insts/pseudo.cc:174: warn: 	instruction 'csdb' unimplemented
+src/arch/arm/insts/pseudo.cc:174: warn: 	instruction 'csdb' unimplemented
+src/arch/arm/insts/pseudo.cc:174: warn: 	instruction 'csdb' unimplemented
+src/arch/arm/insts/pseudo.cc:174: warn: 	instruction 'csdb' unimplemented
+src/arch/arm/insts/pseudo.cc:174: warn: 	instruction 'csdb' unimplemented
+src/arch/arm/insts/pseudo.cc:174: warn: 	instruction 'csdb' unimplemented
+src/arch/arm/insts/pseudo.cc:174: warn: 	instruction 'csdb' unimplemented
+src/arch/arm/insts/pseudo.cc:174: warn: 	instruction 'csdb' unimplemented
+src/arch/arm/insts/pseudo.cc:174: warn: 	instruction 'csdb' unimplemented
+src/arch/arm/insts/pseudo.cc:174: warn: 	instruction 'csdb' unimplemented
+src/arch/arm/insts/pseudo.cc:174: warn: 	instruction 'csdb' unimplemented
+src/arch/arm/insts/pseudo.cc:174: warn: 	instruction 'csdb' unimplemented
+src/arch/arm/insts/pseudo.cc:174: warn: 	instruction 'csdb' unimplemented
+src/arch/arm/insts/pseudo.cc:174: warn: 	instruction 'csdb' unimplemented
+src/arch/arm/insts/pseudo.cc:174: warn: 	instruction 'csdb' unimplemented
+src/arch/arm/insts/pseudo.cc:174: warn: 	instruction 'csdb' unimplemented
+src/arch/arm/insts/pseudo.cc:174: warn: 	instruction 'csdb' unimplemented
+src/arch/arm/insts/pseudo.cc:174: warn: 	instruction 'csdb' unimplemented
+src/arch/arm/insts/pseudo.cc:174: warn: 	instruction 'csdb' unimplemented
+src/arch/arm/insts/pseudo.cc:174: warn: 	instruction 'csdb' unimplemented
+src/arch/arm/insts/pseudo.cc:174: warn: 	instruction 'csdb' unimplemented
+src/arch/arm/insts/pseudo.cc:174: warn: 	instruction 'csdb' unimplemented
+src/arch/arm/insts/pseudo.cc:174: warn: 	instruction 'csdb' unimplemented
+src/arch/arm/insts/pseudo.cc:174: warn: 	instruction 'csdb' unimplemented
+src/arch/arm/insts/pseudo.cc:174: warn: 	instruction 'csdb' unimplemented
+src/arch/arm/insts/pseudo.cc:174: warn: 	instruction 'csdb' unimplemented
+src/arch/arm/insts/pseudo.cc:174: warn: 	instruction 'csdb' unimplemented
+src/arch/arm/insts/pseudo.cc:174: warn: 	instruction 'csdb' unimplemented
+src/arch/arm/insts/pseudo.cc:174: warn: 	instruction 'csdb' unimplemented
+src/arch/arm/insts/pseudo.cc:174: warn: 	instruction 'csdb' unimplemented
+src/arch/arm/insts/pseudo.cc:174: warn: 	instruction 'csdb' unimplemented
+src/arch/arm/insts/pseudo.cc:174: warn: 	instruction 'csdb' unimplemented
+src/arch/arm/insts/pseudo.cc:174: warn: 	instruction 'csdb' unimplemented
+src/arch/arm/insts/pseudo.cc:174: warn: 	instruction 'csdb' unimplemented
+src/arch/arm/insts/pseudo.cc:174: warn: 	instruction 'csdb' unimplemented
+src/arch/arm/insts/pseudo.cc:174: warn: 	instruction 'csdb' unimplemented
+src/arch/arm/insts/pseudo.cc:174: warn: 	instruction 'csdb' unimplemented
+src/arch/arm/insts/pseudo.cc:174: warn: 	instruction 'csdb' unimplemented
+src/arch/arm/insts/pseudo.cc:174: warn: 	instruction 'csdb' unimplemented
+src/arch/arm/insts/pseudo.cc:174: warn: 	instruction 'csdb' unimplemented
+src/arch/arm/insts/pseudo.cc:174: warn: 	instruction 'csdb' unimplemented
+src/arch/arm/insts/pseudo.cc:174: warn: 	instruction 'csdb' unimplemented
+src/arch/arm/insts/pseudo.cc:174: warn: 	instruction 'csdb' unimplemented
+src/arch/arm/insts/pseudo.cc:174: warn: 	instruction 'csdb' unimplemented
+src/arch/arm/insts/pseudo.cc:174: warn: 	instruction 'csdb' unimplemented
+src/arch/arm/insts/pseudo.cc:174: warn: 	instruction 'csdb' unimplemented
+src/arch/arm/insts/pseudo.cc:174: warn: 	instruction 'csdb' unimplemented
+src/arch/arm/insts/pseudo.cc:174: warn: 	instruction 'csdb' unimplemented
+src/arch/arm/insts/pseudo.cc:174: warn: 	instruction 'csdb' unimplemented
+src/arch/arm/insts/pseudo.cc:174: warn: 	instruction 'csdb' unimplemented
+src/arch/arm/insts/pseudo.cc:174: warn: 	instruction 'csdb' unimplemented
+src/arch/arm/insts/pseudo.cc:174: warn: 	instruction 'csdb' unimplemented
+src/arch/arm/insts/pseudo.cc:174: warn: 	instruction 'csdb' unimplemented
+src/arch/arm/insts/pseudo.cc:174: warn: 	instruction 'csdb' unimplemented
+src/arch/arm/insts/pseudo.cc:174: warn: 	instruction 'csdb' unimplemented
+src/arch/arm/insts/pseudo.cc:174: warn: 	instruction 'csdb' unimplemented
+src/arch/arm/insts/pseudo.cc:174: warn: 	instruction 'csdb' unimplemented
+src/arch/arm/insts/pseudo.cc:174: warn: 	instruction 'csdb' unimplemented
+src/arch/arm/insts/pseudo.cc:174: warn: 	instruction 'csdb' unimplemented
+src/arch/arm/insts/pseudo.cc:174: warn: 	instruction 'csdb' unimplemented
+src/arch/arm/insts/pseudo.cc:174: warn: 	instruction 'csdb' unimplemented
+src/arch/arm/insts/pseudo.cc:174: warn: 	instruction 'csdb' unimplemented
+src/arch/arm/insts/pseudo.cc:174: warn: 	instruction 'csdb' unimplemented
+src/arch/arm/insts/pseudo.cc:174: warn: 	instruction 'csdb' unimplemented
+src/arch/arm/insts/pseudo.cc:174: warn: 	instruction 'csdb' unimplemented
+src/arch/arm/insts/pseudo.cc:174: warn: 	instruction 'csdb' unimplemented
+src/arch/arm/insts/pseudo.cc:174: warn: 	instruction 'csdb' unimplemented
+src/arch/arm/insts/pseudo.cc:174: warn: 	instruction 'csdb' unimplemented
+src/arch/arm/insts/pseudo.cc:174: warn: 	instruction 'csdb' unimplemented
+src/arch/arm/insts/pseudo.cc:174: warn: 	instruction 'csdb' unimplemented
+src/arch/arm/insts/pseudo.cc:174: warn: 	instruction 'csdb' unimplemented
+src/arch/arm/insts/pseudo.cc:174: warn: 	instruction 'csdb' unimplemented
+src/arch/arm/insts/pseudo.cc:174: warn: 	instruction 'csdb' unimplemented
+src/arch/arm/insts/pseudo.cc:174: warn: 	instruction 'csdb' unimplemented
+src/arch/arm/insts/pseudo.cc:174: warn: 	instruction 'csdb' unimplemented
+src/arch/arm/insts/pseudo.cc:174: warn: 	instruction 'csdb' unimplemented
+src/arch/arm/insts/pseudo.cc:174: warn: 	instruction 'csdb' unimplemented
+src/arch/arm/insts/pseudo.cc:174: warn: 	instruction 'csdb' unimplemented
+src/arch/arm/insts/pseudo.cc:174: warn: 	instruction 'csdb' unimplemented
+src/arch/arm/insts/pseudo.cc:174: warn: 	instruction 'csdb' unimplemented
+src/arch/arm/insts/pseudo.cc:174: warn: 	instruction 'csdb' unimplemented
+build/ARM/mem/ruby/protocol/CHI/Cache_Controller.cc:8356: panic: Runtime Error at CHI-cache-actions.sm:3171: assert failure for machine board.cache_hierarchy.core_complexes60.l3cache.
+Memory Usage: 8802876 KBytes
+Program aborted at tick 10475618004250
+--- BEGIN LIBC BACKTRACE ---
+build/ARM/gem5.opt(_ZN4gem515print_backtraceEv+0x30)[0x5d56f90e4820]
+build/ARM/gem5.opt(_ZN4gem512abortHandlerEi+0x4c)[0x5d56f910da9c]
+/lib/x86_64-linux-gnu/libc.so.6(+0x45330)[0x7701c7e45330]
+/lib/x86_64-linux-gnu/libc.so.6(pthread_kill+0x11c)[0x7701c7e9eb2c]
+/lib/x86_64-linux-gnu/libc.so.6(gsignal+0x1e)[0x7701c7e4527e]
+/lib/x86_64-linux-gnu/libc.so.6(abort+0xdf)[0x7701c7e288ff]
+build/ARM/gem5.opt(+0x113cb75)[0x5d56f7ceab75]
+build/ARM/gem5.opt(_ZN4gem54ruby3CHI16Cache_Controller10Send_CompIERPNS1_9Cache_TBEERPNS1_16Cache_CacheEntryEm+0x608)[0x5d56f9ac2078]
+build/ARM/gem5.opt(_ZN4gem54ruby3CHI16Cache_Controller18doTransitionWorkerENS1_11Cache_EventENS1_11Cache_StateERS4_RPNS1_9Cache_TBEERPNS1_16Cache_CacheEntryEm+0x39aa)[0x5d56f9b335ba]
+build/ARM/gem5.opt(_ZN4gem54ruby3CHI16Cache_Controller12doTransitionENS1_11Cache_EventEPNS1_16Cache_CacheEntryEPNS1_9Cache_TBEEm+0xa8)[0x5d56f9b35668]
+build/ARM/gem5.opt(_ZN4gem54ruby3CHI16Cache_Controller6wakeupEv+0xef8)[0x5d56f9b42db8]
+build/ARM/gem5.opt(+0x2ffb7c6)[0x5d56f9ba97c6]
+build/ARM/gem5.opt(_ZN4gem510EventQueue10serviceOneEv+0xb7)[0x5d56f90fb6b7]
+build/ARM/gem5.opt(_ZN4gem59doSimLoopEPNS_10EventQueueE+0x70)[0x5d56f912e5e0]
+build/ARM/gem5.opt(_ZN4gem58simulateEm+0x27b)[0x5d56f912ed7b]
+build/ARM/gem5.opt(+0x34fd550)[0x5d56fa0ab550]
+build/ARM/gem5.opt(+0x11507ee)[0x5d56f7cfe7ee]
+/lib/x86_64-linux-gnu/libpython3.12.so.1.0(+0x1df488)[0x7701c8bdf488]
+/lib/x86_64-linux-gnu/libpython3.12.so.1.0(_PyObject_Call+0x5c)[0x7701c8b8482c]
+/lib/x86_64-linux-gnu/libpython3.12.so.1.0(_PyEval_EvalFrameDefault+0x8ec)[0x7701c8b19dec]
+/lib/x86_64-linux-gnu/libpython3.12.so.1.0(PyEval_EvalCode+0x20f)[0x7701c8ca086f]
+/lib/x86_64-linux-gnu/libpython3.12.so.1.0(+0x29c800)[0x7701c8c9c800]
+/lib/x86_64-linux-gnu/libpython3.12.so.1.0(+0x1dfaac)[0x7701c8bdfaac]
+/lib/x86_64-linux-gnu/libpython3.12.so.1.0(PyObject_Vectorcall+0x5c)[0x7701c8b82afc]
+/lib/x86_64-linux-gnu/libpython3.12.so.1.0(_PyEval_EvalFrameDefault+0x40ee)[0x7701c8b1d5ee]
+build/ARM/gem5.opt(+0x2564ce0)[0x5d56f9112ce0]
+build/ARM/gem5.opt(main+0x225)[0x5d56f7ca1b45]
+/lib/x86_64-linux-gnu/libc.so.6(+0x2a1ca)[0x7701c7e2a1ca]
+/lib/x86_64-linux-gnu/libc.so.6(__libc_start_main+0x8b)[0x7701c7e2a28b]
+build/ARM/gem5.opt(_start+0x25)[0x5d56f7ce3f55]
+--- END LIBC BACKTRACE ---
+For more info on how to address this issue, please visit https://www.gem5.org/documentation/general_docs/common-errors/ 
+
