@@ -1,34 +1,47 @@
 import argparse
 
+
 def run_synth_saga_test():
-    import sys, os
+    import os
+    import sys
+
     sys.path.append(
-        os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir))
+        os.path.abspath(
+            os.path.join(os.path.dirname(__file__), os.path.pardir)
+        )
     )
+    from cachehierarchies_TreeTopology.saga.cache_hierarchy import (
+        SagaCacheHierarchy,
+    )
+
     from m5.debug import flags
-    from m5.stats import dump, reset
+    from m5.stats import (
+        dump,
+        reset,
+    )
     from m5.util import inform
 
-    from gem5.components.memory import SingleChannelDDR4_2400, DualChannelDDR4_2400
+    from gem5.components.boards.test_board import TestBoard
+    from gem5.components.memory import (
+        DualChannelDDR4_2400,
+        SingleChannelDDR4_2400,
+    )
+    from gem5.components.memory.dram_interfaces.ddr4 import DDR4_2400_8x8
     from gem5.components.memory.memory import ChanneledMemory
     from gem5.components.processors.linear_generator import LinearGenerator
     from gem5.components.processors.random_generator import RandomGenerator
     from gem5.components.processors.strided_generator import StridedGenerator
     from gem5.simulate.exit_event import ExitEvent
     from gem5.simulate.simulator import Simulator
-    from gem5.components.memory.dram_interfaces.ddr4 import DDR4_2400_8x8
 
-    from gem5.components.boards.test_board import TestBoard
-    from cachehierarchies_TreeTopology.saga.cache_hierarchy import SagaCacheHierarchy
-
-    memory = ChanneledMemory(DDR4_2400_8x8, 64, 64,size="32GiB")
+    memory = ChanneledMemory(DDR4_2400_8x8, 128, 64, size="32GiB")
     generator = RandomGenerator(
-        num_cores=128,
+        num_cores=256,
         duration="1ms",
         rate="4GB/s",
         block_size=64,
-        min_addr=1024*1024*1024,
-        max_addr= 10*1024*1024*1024,
+        min_addr=1024 * 1024 * 1024,
+        max_addr=10 * 1024 * 1024 * 1024,
         rd_perc=67,
     )
 

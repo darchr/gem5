@@ -25,19 +25,32 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 from itertools import chain
-from typing import List, Tuple
+from typing import (
+    List,
+    Tuple,
+)
 
-from m5.objects import ClockDomain, SubSystem, NULL
-from m5.objects import RubyCache, RubyNetwork, RubySequencer
+from m5.objects import (
+    NULL,
+    ClockDomain,
+    RubyCache,
+    RubyNetwork,
+    RubySequencer,
+    SubSystem,
+)
 
-from gem5.isas import ISA
 from gem5.components.boards.abstract_board import AbstractBoard
-from gem5.components.processors.abstract_core import AbstractCore
 from gem5.components.cachehierarchies.chi.nodes.abstract_node import (
     AbstractNode,
 )
+from gem5.components.processors.abstract_core import AbstractCore
+from gem5.isas import ISA
 
-from .network import SagaSwitch, SagaIntLink, SagaExtLink
+from .network import (
+    SagaExtLink,
+    SagaIntLink,
+    SagaSwitch,
+)
 
 
 class CoreComplex(SubSystem):
@@ -179,7 +192,10 @@ class CoreComplex(SubSystem):
         )
 
         cluster.icache.sequencer = RubySequencer(
-            version=core_num, dcache=NULL, clk_domain=cluster.icache.clk_domain, ruby_system=self._ruby_system
+            version=core_num,
+            dcache=NULL,
+            clk_domain=cluster.icache.clk_domain,
+            ruby_system=self._ruby_system,
         )
         cluster.dcache.sequencer = RubySequencer(
             version=core_num,
@@ -252,7 +268,7 @@ class PrivateL1Cache(AbstractNode):
         self.clk_domain = clk_domain
         self.send_evictions = core.requires_send_evicts()
         self.use_prefetcher = False
-        self.prefetcher = NULL # Maryam
+        self.prefetcher = NULL  # Maryam
 
         # Only applies to home nodes
         self.is_HN = False
@@ -273,7 +289,7 @@ class PrivateL1Cache(AbstractNode):
         self.alloc_on_readunique = True
         self.alloc_on_readonce = True
         self.alloc_on_writeback = False  # Should never happen in an L1
-        self.alloc_on_atomic = False # Maryam
+        self.alloc_on_atomic = False  # Maryam
 
         ###########################
         # I don't understand
@@ -320,7 +336,7 @@ class PrivateL2Cache(AbstractNode):
 
         self.clk_domain = clk_domain
         self.use_prefetcher = False  # >>> Should be true
-        self.prefetcher = NULL # Maryam
+        self.prefetcher = NULL  # Maryam
 
         # Only used for L1 controllers
         self.send_evictions = False
@@ -354,7 +370,7 @@ class PrivateL2Cache(AbstractNode):
         # Maintain inclusion
         # Can we set this to False if it doesn't matter?
         self.alloc_on_writeback = True  # Shouldn't matter since inclusive
-        self.alloc_on_atomic = False # Maryam
+        self.alloc_on_atomic = False  # Maryam
 
         self.dealloc_on_unique = False
         self.dealloc_on_shared = False
@@ -394,7 +410,7 @@ class SharedL3Cache(AbstractNode):
 
         self.clk_domain = clk_domain
         self.use_prefetcher = False  # >>> Should be true
-        self.prefetcher = NULL # Maryam
+        self.prefetcher = NULL  # Maryam
 
         # Only used for L1 controllers
         self.send_evictions = False
@@ -418,7 +434,7 @@ class SharedL3Cache(AbstractNode):
 
         # insert on writeback (victim cache)
         self.alloc_on_writeback = True
-        self.alloc_on_atomic = True # Maryam
+        self.alloc_on_atomic = True  # Maryam
 
         # Keep the line if a requestor asks for unique/shared
         ###########################
@@ -433,7 +449,7 @@ class SharedL3Cache(AbstractNode):
 
         # Some reasonable default TBE params
         self.number_of_TBEs = 128
-        self.number_of_repl_TBEs = 128 # Mahyar 16 -> 128
+        self.number_of_repl_TBEs = 128  # Mahyar 16 -> 128
         self.number_of_snoop_TBEs = 4
         self.number_of_DVM_TBEs = 16
         self.number_of_DVM_snoop_TBEs = 4

@@ -25,39 +25,46 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 from itertools import chain
-from typing import List, Tuple
-
-from m5.objects.SubSystem import SubSystem
-from gem5.components.cachehierarchies.ruby.abstract_ruby_cache_hierarchy import (
-    AbstractRubyCacheHierarchy,
+from typing import (
+    List,
+    Tuple,
 )
+
+from m5.objects import (
+    NULL,
+    RubyPortProxy,
+    RubySequencer,
+    RubySystem,
+)
+from m5.objects.SubSystem import SubSystem
+
+from gem5.coherence_protocol import CoherenceProtocol
+from gem5.components.boards.abstract_board import AbstractBoard
 from gem5.components.cachehierarchies.abstract_cache_hierarchy import (
     AbstractCacheHierarchy,
-)
-from gem5.coherence_protocol import CoherenceProtocol
-from gem5.isas import ISA
-from gem5.utils.requires import requires
-from gem5.utils.override import overrides
-from gem5.components.boards.abstract_board import AbstractBoard
-from gem5.components.processors.abstract_core import AbstractCore
-
-from gem5.components.cachehierarchies.ruby.topologies.simple_pt2pt import (
-    SimplePt2Pt,
-)
-
-from .core_complex import CoreComplex
-from .network import SagaNetwork
-from gem5.components.cachehierarchies.chi.nodes.dma_requestor import (
-    DMARequestor,
 )
 from gem5.components.cachehierarchies.chi.nodes.directory import (
     SimpleDirectory,
 )
+from gem5.components.cachehierarchies.chi.nodes.dma_requestor import (
+    DMARequestor,
+)
 from gem5.components.cachehierarchies.chi.nodes.memory_controller import (
     MemoryController,
 )
+from gem5.components.cachehierarchies.ruby.abstract_ruby_cache_hierarchy import (
+    AbstractRubyCacheHierarchy,
+)
+from gem5.components.cachehierarchies.ruby.topologies.simple_pt2pt import (
+    SimplePt2Pt,
+)
+from gem5.components.processors.abstract_core import AbstractCore
+from gem5.isas import ISA
+from gem5.utils.override import overrides
+from gem5.utils.requires import requires
 
-from m5.objects import NULL, RubySystem, RubySequencer, RubyPortProxy
+from .core_complex import CoreComplex
+from .network import SagaNetwork
 
 
 class SagaCacheHierarchy(AbstractRubyCacheHierarchy):
@@ -99,11 +106,12 @@ class SagaCacheHierarchy(AbstractRubyCacheHierarchy):
 
         # Ruby's global network.
         self.ruby_system.network = SagaNetwork(
-            self.ruby_system, self.ruby_system.number_of_virtual_networks,
+            self.ruby_system,
+            self.ruby_system.number_of_virtual_networks,
             self._racks_per_board,
             self._chassis_per_rack,
             self._cluster_per_chassis,
-            self._cores_per_cluster
+            self._cores_per_cluster,
         )
 
         # Create the coherent side of the memory controllers
@@ -111,16 +119,16 @@ class SagaCacheHierarchy(AbstractRubyCacheHierarchy):
             self.directories,
             self.memory_controllers,
         ) = self._create_memory_controllers(board)
-        
+
         for d, ctrl in zip(self.directories, self.memory_controllers):
             d.downstream_destinations = [ctrl]
 
         # Create the CCXs
         cores = board.get_processor().get_cores()
-        print(f"Number of cores: {len(cores)}")
+        # print(f"Number of cores: {len(cores)}")
         ccxs = []
         for i in range(len(cores) // self._cores_per_cluster):
-            print(f"Creating CCX {i} with cores {i * self._cores_per_cluster} to {(i * self._cores_per_cluster) + 1}")
+            # print(f"Creating CCX {i} with cores {i * self._cores_per_cluster} to {(i * self._cores_per_cluster) + 1}")
             this_ccx_cores = cores[
                 i * self._cores_per_cluster : (i + 1) * self._cores_per_cluster
             ]
@@ -136,9 +144,12 @@ class SagaCacheHierarchy(AbstractRubyCacheHierarchy):
                 )
             )
         self.core_complexes = ccxs
-        assert len(self.core_complexes) == self._racks_per_board * self._chassis_per_rack * self._cluster_per_chassis, (
-            "The number of core complexes created does not match the expected "
-        )
+        assert (
+            len(self.core_complexes)
+            == self._racks_per_board
+            * self._chassis_per_rack
+            * self._cluster_per_chassis
+        ), "The number of core complexes created does not match the expected "
 
         # Create the DMA Controllers, if required.
         if board.has_dma_ports():
@@ -150,15 +161,15 @@ class SagaCacheHierarchy(AbstractRubyCacheHierarchy):
             self.ruby_system.num_of_sequencers = len(cores) * 2
 
         self.ruby_system.network.connect_ccx(self.core_complexes)
-        print(f"length of core complexes: {len(self.core_complexes)}")
-        print(f"length of sequencers: {self.ruby_system.num_of_sequencers}")
-        print(f"length of directories: {len(self.directories)}")
-        print(f"length of memory controllers: {len(self.memory_controllers)}")
+        # print(f"length of core complexes: {len(self.core_complexes)}")
+        # print(f"length of sequencers: {self.ruby_system.num_of_sequencers}")
+        # print(f"length of directories: {len(self.directories)}")
+        # print(f"length of memory controllers: {len(self.memory_controllers)}")
         self.ruby_system.network.connect_directory_memory(
             self.directories, self.memory_controllers
         )
         self.ruby_system.network.connect_dma(
-            (self.dma_controllers if board.has_dma_ports() else [])
+            self.dma_controllers if board.has_dma_ports() else []
         )
         self.ruby_system.network.finalize()
 
@@ -166,7 +177,9 @@ class SagaCacheHierarchy(AbstractRubyCacheHierarchy):
 
         # Set up a proxy port for the system_port. Used for load binaries and
         # other functional-only things.
-        self.ruby_system.sys_port_proxy = RubyPortProxy(ruby_system=self.ruby_system)
+        self.ruby_system.sys_port_proxy = RubyPortProxy(
+            ruby_system=self.ruby_system
+        )
         board.connect_system_port(self.ruby_system.sys_port_proxy.in_ports)
 
     def _create_memory_controllers(
@@ -177,7 +190,7 @@ class SagaCacheHierarchy(AbstractRubyCacheHierarchy):
         directories = []
         i = 0
         for rng, port in board.get_mem_ports():
-            print(f"{i}: Creating memory controller for range {rng} on port {port}")
+            # print(f"{i}: Creating memory controller for range {rng} on port {port}")
             mc = MemoryController(self.ruby_system.network, rng, port)
             mc.ruby_system = self.ruby_system
             memory_controllers.append(mc)

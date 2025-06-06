@@ -7,22 +7,26 @@ sys.path.append(
     os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir))
 )
 
-from cachehierarchies.saga.cache_hierarchy import SagaCacheHierarchy
+from cachehierarchies_TreeTopology.saga.cache_hierarchy import (
+    SagaCacheHierarchy,
+)
+from common import (
+    gapbs_benchmarks,
+    gapbs_mem_size,
+)
 
-from gem5.components.memory.memory import ChanneledMemory
-from gem5.components.memory.dram_interfaces.ddr4 import DDR4_2400_8x8
-from gem5.isas import ISA
-from gem5.components.boards.arm_board import ArmBoard
-from gem5.components.processors.cpu_types import CPUTypes
-from gem5.components.processors.simple_processor import SimpleProcessor
-from m5.objects.ArmSystem import ArmDefaultRelease
+import m5
 from m5.objects import (
     ArmDefaultRelease,
     VExpress_GEM5_Foundation,
 )
-from common import gapbs_mem_size, gapbs_benchmarks
+from m5.objects.ArmSystem import ArmDefaultRelease
 
-import m5
+from gem5.components.boards.arm_board import ArmBoard
+from gem5.components.memory.dram_interfaces.ddr4 import DDR4_2400_8x8
+from gem5.components.memory.memory import ChanneledMemory
+from gem5.components.processors.cpu_types import CPUTypes
+from gem5.components.processors.simple_processor import SimpleProcessor
 from gem5.isas import ISA
 from gem5.resources.resource import *
 from gem5.resources.workload import *
@@ -37,14 +41,14 @@ parser.add_argument(
     type=str,
     required=True,
     help="Input the GAPBS benchmark name",
-    choices=gapbs_benchmarks
+    choices=gapbs_benchmarks,
 )
 parser.add_argument(
     "--size",
     type=str,
     required=True,
     help="Input the GAPBS benchmark size",
-    choices=["22", "25"]
+    choices=["22", "25", "28"],
 )
 parser.add_argument(
     "--ckpt-path",
@@ -54,39 +58,52 @@ parser.add_argument(
 )
 args = parser.parse_args()
 
-local_memory_size_GiB = str(gapbs_mem_size[f"{args.benchmark}.{args.size}"]) + "GiB"
+local_memory_size_GiB = (
+    str(gapbs_mem_size[f"{args.benchmark}.{args.size}"]) + "GiB"
+)
 command_list = []
 command = "echo 12345 | sudo -S ./gapbs/" + args.benchmark + " -g " + args.size
-print(command)
 command_list = [
     f"{command};",
 ]
 
 requires(isa_required=ISA.ARM)
 
-clk_freq="4GHz"
-num_cores=16
-cores_per_socket=2
-num_sockets=num_cores/cores_per_socket
-processor=SimpleProcessor(cpu_type=CPUTypes.ATOMIC, isa=ISA.ARM, num_cores=num_cores)
-memory=ChanneledMemory(DDR4_2400_8x8, num_sockets, 64, size=local_memory_size_GiB)
-cache_hierarchy=SagaCacheHierarchy()
-platform=VExpress_GEM5_Foundation()
-release=ArmDefaultRelease.for_kvm()
+# tot_cores = 128
+# racks_per_board = 4
+# chassis_per_rack = 4
+# cluster_per_chassis = 4
+# cores_per_cluster = 2
+
+clk_freq = "4GHz"
+num_cores = 128
+cores_per_socket = 2
+num_sockets = num_cores / cores_per_socket
+processor = SimpleProcessor(
+    cpu_type=CPUTypes.ATOMIC, isa=ISA.ARM, num_cores=num_cores
+)
+memory = ChanneledMemory(
+    DDR4_2400_8x8, num_sockets, 64, size=local_memory_size_GiB
+)
+cache_hierarchy = SagaCacheHierarchy()
+platform = VExpress_GEM5_Foundation()
+release = ArmDefaultRelease.for_kvm()
 
 board = ArmBoard(
-    clk_freq = clk_freq,
-    processor = processor,
-    memory = memory,
-    cache_hierarchy = cache_hierarchy,
-    platform = platform,
-    release = release,
+    clk_freq=clk_freq,
+    processor=processor,
+    memory=memory,
+    cache_hierarchy=cache_hierarchy,
+    platform=platform,
+    release=release,
 )
 
 workload = WorkloadResource(
     function="set_kernel_disk_workload",
     parameters={
-        "kernel": CustomResource("/home/babaie/.cache/gem5/vmlinux-5.4.49-NUMA.arm64"),
+        "kernel": CustomResource(
+            "/home/babaie/.cache/gem5/vmlinux-5.4.49-NUMA.arm64"
+        ),
         "bootloader": CustomResource(
             "/home/babaie/.cache/gem5/arm64-bootloader"
         ),
@@ -101,13 +118,17 @@ workload = WorkloadResource(
 board.set_workload(workload)
 # board.append_kernel_arg("interactive=true")
 
+
 def ignore_exit():
     yield False  # Continue the simulation.
     yield False  # Continue the simulation.
+
+
 # define on_exit_event
 def take_checkpoint():
     m5.checkpoint(args.ckpt_path)
     yield True  # Stop the simulation. We're done.
+
 
 simulator = Simulator(
     board=board,

@@ -24,8 +24,14 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-from m5.objects import SimpleNetwork, Switch, SimpleExtLink, SimpleIntLink
 import math
+
+from m5.objects import (
+    SimpleExtLink,
+    SimpleIntLink,
+    SimpleNetwork,
+    Switch,
+)
 
 
 class SagaNetwork(SimpleNetwork):
@@ -36,11 +42,15 @@ class SagaNetwork(SimpleNetwork):
     one per memory controller.
     """
 
-    def __init__(self, ruby_system, vnets,
-                 racks_per_board,
-                 chassis_per_rack,
-                 cluster_per_chassis,
-                 cores_per_cluster):
+    def __init__(
+        self,
+        ruby_system,
+        vnets,
+        racks_per_board,
+        chassis_per_rack,
+        cluster_per_chassis,
+        cores_per_cluster,
+    ):
         super().__init__()
         self.netifs = []
 
@@ -66,7 +76,7 @@ class SagaNetwork(SimpleNetwork):
             l2_router = SagaSwitch(self)
             self._L2_routers.append(l2_router)
             self._routers.append(l2_router)
-                
+
         self._TOR_routers = []
         for _ in range(self._racks_per_board):
             tor_router = SagaSwitch(self)
@@ -74,17 +84,19 @@ class SagaNetwork(SimpleNetwork):
             self._routers.append(tor_router)
 
         self._dir_routers = []
-        for _ in range(self._chassis_per_rack*self._racks_per_board):
+        for _ in range(self._chassis_per_rack * self._racks_per_board):
             dir_router = SagaSwitch(self)
             self._dir_routers.append(dir_router)
             self._routers.append(dir_router)
 
-    def connect_ccx(self, core_complexes): 
+    def connect_ccx(self, core_complexes):
         tot_chassis_num = self._racks_per_board * self._chassis_per_rack
         for i, ccx in enumerate(core_complexes):
             chassis_index = i // (len(core_complexes) // tot_chassis_num)
-            print(f"Connecting CCX {i} to chassis index {chassis_index}")
-            rs, els, ils = ccx.setup_network(self._dir_routers[chassis_index], self)
+            # print(f"Connecting CCX {i} to chassis index {chassis_index}")
+            rs, els, ils = ccx.setup_network(
+                self._dir_routers[chassis_index], self
+            )
             self._routers.extend(rs)
             self._ext_links.extend(els)
             self._int_links.extend(ils)
@@ -106,22 +118,38 @@ class SagaNetwork(SimpleNetwork):
         # Connect the memory routers to the dir_router
         tot_chassis_num = self._racks_per_board * self._chassis_per_rack
         if tot_chassis_num > len(memory_controllers):
-            raise ValueError("tot_chassis_num is greater than available memory controllers, causing division error.")
+            raise ValueError(
+                "tot_chassis_num is greater than available memory controllers, causing division error."
+            )
 
         md_links = []
         dm_links = []
 
         ## real workloads in ARM board
         for i, router in enumerate(self.mem_routers):
-            if i == 0: # Skip the first one in ARM board, is for kernel/io
+            if i == 0:  # Skip the first one in ARM board, is for kernel/io
                 continue
-            else : 
-                chassis_index = (i-1) // (len(self.mem_routers) // tot_chassis_num)
+            else:
+                chassis_index = (i - 1) // (
+                    len(self.mem_routers) // tot_chassis_num
+                )
                 assert router is not None, f"Router at index {i} is None"
-                assert chassis_index < len(self._dir_routers), f"Invalid chassis index {chassis_index}"
-                assert self._dir_routers[chassis_index] is not None, f"Dir router at {chassis_index} is None"
-                md_link = SagaIntLink(router, self._dir_routers[chassis_index], bandwidth_factor=64)
-                dm_link = SagaIntLink(self._dir_routers[chassis_index], router, bandwidth_factor=64)
+                assert chassis_index < len(
+                    self._dir_routers
+                ), f"Invalid chassis index {chassis_index}"
+                assert (
+                    self._dir_routers[chassis_index] is not None
+                ), f"Dir router at {chassis_index} is None"
+                md_link = SagaIntLink(
+                    router,
+                    self._dir_routers[chassis_index],
+                    bandwidth_factor=64,
+                )
+                dm_link = SagaIntLink(
+                    self._dir_routers[chassis_index],
+                    router,
+                    bandwidth_factor=64,
+                )
                 md_links.append(md_link)
                 dm_links.append(dm_link)
         self.md_links = md_links
@@ -143,8 +171,6 @@ class SagaNetwork(SimpleNetwork):
         # self.dm_links = dm_links
         # self._int_links.extend(md_links)
         # self._int_links.extend(dm_links)
-        
-
 
     def connect_dma(self, dma_ctrls):
         if not dma_ctrls:
@@ -153,7 +179,7 @@ class SagaNetwork(SimpleNetwork):
         for ctrl in dma_ctrls:
             dma_links.append(SagaExtLink(ctrl, self._dir_routers[0]))
         self.dma_links = dma_links
-        self._ext_links.extend(dma_links)    
+        self._ext_links.extend(dma_links)
 
     def finalize(self):
         ## Connect the TOR routers to the directory routers
@@ -161,9 +187,13 @@ class SagaNetwork(SimpleNetwork):
         tor_chassis_links = []
         for i, dir_router in enumerate(self._dir_routers):
             rack_index = i // self._chassis_per_rack
-            print(f"{len(self._TOR_routers)}, {self._racks_per_board}, {len(self._dir_routers)}: Connecting directory router {i} to TOR router at rack index {rack_index}")
-            chassis_tor_links.append(SagaIntLink(dir_router, self._TOR_routers[rack_index]))
-            tor_chassis_links.append(SagaIntLink(self._TOR_routers[rack_index], dir_router))
+            # print(f"{len(self._TOR_routers)}, {self._racks_per_board}, {len(self._dir_routers)}: Connecting directory router {i} to TOR router at rack index {rack_index}")
+            chassis_tor_links.append(
+                SagaIntLink(dir_router, self._TOR_routers[rack_index])
+            )
+            tor_chassis_links.append(
+                SagaIntLink(self._TOR_routers[rack_index], dir_router)
+            )
         self.chassis_tor_links = chassis_tor_links
         self.tor_chassis_links = tor_chassis_links
         self._int_links.extend(chassis_tor_links)
@@ -174,8 +204,12 @@ class SagaNetwork(SimpleNetwork):
         l2_tor_links = []
         for i, tor_router in enumerate(self._TOR_routers):
             l2_router_index = i // len(self._L2_routers)
-            tor_l2_links.append(SagaIntLink(tor_router, self._L2_routers[l2_router_index]))
-            l2_tor_links.append(SagaIntLink(self._L2_routers[l2_router_index], tor_router))
+            tor_l2_links.append(
+                SagaIntLink(tor_router, self._L2_routers[l2_router_index])
+            )
+            l2_tor_links.append(
+                SagaIntLink(self._L2_routers[l2_router_index], tor_router)
+            )
         self.tor_l2_links = tor_l2_links
         self.l2_tor_links = l2_tor_links
         self._int_links.extend(tor_l2_links)
@@ -185,7 +219,7 @@ class SagaNetwork(SimpleNetwork):
         ## all to all connections
         l2_l1_links = []
         l1_l2_links = []
-        for l2_router in (self._L2_routers):
+        for l2_router in self._L2_routers:
             l2_l1_links.append(SagaIntLink(l2_router, self._L1_router))
             l1_l2_links.append(SagaIntLink(self._L1_router, l2_router))
         self.l2_l1_links = l2_l1_links
@@ -196,9 +230,9 @@ class SagaNetwork(SimpleNetwork):
         self.routers = self._routers
         self.ext_links = self._ext_links
         self.int_links = self._int_links
-        
-        print("Network finalized with the following components:")
-        print(f"Total memory routers: {len(self.mem_routers)}")
+
+        # print("Network finalized with the following components:")
+        # print(f"Total memory routers: {len(self.mem_routers)}")
         # for router in self._routers:
         #     print(f"Router name: {router._name}")
 
@@ -209,7 +243,6 @@ class SagaNetwork(SimpleNetwork):
         # # Print names of all internal links
         # for int_link in self._int_links:
         #     print(f"Internal link name: {int_link._name}")
- 
 
         # # for i, router in enumerate(self.routers):
         # #     print(f"Router {i}: {router}")
@@ -217,6 +250,7 @@ class SagaNetwork(SimpleNetwork):
         # #     print(f"Internal Link {i}: {link}")
         # # for i, link in enumerate(self.ext_links):
         # #     print(f"External Link {i}: {link}")
+
 
 class SagaSwitch(Switch):
     """Simple switch with auto counting for the id."""
