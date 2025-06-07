@@ -62,6 +62,16 @@ class Layer(ClockedObject):
     buffer_depth = Param.Int(
         1, "Buffer depth (number of values in the buffer)"
     )
+    active_src_count = Param.Int(
+        -1, "Number of active sources in the network (default is -1 for all)"
+    )
+    active_src_frac = Param.Float(
+        1.0, "Fraction of active sources in the network (default is 1 for all)"
+    )
+    active_src_seq = Param.Bool(
+        False,
+        "If true, active sources are selected in a sequence; otherwise, randomly",
+    )
 
     cxx_exports = [
         PyBindMethod("setRandomTrafficMode"),

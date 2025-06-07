@@ -55,6 +55,7 @@ class Layer : public ClockedObject
 private:
     std::vector<BufferedPort*> bufferedPorts;  // all ports in the network
     std::unordered_map<uint64_t, BufferedPort*> bufferedPortsMap;
+    std::unordered_set<uint64_t> activeSrc; // Set of active source addresses
 
     // network delay parameters
     double crosspointDelay;
@@ -76,6 +77,9 @@ private:
     int valuesDelivered; // Number of value deliveries
     uint32_t valuesPerPortPerWindow; // Values per port per window
     int bufferDepth; // Depth of the buffer
+    int activeSrcCount; // Count of active source addresses
+    double activeSrcFraction; // Fraction of active source addresses
+    bool activeSrcSeq; // Flag for sequential active source addresses
     int size; // Size of the network
     bool isFinished;  // Flag to indicate if the layer has finished
     bool fileMode;  // Flag to indicate if a file is used for scheduling
@@ -226,6 +230,13 @@ public:
 
     bool isBuffered() {
         return (bufferDepth > 0);
+    }
+
+    bool
+    isSrcActive(uint64_t id) const
+    {
+        /* empty set -> “all active” */
+        return activeSrc.empty() || activeSrc.count(id);
     }
 };
 

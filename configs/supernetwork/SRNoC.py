@@ -160,14 +160,31 @@ def create_base_parser():
         default=1,
         help="Buffer depth (number of values in the buffer)",
     )
-
-    # Mutually exclusive group for value rate config
-    group = parser.add_mutually_exclusive_group(required=False)
-    group.add_argument(
+    parser.add_argument(
         "--values-per-port-per-window",
         type=int,
         default=1,
         help="values per port per window",
+    )
+
+    # add mutually exclusive group for active source selection
+    active_src_group = parser.add_mutually_exclusive_group()
+    active_src_group.add_argument(
+        "--active-src-count",
+        type=int,
+        default=-1,
+        help="Number of active sources in the network (-1 for all)",
+    )
+    active_src_group.add_argument(
+        "--active-src-fraction",
+        type=float,
+        default=1.0,
+        help="Fraction of active sources in the network (default is 1 for all)",
+    )
+    active_src_group.add_argument(
+        "--active-src-sequence",
+        action="store_true",
+        help="If true, active sources are selected in a sequence; otherwise, randomly",
     )
     return parser
 
@@ -278,6 +295,9 @@ def main():
                 clock=frequency,
                 voltage_domain=VoltageDomain(),
             ),
+            active_src_count=args.active_src_count,
+            active_src_frac=args.active_src_fraction,
+            active_src_seq=args.active_src_sequence,
         )
         for frequency in args.frequencies_per_layer
     ]

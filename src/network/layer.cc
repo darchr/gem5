@@ -72,6 +72,9 @@ Layer::Layer(const LayerParams& params) :
     shuffleEnabled(false),
     bufferDepth(params.buffer_depth),
     size(params.buffered_ports.size()),
+    activeSrcCount(params.active_src_count),
+    activeSrcFraction(params.active_src_frac),
+    activeSrcSeq(params.active_src_seq),
     // Event for processing the next network event
     nextNetworkEvent([this]{ processNextNetworkEvent(); },
         name() + ".nextNetworkEvent"),
@@ -109,6 +112,43 @@ Layer::Layer(const LayerParams& params) :
             }
             schedule_queue.pop();
         }
+    }
+
+    // for active source selection
+    uint64_t want;
+    if (params.active_src_frac < 0.0 ||
+        params.active_src_frac > 1.0) {
+        fatal("Layer %s: active_src_frac (%f) must be in [0, 1]!\n",
+            name(), params.active_src_frac);
+    }
+    if (params.active_src_count <= 0 &&
+        params.active_src_count != -1.0) {
+        fatal("Layer %s: active_src_count (%d) must be > 0!\n",
+            name(), params.active_src_count);
+    }
+    if (params.active_src_count > 0) {
+        want = std::min<uint64_t>(params.active_src_count, size);
+    } else {
+        want = std::ceil(params.active_src_frac * size);
+    }
+    if (want >= size)                 // all active ⇒ keep set empty
+        ;
+    else if (params.active_src_seq) { // sequential
+        for (uint64_t i = 0; i < want; ++i)
+            activeSrc.insert(i);
+    } else {                          // random but repeatable
+        std::vector<uint64_t> ids(size);
+        std::iota(ids.begin(), ids.end(), 0);
+        std::mt19937 rng(42); // fixed seed for repeatability
+        std::shuffle(ids.begin(), ids.end(), rng);
+        for (uint64_t i = 0; i < want; ++i)
+            activeSrc.insert(ids[i]);
+    }
+
+    // debug output for active sources
+    DPRINTF(Layer, "Active sources: ");
+    for (const auto& src : activeSrc) {
+        DPRINTF(Layer, "%lu ", src);
     }
 }
 
@@ -440,6 +480,8 @@ Layer::processValues(
 
     // Iterate through all ports
     for (BufferedPort* port : bufferedPorts) {
+        if (!isSrcActive(port->getAddr()))
+            continue;
         std::vector<uint64_t> used_payloads;
         if (values_processed_this_window >= (maxValuesPerWindow * size)) {
             DPRINTF(Layer,
