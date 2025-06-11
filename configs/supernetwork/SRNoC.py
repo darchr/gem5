@@ -1,0 +1,364 @@
+# Copyright (c) 2025 The Regents of the University of California
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are
+# met: redistributions of source code must retain the above copyright
+# notice, this list of conditions and the following disclaimer;
+# redistributions in binary form must reproduce the above copyright
+# notice, this list of conditions and the following disclaimer in the
+# documentation and/or other materials provided with the distribution;
+# neither the name of the copyright holders nor the names of its
+# contributors may be used to endorse or promote products derived from
+# this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+# A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+# OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+# LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+# DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+# THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+import argparse
+from enum import Enum as PyEnum
+
+import m5
+from m5.objects import *
+from m5.params import *
+
+
+class NetworkDelays(PyEnum):
+    CROSSPOINT_DELAY = 4.1  # picoseconds
+    MERGER_DELAY = 8.84
+    SPLITTER_DELAY = 2.06
+    CIRCUIT_VARIABILITY = 1.2
+    VARIABILITY_COUNTING_NETWORK = 4.38
+    CROSSPOINT_SETUP_TIME = 8.0
+    CROSSPOINT_HOLD_TIME = 8.0
+
+
+class ComponentPower(PyEnum):
+    # Static power consumption in microwatts
+    SPLITTER_STATIC = 5.98
+    MERGER_STATIC = 5.0
+    CROSSPOINT_STATIC = 7.9
+    COUNTING_NETWORK_STATIC = 66.82
+    TFF_STATIC = 10.8
+
+    # Active power consumption in nanowatts
+    SPLITTER_ACTIVE = 83.2
+    MERGER_ACTIVE = 69.6
+    CROSSPOINT_ACTIVE = 60.7
+    COUNTING_NETWORK_ACTIVE = 163.0
+    TFF_ACTIVE = 105.6
+
+
+class ComponentJJ(PyEnum):
+    # Number of Josephson Junctions (JJs)
+    SPLITTER = 3
+    MERGER = 5
+    CROSSPOINT = 13
+    COUNTING_NETWORK = 60
+    TFF = 10
+
+
+def calculate_power_and_area(radix):
+    # Scale counting network power based on network radix
+    counting_network_ratio = (radix / 2) // 4.0
+    print(f"Counting network ratio: {counting_network_ratio}")
+    counting_network_active_power = (
+        ComponentPower.COUNTING_NETWORK_ACTIVE.value * counting_network_ratio
+    )
+    counting_network_static_power = (
+        ComponentPower.COUNTING_NETWORK_STATIC.value * counting_network_ratio
+    )
+    counting_network_jj = int(
+        ComponentJJ.COUNTING_NETWORK.value * counting_network_ratio
+    )
+
+    # Calculate number of components based on network radix
+    r = radix // 2
+    num_counting_networks = r
+    num_crosspoints = r * r
+    num_splitters = r * (r - 1)
+    num_mergers = r * (r - 1)
+
+    # Calculate active power consumption
+    active_power = (
+        num_counting_networks * counting_network_active_power
+        + num_crosspoints * ComponentPower.CROSSPOINT_ACTIVE.value
+        + num_splitters * ComponentPower.SPLITTER_ACTIVE.value
+        + num_mergers * ComponentPower.MERGER_ACTIVE.value
+    )
+
+    # Calculate static power consumption
+    static_power = (
+        num_counting_networks * counting_network_static_power
+        + num_crosspoints * ComponentPower.CROSSPOINT_STATIC.value
+        + num_splitters * ComponentPower.SPLITTER_STATIC.value
+        + num_mergers * ComponentPower.MERGER_STATIC.value
+    )
+
+    # Convert power units
+    active_power *= 1e-9  # nanowatts to watts
+    static_power *= 1e-6  # microwatts to watts
+    total_power = active_power + static_power
+
+    # Calculate total Josephson Junctions
+    total_jj = (
+        num_counting_networks * counting_network_jj
+        + num_crosspoints * ComponentJJ.CROSSPOINT.value
+        + num_splitters * ComponentJJ.SPLITTER.value
+        + num_mergers * ComponentJJ.MERGER.value
+    )
+
+    # Log and store power and area statistics
+    print(f"Active power: {active_power:.6f} W")
+    print(f"Static power: {static_power:.6f} W")
+    print(f"Total power: {total_power:.6f} W")
+    print(f"Total JJ: {total_jj}")
+
+    return {
+        "active_power": active_power,
+        "static_power": static_power,
+        "total_power": total_power,
+        "total_jj": total_jj,
+    }
+
+
+def create_shared_parser():
+    """
+    Parser for arguments shared across all traffic modes.
+    """
+    shared_parser = argparse.ArgumentParser(add_help=False)
+    shared_parser.add_argument(
+        "--frequencies-per-layer",
+        type=str,
+        nargs="+",
+        required=True,
+        help="Number of time slots per connection window",
+    )
+    return shared_parser
+
+
+def create_base_parser():
+    parser = argparse.ArgumentParser(description="SuperNetwork Simulation")
+    parser.add_argument(
+        "--num-ports", type=int, default=10, help="Number of BufferedPorts"
+    )
+    parser.add_argument(
+        "--maximum-values", type=int, default=0, help="Maximum values"
+    )
+    parser.add_argument(
+        "--buffer-depth",
+        type=int,
+        default=1,
+        help="Buffer depth (number of values in the buffer)",
+    )
+    parser.add_argument(
+        "--values-per-port-per-window",
+        type=int,
+        default=1,
+        help="values per port per window",
+    )
+
+    # add mutually exclusive group for active source selection
+    active_src_group = parser.add_mutually_exclusive_group()
+    active_src_group.add_argument(
+        "--active-src-count",
+        type=int,
+        default=-1,
+        help="Number of active sources in the network (-1 for all)",
+    )
+    active_src_group.add_argument(
+        "--active-src-fraction",
+        type=float,
+        default=1.0,
+        help="Fraction of active sources in the network (default is 1 for all)",
+    )
+    parser.add_argument(
+        "--active-src-sequence",
+        action="store_true",
+        help="If true, active sources are selected in a sequence; otherwise, randomly",
+    )
+    return parser
+
+
+def parse_arguments():
+    shared_parser = create_shared_parser()
+    base_parser = create_base_parser()
+    subparsers = base_parser.add_subparsers(dest="traffic_mode", required=True)
+
+    # random traffic
+    random_parser = subparsers.add_parser(
+        "random", parents=[shared_parser], help="Random traffic mode"
+    )
+
+    bit_complement_parser = subparsers.add_parser(
+        "bit-complement",
+        parents=[shared_parser],
+        help="Bit-complement traffic mode",
+    )
+
+    nearest_neighbor_parser = subparsers.add_parser(
+        "nearest-neighbor",
+        parents=[shared_parser],
+        help="Nearest-neighbor traffic mode",
+    )
+    nearest_neighbor_parser.add_argument(
+        "--shuffle",
+        action="store_true",
+        help="Shuffle the destinations for nearest-neighbor mode",
+    )
+
+    # all-to-all traffic
+    all_to_all_parser = subparsers.add_parser(
+        "all-to-all", parents=[shared_parser], help="All-to-all traffic mode"
+    )
+    all_to_all_parser.add_argument(
+        "--shuffle",
+        action="store_true",
+        help="Shuffle the destinations for all-to-all mode",
+    )
+
+    tornado_parser = subparsers.add_parser(
+        "tornado", parents=[shared_parser], help="Tornado traffic mode"
+    )
+
+    # hotspot traffic
+    hotspot_parser = subparsers.add_parser(
+        "hotspot", parents=[shared_parser], help="Hotspot traffic mode"
+    )
+    hotspot_parser.add_argument(
+        "--hotspot-addr", type=int, required=True, help="Hotspot address"
+    )
+    hotspot_parser.add_argument(
+        "--hotspot-fraction",
+        type=float,
+        required=True,
+        help="Fraction of hotspot traffic",
+    )
+
+    # file traffic
+    file_parser = subparsers.add_parser(
+        "file", parents=[shared_parser], help="File-based traffic mode"
+    )
+    file_parser.add_argument(
+        "--file-path", type=str, required=True, help="Path to the traffic file"
+    )
+
+    return base_parser.parse_args()
+
+
+def main():
+    args = parse_arguments()
+
+    # Create the root SimObject and system.
+    root = Root(full_system=False)
+    root.system = System()
+
+    # Set up the clock and voltage domains.
+    root.system.clk_domain = SrcClockDomain()
+    root.system.clk_domain.clock = "1.4GHz"
+    root.system.clk_domain.voltage_domain = VoltageDomain()
+
+    # Create the BufferedPorts.
+    num_ports = args.num_ports
+    buffered_ports = [BufferedPort() for _ in range(num_ports)]
+
+    if args.traffic_mode != "file":
+        schedule_path = ""  # Force schedule_path to be empty if not using file-based traffic mode.
+    else:
+        schedule_path = args.file_path
+
+    # Create Layers
+    layers = [
+        Layer(
+            buffered_ports=buffered_ports,
+            max_values=args.maximum_values,
+            schedule_path=schedule_path,
+            crosspoint_delay=NetworkDelays.CROSSPOINT_DELAY.value,
+            merger_delay=NetworkDelays.MERGER_DELAY.value,
+            splitter_delay=NetworkDelays.SPLITTER_DELAY.value,
+            circuit_variability=NetworkDelays.CIRCUIT_VARIABILITY.value,
+            variability_counting_network=NetworkDelays.VARIABILITY_COUNTING_NETWORK.value,
+            crosspoint_setup_time=NetworkDelays.CROSSPOINT_SETUP_TIME.value,
+            hold_time=NetworkDelays.CROSSPOINT_HOLD_TIME.value,
+            values_per_port_per_window=args.values_per_port_per_window,
+            buffer_depth=args.buffer_depth,
+            clk_domain=SrcClockDomain(
+                clock=frequency,
+                voltage_domain=VoltageDomain(),
+            ),
+            active_src_count=args.active_src_count,
+            active_src_frac=args.active_src_fraction,
+            active_src_seq=args.active_src_sequence,
+        )
+        for frequency in args.frequencies_per_layer
+    ]
+
+    # Create the SuperNetwork and add the layers.
+    super_network = SuperNetwork()
+    super_network.layers = layers
+    root.system.super_network = super_network
+
+    # Print test configuration.
+    print("SRNoC Test Configuration")
+    print("==============================")
+    print(f"Number of BufferedPort: {num_ports}")
+    print(f"Frequencies per Layer: {args.frequencies_per_layer}")
+    print()
+    print("Power and Area Statistics")
+    print("==============================")
+    power_and_area = calculate_power_and_area(radix=(num_ports * 2))
+    print()
+
+    if args.maximum_values:
+        print(f"Maximum values: {args.maximum_values}")
+    if getattr(args, "file_path", None):
+        print(f"File Path: {args.file_path}")
+    print()
+
+    # Instantiate the simulation.
+    m5.instantiate()
+
+    # Set the traffic mode based on the chosen sub-command.
+    if args.traffic_mode == "hotspot":
+        for layer in layers:
+            layer.setHotspotTrafficMode(
+                args.hotspot_addr, args.hotspot_fraction
+            )
+    elif args.traffic_mode == "all-to-all":
+        for layer in layers:
+            if args.shuffle:
+                layer.setShuffle()
+            layer.setAllToAllTrafficMode()
+    elif args.traffic_mode == "random":
+        for layer in layers:
+            layer.setRandomTrafficMode()
+    elif args.traffic_mode == "tornado":
+        for layer in layers:
+            layer.setTornadoTrafficMode()
+    elif args.traffic_mode == "bit-complement":
+        for layer in layers:
+            layer.setBitComplementTrafficMode()
+    elif args.traffic_mode == "nearest-neighbor":
+        for layer in layers:
+            if args.shuffle:
+                layer.setShuffle()
+            layer.setNearestNeighborTrafficMode()
+    else:  # file mode selected.
+        for layer in layers:
+            layer.setRandomTrafficMode()
+
+    exit_event = m5.simulate()
+    print(f"Exiting @ tick {m5.curTick()} because {exit_event.getCause()}")
+
+
+if __name__ == "__m5_main__":
+    main()
