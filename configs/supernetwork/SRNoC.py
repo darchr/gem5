@@ -181,7 +181,7 @@ def create_base_parser():
         default=1.0,
         help="Fraction of active sources in the network (default is 1 for all)",
     )
-    active_src_group.add_argument(
+    parser.add_argument(
         "--active-src-sequence",
         action="store_true",
         help="If true, active sources are selected in a sequence; otherwise, randomly",
