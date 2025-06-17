@@ -70,7 +70,7 @@ class PcCountTrackerManager : public SimObject {
      * variable becomes false and is used to stop the `check_count`
      * from functioning. This is default as true.
      */
-    bool ifListNotEmpty;
+    // bool ifListNotEmpty;
 
   public:
 

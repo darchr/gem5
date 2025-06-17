@@ -36,7 +36,7 @@ PcCountTrackerManager::PcCountTrackerManager(
     : SimObject(p)
 {
     currentPair = PcCountPair(0,0);
-    ifListNotEmpty = true;
+    // ifListNotEmpty = true;
 
     for (int i = 0 ; i < p.targets.size() ; i++) {
         // initialize the counter for the inputted PC Count pair
@@ -56,7 +56,13 @@ void
 PcCountTrackerManager::checkCount(Addr pc)
 {
 
-    if(ifListNotEmpty) {
+    if (!targetPair.empty()){
+        if (counter.find(pc) == counter.end()) {
+            // if the current PC address is not in the counter
+            DPRINTF(PcCountTracker,
+                "pc:%s not in counter\n", pc);
+            return;
+        }
         uint64_t count = ++counter.find(pc)->second;
         // increment the counter of the encountered PC address by 1
 
@@ -65,22 +71,15 @@ PcCountTrackerManager::checkCount(Addr pc)
         if(targetPair.find(currentPair) != targetPair.end()) {
             // if the current PC Count pair is one of the target pairs
             DPRINTF(PcCountTracker,
-                "pc:%s encountered\n", currentPair.to_string());
+                "pc:%s encountered\n", currentPair.to_string().c_str());
 
-            exitSimLoopNow("simpoint starting point found");
-            // raise the SIMPOINT_BEGIN exit event
+            exitSimLoopNow("m5_workbegin instruction encountered");
+            // raise the M5 WORKBEGIN exit event
 
             targetPair.erase(currentPair);
             // erase the encountered PC Count pair from the target pairs
             DPRINTF(PcCountTracker,
                 "There are %i targets remained\n", targetPair.size());
-        }
-
-        if(targetPair.empty()) {
-            // if all target PC Count pairs are encountered
-            DPRINTF(PcCountTracker,
-                    "all targets are encountered.\n");
-            ifListNotEmpty = false;
         }
     }
 }
