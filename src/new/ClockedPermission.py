@@ -28,6 +28,7 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 from m5.params import *
+from m5.proxy import *
 from m5.objects.ClockedObject import ClockedObject
 from m5.SimObject import (
     PyBindMethod,
@@ -93,6 +94,11 @@ class ClockedPermission(ClockedObject):
     # We need a toggle function to enable or disable MMP checks
     enable_permission_check = Param.Bool(True, "To enable or disable \
                                                         permission checks.")
+    
+    # To make sure that the table actually exists in the memory, a base address
+    # is needed. The default address is hardcoded into X86's IO range.
+    permission_base_addr = Param.Unsigned(0xC0000000, "Base of the permission \
+                                                                    table.")
 
     # TODO
     # Need to add a port to connect this Object to the traffic generator with

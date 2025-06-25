@@ -209,6 +209,9 @@ class ClockedPermission : public ClockedObject
         // SimObject is a simple packet forwarder. 
         bool enablePermissionCheck;
 
+        // The base of the permission table must be a valid memory address.
+        Addr baseAddrPermissionTable;
+
         // make sure to use these variables for the MMP lookup
         Tick creationLatency;
         // The hit Latency is for the PLb cache hit.
@@ -252,6 +255,10 @@ class ClockedPermission : public ClockedObject
         // We need a  variable for the total number of enteies
         uint64_t total_entries;
 
+        // PLb specific values are here.
+        int permission_block_size;
+        int permission_cmd;
+
 
         // Each entry in the MMP permission will have these values. There are
         // implementational details.
@@ -262,6 +269,12 @@ class ClockedPermission : public ClockedObject
             // followup paper.
             // XXX: Keeping the domain_id as a field for future usage.
             int domain_id;
+            // There needs to be a monotonic ID incrementor that gives the
+            // location of this address' permission. Ideally this shouldn't be
+            // monotonic as the OS will periodically clear permissions but in
+            // our research we only see results for a single program.
+            // TODO: This will be left unimplemented!
+            uint64_t id;
             // is_cached will be true if any packet within 64 Bytes is true.
             bool is_cached;
             // We need to maintain the size as a variable. This is the segment
@@ -311,6 +324,9 @@ class ClockedPermission : public ClockedObject
         struct permission_handler simpleLRU(gem5::Addr addr);
         struct permission_handler simpleMRU(gem5::Addr addr);
         struct permission_handler simpleRandom(gem5::Addr addr);
+
+        // To implement the new packet stuff, here are the mothods
+        Addr getPLBAddr(Addr addr);
     
         // We need dual port stats for verification and results.
         struct StatGroup : public statistics::Group
@@ -355,6 +371,7 @@ class ClockedPermission : public ClockedObject
         // class constructor
         ClockedPermission(const ClockedPermissionParams &params);
         void startup() override;
+        // void init() override;
         Port& getPort(const std::string &if_name, PortID idx) override;
 
 };      // class ClockedPermission

@@ -1,10 +1,11 @@
-#include "new/clocked_permission.hh"
+ #include "new/clocked_permission.hh"
 
 #include "base/trace.hh"
 
 #include "debug/PermissionTable.hh"
 #include "debug/PermissionTableEvent.hh"
 #include "debug/ClockedPermissionDebug.hh"
+#include "debug/PermissionPackets.hh"
 
 namespace gem5 {
 
@@ -13,6 +14,7 @@ ClockedPermission::ClockedPermission(const ClockedPermissionParams &params) :
     memSidePort(params.name + ".mem_side_port", *this),
     // cpuSidePort(params.name + ".cpu_side_port", this),
     enablePermissionCheck(params.enable_permission_check),
+    baseAddrPermissionTable(params.permission_base_addr),
     creationLatency(params.creation_latency),
     hitLatency(params.hit_latency),
     missLatency(params.miss_latency),
@@ -69,6 +71,11 @@ ClockedPermission::ClockedPermission(const ClockedPermissionParams &params) :
 
     DPRINTF(PermissionTable, "MMP cache has %lu entries\n",
                                                         max_cached_entries);
+    // All plb packets will be of size 64 bytes.
+    permission_block_size = 64;
+    // FIXME:
+    // All plb packets will be of READ type.
+    permission_cmd = MemCmd::ReadReq;
 }
 
 AddrRangeList
@@ -90,6 +97,11 @@ ClockedPermission::recvFunctional(PacketPtr pkt)
     memSidePort.sendFunctional(pkt);
 }
 
+// void
+// ClockedPermission::init() {
+//     requestorId = -1;
+// }
+
 bool
 ClockedPermission::recvTimingReq(PacketPtr pkt, uint64_t packet_id) {
     // If the permission tables are enabled by the user.
@@ -101,7 +113,44 @@ ClockedPermission::recvTimingReq(PacketPtr pkt, uint64_t packet_id) {
         struct permission_handler status = isCachedRequest(pkt->getAddr());
 
         // TODO:
-        // Create an additional dummy packet that handles a PLB miss. 
+        // Create an additional dummy packet that handles a PLB miss. This
+        // only happens if there is a PLB miss
+        if (status.is_cached == false) {
+            // figure out where is the entry stored in the permission table.
+            // this is a linear table and the caching will depend on the
+            // structure of this table.
+            Addr permission_addr = getPLBAddr(pkt->getAddr());
+        
+            // even
+            // if this is a linear table, the timing correctness is implemented
+            // as the lookup latency. this request is only made to make sure
+            // that the memory contention is correctly modeled.
+            // assume that this is a flat table where the address is the index.
+            
+            // First create a new request
+            Request::Flags flags;
+            RequestPtr req = std::make_shared<Request>(
+                                permission_addr, 1, pkt->req->getFlags(), pkt->requestorId());
+            PacketPtr permission_pkt = new Packet(req, permission_cmd);
+            permission_pkt->allocate();
+
+            DPRINTF(PermissionPackets,
+                "Created custom packet with addr %#lu and req ID %d\n",
+                                    permission_pkt->getAddr(), requestorId);
+            // TODO: What do I do with this packet? Try sending this packet?
+            if (memSidePort.sendTimingReq(permission_pkt)) {
+                // what is packet_id
+                portMap[pkt->id] = packet_id;
+            }
+            // TODO: can this packet go into the same retry queue?
+            else {
+                DPRINTF(PermissionPackets, "Couldn't send %#lu on port %lu\n",
+                                        permission_pkt->getAddr(), packet_id);
+
+                retry_queue.push(packet_id);
+            }
+        }
+        
         
         // TODO:
         // Schedule a new AccessEvent with this latency. Since this is a clock
@@ -125,6 +174,13 @@ ClockedPermission::recvTimingReq(PacketPtr pkt, uint64_t packet_id) {
     return false;
 }
 
+Addr
+ClockedPermission::getPLBAddr(Addr addr) {
+    // return the base of the permission table address + the entry.
+    // XXX: This is unimplemented with the ID
+    return baseAddrPermissionTable;
+}
+
 void
 ClockedPermission::recvRespRetry(const PortID id) {
     memSidePort.sendRetryResp();
@@ -134,6 +190,15 @@ ClockedPermission::recvRespRetry(const PortID id) {
 
 bool
 ClockedPermission::recvTimingResp(PacketPtr pkt) {
+    // TODO: delete the packet if this is a permission packet
+    if (pkt->getAddr() == baseAddrPermissionTable) {
+            DPRINTF(PermissionPackets, "Got response for permission pkt %#lu\n",
+                                                            pkt->getAddr());
+        // do not send this packet to the CPU side ports as the job of the
+        // SimObject is over.
+        delete pkt;
+        return true;
+    }
     PacketId id = pkt->id;
     return cpuSidePorts[portMap[id]].sendTimingResp(pkt);
 }

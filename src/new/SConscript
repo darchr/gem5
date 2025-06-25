@@ -43,3 +43,4 @@ DebugFlag('PermissionTableEvent', "Making sure that the permission table works!"
 # DebugFlag('SimpleBlockingPort', "The other implementation")
 # DebugFlag('SimplePort', "The simple implementation")
 DebugFlag('ClockedPermissionDebug', "For the latency memory object")
+DebugFlag('PermissionPackets', "For custom packets")
