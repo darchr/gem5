@@ -3159,6 +3159,7 @@ action(Send_RespSepData, desc="") {
 
 action(Send_CompI, desc="") {
   assert(is_valid(tbe));
+  bool stale := false;
 
   if (!isStashReqType(tbe.reqType)) {
     // Used to ack Evict request
@@ -3168,12 +3169,14 @@ action(Send_CompI, desc="") {
     if (!((tbe.dir_ownerExists == false) || (tbe.dir_owner != tbe.requestor))) {
       DPRINTF(MBRUBY,"2_Error happened for line : %#x.\n", tbe.addr);
     }
-    assert(tbe.dir_sharers.isElement(tbe.requestor));
+    if(!tbe.dir_sharers.isElement(tbe.requestor)) {
+      stale := true;
+    }
     assert((tbe.dir_ownerExists == false) || (tbe.dir_owner != tbe.requestor));
-
+ 
     tbe.dir_sharers.remove(tbe.requestor);
   }
-
+ 
   enqueue(rspOutPort, CHIResponseMsg, response_latency) {
     out_msg.addr := address;
     out_msg.type := CHIResponseType:Comp_I;
@@ -3181,6 +3184,7 @@ action(Send_CompI, desc="") {
     out_msg.Destination.add(tbe.requestor);
     out_msg.txnId := tbe.txnId;
     out_msg.dbid := tbe.txnId;
+    out_msg.stale := stale;
   }
 }
 

@@ -75,7 +75,7 @@ requires(isa_required=ISA.ARM)
 # cores_per_cluster = 2
 
 clk_freq = "4GHz"
-num_cores = 16
+num_cores = 128
 cores_per_socket = 2
 num_sockets = num_cores / cores_per_socket
 processor = SimpleProcessor(
@@ -119,12 +119,12 @@ board.set_workload(workload)
 
 
 def handle_exit_event():
-    for num_iterations in range(4):
+    for num_iterations in range(16):
         print(f"Done with iteration #{num_iterations}")
         m5.stats.dump()
         print(f"Dumped stats at the end of the iteration #{num_iterations}")
         m5.setMaxTick(
-            m5.curTick() + 100_000_000_000
+            m5.curTick() + 30_000_000_000
         )  # simulate another 100 ms
         yield False  # Continue the simulation.
     print(f"Dump stats since all the iterations completed")
@@ -142,6 +142,6 @@ simulator = Simulator(
 
 simulator._instantiate()
 
-m5.setMaxTick(m5.curTick() + 100_000_000_000)
+m5.setMaxTick(m5.curTick() + 10_000_000_000)
 
 simulator.run()
