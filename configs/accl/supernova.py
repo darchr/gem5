@@ -26,9 +26,17 @@
 
 from math import log, log2
 from m5.objects import *
+from enum import Enum as PyEnum
 
 
-from math import log
+class NetworkDelays(PyEnum):
+    CROSSPOINT_DELAY = 4.1  # picoseconds
+    MERGER_DELAY = 8.84
+    SPLITTER_DELAY = 2.06
+    CIRCUIT_VARIABILITY = 1.2
+    VARIABILITY_COUNTING_NETWORK = 4.38
+    CROSSPOINT_SETUP_TIME = 8.0
+    CROSSPOINT_HOLD_TIME = 8.0
 
 
 def interleave_addresses(plain_range, num_channels, cache_line_size):
@@ -50,9 +58,7 @@ def interleave_addresses(plain_range, num_channels, cache_line_size):
 
 
 class GPT(SubSystem):
-    def __init__(
-        self, register_file_size: int, cache_size: str, num_pes_per_gpt: int
-    ):
+    def __init__(self, register_file_size: int, cache_size: str):
         super().__init__()
         self.wl_engine = WLEngine(
             update_queue_size=64,
@@ -62,9 +68,9 @@ class GPT(SubSystem):
             reduce_per_cycle=32,
             wr_per_cycle=4,
         )
-        self.wl_engine.clk_domain = SrcClockDomain()
-        self.wl_engine.clk_domain.clock = "100GHz"
-        self.wl_engine.clk_domain.voltage_domain = VoltageDomain()
+        # self.wl_engine.clk_domain = SrcClockDomain()
+        # self.wl_engine.clk_domain.clock = "100GHz"
+        # self.wl_engine.clk_domain.voltage_domain = VoltageDomain()
         self.coalesce_engine = CoalesceEngine(
             attached_memory_atom_size=32,
             cache_size=cache_size,
@@ -83,12 +89,12 @@ class GPT(SubSystem):
             update_queue_size=64,
         )
 
-        self.coalesce_engine.clk_domain = SrcClockDomain()
-        self.coalesce_engine.clk_domain.clock = "100GHz"
-        self.coalesce_engine.clk_domain.voltage_domain = VoltageDomain()
-        self.push_engine.clk_domain = SrcClockDomain()
-        self.push_engine.clk_domain.clock = "100GHz"
-        self.push_engine.clk_domain.voltage_domain = VoltageDomain()
+        # self.coalesce_engine.clk_domain = SrcClockDomain()
+        # self.coalesce_engine.clk_domain.clock = "100GHz"
+        # self.coalesce_engine.clk_domain.voltage_domain = VoltageDomain()
+        # self.push_engine.clk_domain = SrcClockDomain()
+        # self.push_engine.clk_domain.clock = "100GHz"
+        # self.push_engine.clk_domain.voltage_domain = VoltageDomain()
 
         self.vertex_mem_ctrl = SimpleMemory(
             latency="120ns", bandwidth="256GiB/s"
@@ -148,7 +154,7 @@ class EdgeMemory(SubSystem):
         self.xbar.cpu_side_ports = port
 
 
-class CentralRouter(Router):
+class CentralRouter(AcclRouter):
     def __init__(self):
         super(CentralRouter, self).__init__()
 
@@ -160,6 +166,24 @@ class CentralRouter(Router):
 
     def setRouterReqPort(self, port):
         self.out_ports = port
+
+    def setRouterParams(
+        self,
+        crosspoint_delay,
+        merger_delay,
+        splitter_delay,
+        circuit_variability,
+        variability_counting_network,
+        crosspoint_setup_time,
+        hold_time,
+    ):
+        self.crosspoint_delay = crosspoint_delay
+        self.merger_delay = merger_delay
+        self.splitter_delay = splitter_delay
+        self.circuit_variability = circuit_variability
+        self.variability_counting_network = variability_counting_network
+        self.crosspoint_setup_time = crosspoint_setup_time
+        self.hold_time = hold_time
 
     def getRouterRespPort(self):
         return self.in_ports
@@ -211,7 +235,6 @@ class SuperNOVA(System):
         num_gpts,
         cache_size,
         graph_path,
-        num_PEs_per_gpt,
     ):
         super(SuperNOVA, self).__init__()
         assert num_gpts != 0
@@ -225,6 +248,18 @@ class SuperNOVA(System):
         self.mem_mode = "timing"
 
         self.router = CentralRouter()
+        self.router.setRouterParams(
+            crosspoint_delay=NetworkDelays.CROSSPOINT_DELAY.value,
+            merger_delay=NetworkDelays.MERGER_DELAY.value,
+            splitter_delay=NetworkDelays.SPLITTER_DELAY.value,
+            circuit_variability=NetworkDelays.CIRCUIT_VARIABILITY.value,
+            variability_counting_network=NetworkDelays.VARIABILITY_COUNTING_NETWORK.value,
+            crosspoint_setup_time=NetworkDelays.CROSSPOINT_SETUP_TIME.value,
+            hold_time=NetworkDelays.CROSSPOINT_HOLD_TIME.value,
+        )
+        self.router.clk_domain = SrcClockDomain()
+        self.router.clk_domain.clock = "33MHz"
+        self.router.clk_domain.voltage_domain = VoltageDomain()
 
         self.ctrl = SEGAController("256GiB/s")
         self.ctrl.set_vertices_image(f"{graph_path}/vertices")
@@ -243,7 +278,7 @@ class SuperNOVA(System):
             print(vertex_range)
         gpts = []
         for i in range(num_gpts):
-            gpt = GPT(num_registers, cache_size, num_PEs_per_gpt)
+            gpt = GPT(num_registers, cache_size)
             gpt.set_vertex_range(vertex_ranges[i])
             gpt.setEdgeMemPort(
                 self.edge_mem[i % (int(num_gpts / 2))].getPort()
@@ -257,6 +292,7 @@ class SuperNOVA(System):
         self.gpts = gpts
 
         self.ctrl.set_mpu_vector([gpt.mpu for gpt in self.gpts])
+        self.router.set_mpu_vector([gpt.mpu for gpt in self.gpts])
 
     def print_total_specs(self):
         # per‐engine constants
@@ -295,6 +331,9 @@ class SuperNOVA(System):
 
     def set_router_static_delay_mode(self):
         self.router.setStaticDelayMode()
+
+    def set_router_srnoc_delay_mode(self):
+        self.router.setSRNoCMode()
 
     def set_aux_images(self, mirrors, mirrors_map):
         self.ctrl.set_aux_images(mirrors, mirrors_map)

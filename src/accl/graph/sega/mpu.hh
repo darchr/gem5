@@ -33,16 +33,16 @@
 #include <vector>
 
 #include "accl/graph/base/data_structs.hh"
+#include "accl/graph/sega/accl_router.hh"
 #include "accl/graph/sega/coalesce_engine.hh"
 #include "accl/graph/sega/enums.hh"
 #include "accl/graph/sega/push_engine.hh"
-#include "accl/graph/sega/router.hh"
 #include "accl/graph/sega/wl_engine.hh"
 #include "base/addr_range.hh"
 #include "mem/packet.hh"
+#include "params/MPU.hh"
 #include "sim/sim_object.hh"
 #include "sim/system.hh"
-#include "params/MPU.hh"
 
 namespace gem5
 {
@@ -54,7 +54,7 @@ class MPU : public SimObject
   private:
     System* system;
     CenteralController* centeralController;
-    Router* router;
+    AcclRouter* router;
 
     WLEngine* wlEngine;
     CoalesceEngine* coalesceEngine;
@@ -64,7 +64,8 @@ class MPU : public SimObject
     PARAMS(MPU);
     MPU(const Params& params);
     void registerCenteralController(CenteralController* centeral_controller);
-    void registerRouter(Router* router);
+    void registerRouter(AcclRouter* router);
+    void notifyRouterDone();
 
     void setProcessingMode(ProcessingMode mode) { coalesceEngine->setProcessingMode(mode); }
     void createAsyncPopCountDirectory(int atoms_per_block) { coalesceEngine->createAsyncPopCountDirectory(atoms_per_block); }

@@ -82,6 +82,7 @@ extern const char* processingModeStrings[NUM_PROCESSING_MODE];
 enum RouterMode
 {
     STATIC_DELAY,
+    SRNOC,
     NUM_ROUTER_MODE
 };
 extern const char* routerModeStrings[NUM_ROUTER_MODE];

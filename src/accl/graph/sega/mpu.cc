@@ -55,9 +55,11 @@ MPU::registerCenteralController(CenteralController* centeral_controller)
 }
 
 void
-MPU::registerRouter(Router* router)
+MPU::registerRouter(AcclRouter* r)
 {
-    router = router;
+    router = r;
+    assert(router != nullptr);
+    DPRINTF(MPU, "AcclRouter registered: %s\n", router->name());
 }
 
 bool
@@ -105,6 +107,7 @@ MPU::recvDoneSignal()
 {
     if (done()) {
         centeralController->recvDoneSignal();
+        notifyRouterDone();
     }
 }
 
@@ -113,5 +116,14 @@ MPU::done()
 {
     return wlEngine->done() && coalesceEngine->done() && pushEngine->done();
 }
+
+void
+MPU::notifyRouterDone()
+{
+    if (router) {
+        router->notifyMPUDone(this);
+    }
+}
+
 
 } // namespace gem5
