@@ -153,9 +153,11 @@ if __name__ == "__m5_main__":
                 f"Exited simulation at tick {m5.curTick()} "
                 + f"because {exit_event.getCause()}"
             )
+            end_time = m5.curTick()
             if exit_event.getCause() == "Done with all the slices.":
                 break
             if exit_event.getCause() == "no update left to process.":
                 break
     if verify:
+        system.router.getEnergy(end_time)
         system.print_answer()

@@ -39,6 +39,31 @@ class NetworkDelays(PyEnum):
     CROSSPOINT_HOLD_TIME = 8.0
 
 
+class ComponentPower(PyEnum):
+    # Static power consumption in microwatts
+    SPLITTER_STATIC = 5.98
+    MERGER_STATIC = 5.0
+    CROSSPOINT_STATIC = 7.9
+    COUNTING_NETWORK_STATIC = 66.82
+    TFF_STATIC = 10.8
+
+    # Active power consumption in nanowatts
+    SPLITTER_ACTIVE = 83.2
+    MERGER_ACTIVE = 69.6
+    CROSSPOINT_ACTIVE = 60.7
+    COUNTING_NETWORK_ACTIVE = 163.0
+    TFF_ACTIVE = 105.6
+
+
+class ComponentJJ(PyEnum):
+    # Number of Josephson Junctions (JJs)
+    SPLITTER = 3
+    MERGER = 5
+    CROSSPOINT = 13
+    COUNTING_NETWORK = 60
+    TFF = 10
+
+
 def interleave_addresses(plain_range, num_channels, cache_line_size):
     intlv_low_bit = log(cache_line_size, 2)
     intlv_bits = log(num_channels, 2)
@@ -190,6 +215,84 @@ class CentralRouter(AcclRouter):
 
     def getRouterReqPort(self):
         return self.out_ports
+
+    def getPowerAndArea(self):
+        radix = len(self.in_ports) + len(self.out_ports)
+        counting_network_ratio = (radix / 2) // 4.0
+        print(f"Counting network ratio: {counting_network_ratio}")
+        counting_network_active_power = (
+            ComponentPower.COUNTING_NETWORK_ACTIVE.value
+            * counting_network_ratio
+        )
+        counting_network_static_power = (
+            ComponentPower.COUNTING_NETWORK_STATIC.value
+            * counting_network_ratio
+        )
+        counting_network_jj = int(
+            ComponentJJ.COUNTING_NETWORK.value * counting_network_ratio
+        )
+
+        # Calculate number of components based on network radix
+        r = radix // 2
+        num_counting_networks = r
+        num_crosspoints = r * r
+        num_splitters = r * (r - 1)
+        num_mergers = r * (r - 1)
+
+        # Calculate active power consumption
+        active_power = (
+            num_counting_networks * counting_network_active_power
+            + num_crosspoints * ComponentPower.CROSSPOINT_ACTIVE.value
+            + num_splitters * ComponentPower.SPLITTER_ACTIVE.value
+            + num_mergers * ComponentPower.MERGER_ACTIVE.value
+        )
+
+        # Calculate static power consumption
+        static_power = (
+            num_counting_networks * counting_network_static_power
+            + num_crosspoints * ComponentPower.CROSSPOINT_STATIC.value
+            + num_splitters * ComponentPower.SPLITTER_STATIC.value
+            + num_mergers * ComponentPower.MERGER_STATIC.value
+        )
+
+        # Convert power units
+        active_power *= 1e-9  # nanowatts to watts
+        static_power *= 1e-6  # microwatts to watts
+        total_power = active_power + static_power
+
+        # Calculate total Josephson Junctions
+        total_jj = (
+            num_counting_networks * counting_network_jj
+            + num_crosspoints * ComponentJJ.CROSSPOINT.value
+            + num_splitters * ComponentJJ.SPLITTER.value
+            + num_mergers * ComponentJJ.MERGER.value
+        )
+
+        # Log and store power and area statistics
+        print(f"Active power: {active_power:.15f} W")
+        print(f"Static power: {static_power:.15f} W")
+        print(f"Total power: {total_power:.15f} W")
+        print(f"Total JJ: {total_jj}")
+
+        return {
+            "active_power": active_power,
+            "static_power": static_power,
+            "total_power": total_power,
+            "total_jj": total_jj,
+        }
+
+    def getEnergy(self, time):
+        if not hasattr(self, "power_and_area"):
+            power_and_area = self.getPowerAndArea()
+        print(f"Calculating energy for time: {time} ticks")
+        active_energy = power_and_area["active_power"] * time * 1e-12
+        static_energy = power_and_area["static_power"] * time * 1e-12
+        total_energy = active_energy + static_energy
+        print(f"Active energy: {active_energy:.15f} J")
+        print(f"Static energy: {static_energy:.15f} J")
+        print(f"Total energy: {total_energy:.15f} J")
+        print(f"Total JJ: {power_and_area['total_jj']}")
+        return total_energy
 
 
 class SEGAController(SubSystem):
