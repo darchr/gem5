@@ -89,6 +89,9 @@ class NetDest
 
     // For Princeton Network
     std::vector<NodeID> getAllDest();
+    // MYSTUFF
+    std::vector<MachineID> getAllDestofType(MachineType type);
+    // FFUTSYM
 
     MachineID smallestElement() const;
     MachineID smallestElement(MachineType machine) const;

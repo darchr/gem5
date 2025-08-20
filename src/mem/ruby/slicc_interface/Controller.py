@@ -89,3 +89,8 @@ class RubyController(ClockedObject):
     downstream_destinations = VectorParam.RubyController(
         [], "Possible destinations for requests sent towards memory"
     )
+
+    # MYSTUFF
+    # Mahyar made the conscious decision to allow default for this.
+    host_id = Param.Int(0, "ID of the host to which this controller belongs.")
+    # FFUTSYM

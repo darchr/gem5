@@ -121,6 +121,10 @@ class RubySystem : public ClockedObject
 
     const ProtocolInfo& getProtocolInfo() { return *protocolInfo; }
 
+    // MYSTUFF
+    AbstractController *getAbstractController(MachineID mach_id);
+    // FFUTSYM
+
   private:
     // Private copy constructor and assignment operator
     RubySystem(const RubySystem& obj);

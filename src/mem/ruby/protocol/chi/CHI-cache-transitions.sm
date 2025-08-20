@@ -1808,3 +1808,11 @@ transition(DvmExtOp_Finished, Final, I) {
   Pop_TriggerQueue;
   Finalize_DeallocateDvmSnoop;
 }
+
+// MYSTUFF
+transition({BUSY_INTR,BUSY_BLKD}, DelayRemoteHit) {
+  Pop_TriggerQueue;
+  DelayRemoteHit;
+  ProcessNextState_ClearPending;
+}
+// FFUTSYM

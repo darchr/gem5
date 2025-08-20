@@ -143,6 +143,27 @@ NetDest::getAllDest()
     return dest;
 }
 
+// MYSTUFF
+std::vector<MachineID>
+NetDest::getAllDestofType(MachineType type)
+{
+    assert(m_ruby_system != nullptr);
+    assert(m_bits.size() > 0);
+
+    std::vector<MachineID> dest;
+    dest.clear();
+
+    int type_idx = MachineType_base_level(type);
+    for (int j = 0; j < m_bits[type_idx].getSize(); j++) {
+        if (m_bits[type_idx].isElement(j)) {
+            int id = MachineType_base_number(type) + j;
+            dest.emplace_back(type, id);
+        }
+    }
+    return dest;
+}
+// FFUTSYM
+
 int
 NetDest::count() const
 {

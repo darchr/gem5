@@ -178,6 +178,11 @@ machine(MachineType:Cache, "Cache coherency protocol") :
   // Use prefetcher
   bool use_prefetcher, default="false";
 
+
+  // MYSTUFF
+  Cycles remote_hit_delay := 100;
+  // FFUTSYM
+
   // Message Queues
 
   // Interface to the network
@@ -561,6 +566,10 @@ machine(MachineType:Cache, "Cache coherency protocol") :
     FinishCopyBack_Stale, desc="Check if a Evict needs to be sent";
     ActionStalledOnHazard, desc="Stall a trigger action because until finish handling snoop hazard";
     WriteZero, desc="Stall a trigger action because until finish handling snoop hazard";
+
+    // MYSTUFF
+    DelayRemoteHit, desc="Model Extra Delay for Remote Hits.";
+    // FFUTSYM
 
     // This is triggered once a transaction doesn't have
     // any queued action and is not expecting responses/data. The transaction

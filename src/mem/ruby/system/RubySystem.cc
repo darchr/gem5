@@ -801,5 +801,14 @@ RubySystem::functionalWrite(PacketPtr pkt)
     return true;
 }
 
+// MYSTUFF
+AbstractController*
+RubySystem::getAbstractController(MachineID mach_id)
+{
+    return m_abstract_controls[mach_id.getType()][mach_id.getNum()];
+}
+
+// FFUTSYM
+
 } // namespace ruby
 } // namespace gem5

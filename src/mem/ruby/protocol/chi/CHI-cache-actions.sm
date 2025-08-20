@@ -489,6 +489,11 @@ action(Initiate_ReadShared_Hit, desc="") {
 
 action(Initiate_ReadShared_HitUpstream, desc="") {
   tbe.actions.push(Event:ReadMissPipe);
+  // MYSTUFF
+  if (is_HN && (!hasLocalSharer(tbe.requestor, getDirEntry(address).sharers))) {
+    tbe.actions.push(Event:DelayRemoteHit);
+  }
+  // FFUTSYM
   if (tbe.use_DCT) {
     tbe.actions.push(Event:SendSnpSharedFwdToOwner);
     tbe.actions.pushNB(Event:WaitCompAck);
@@ -503,6 +508,11 @@ action(Initiate_ReadShared_HitUpstream, desc="") {
 
 action(Initiate_ReadShared_HitUpstream_NoOwner, desc="") {
   tbe.actions.push(Event:ReadMissPipe);
+  // MYSTUFF
+  if (is_HN && (!hasLocalSharer(tbe.requestor, getDirEntry(address).sharers))) {
+    tbe.actions.push(Event:DelayRemoteHit);
+  }
+  // FFUTSYM
   if (tbe.use_DCT) {
     tbe.actions.push(Event:SendSnpSharedFwdToSharer);
     tbe.actions.pushNB(Event:WaitCompAck);
@@ -590,6 +600,11 @@ action(Initiate_ReadOnce_Hit, desc="") {
 
 action(Initiate_ReadOnce_HitUpstream, desc="") {
   tbe.actions.push(Event:ReadMissPipe);
+  // MYSTUFF
+  if (is_HN && (!hasLocalSharer(tbe.requestor, getDirEntry(address).sharers))) {
+    tbe.actions.push(Event:DelayRemoteHit);
+  }
+  // FFUTSYM
   if (tbe.use_DCT) {
     tbe.actions.push(Event:SendSnpOnceFwd);
     tbe.actions.pushNB(Event:WaitCompAck);
@@ -681,6 +696,11 @@ action(Initiate_ReadUnique_Hit, desc="") {
 
 action(Initiate_ReadUnique_HitUpstream, desc="") {
   tbe.actions.push(Event:ReadMissPipe);
+  // MYSTUFF
+  if (is_HN && (!hasLocalSharer(tbe.requestor, getDirEntry(address).sharers))) {
+    tbe.actions.push(Event:DelayRemoteHit);
+  }
+  // FFUTSYM
   // SnpUniqueFwd can be used only if the line is cached at a single
   // requester; so force it off if that's the case
   tbe.use_DCT := tbe.use_DCT && (tbe.dir_sharers.count() == 1) &&
@@ -4135,3 +4155,10 @@ action(Profile_OutgoingEnd_DVM, desc="") {
   assert(is_valid(tbe));
   outgoingTransactionEnd(address, tbe.rcvdRetryAck, false);
 }
+
+// MYSTUFF
+action(DelayRemoteHit, desc="") {
+  assert(is_valid(tbe));
+  tbe.delayNextAction := curTick() + cyclesToTicks(remote_hit_delay);
+}
+// FFUTSYM

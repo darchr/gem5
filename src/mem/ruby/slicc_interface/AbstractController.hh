@@ -242,8 +242,15 @@ class AbstractController : public ClockedObject, public Consumer
     Addr getOffset(Addr addr) const;
     Addr makeLineAddress(Addr addr) const;
     std::string printAddress(Addr addr) const;
-
+  // MYSTUFF
+  public:
+    int hostId() const { return m_hostId; }
+  // FFUTSYM
   protected:
+    // MYSTUFF
+    bool hasLocalSharer(MachineID requestor, NetDest sharers);
+    // FFUTSYM
+
     //! Profiles original cache requests including PUTs
     void profileRequest(const std::string &request);
     //! Profiles the delay associated with messages.
@@ -486,6 +493,9 @@ class AbstractController : public ClockedObject, public Consumer
     void sendRetryRespToMem();
     MemberEventWrapper<&AbstractController::sendRetryRespToMem> mRetryRespEvent;
 
+    // MYSTUFF
+    int m_hostId;
+    // FFUTSYM
   public:
     struct ControllerStats : public statistics::Group
     {

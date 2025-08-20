@@ -73,6 +73,9 @@ AbstractController::AbstractController(const Params &p)
         // of this particular type.
         statistics::registerDumpCallback([this]() { collateStats(); });
     }
+    // MYSTUFF
+    m_hostId = p.host_id;
+    // FFUTSYM
 }
 
 void
@@ -529,6 +532,23 @@ AbstractController::MemoryPort::recvReqRetry()
     controller->m_waiting_mem_retry = false;
     controller->serviceMemoryQueue();
 }
+
+// MYSTUFF
+bool
+AbstractController::hasLocalSharer(MachineID requestor, NetDest sharers)
+{
+    bool ret = false;
+    AbstractController *requestor_ctrl = \
+        m_ruby_system->getAbstractController(requestor);
+    std::vector<MachineID> sharer_ids = sharers.getAllDestofType(getType());
+    for (auto mach_id: sharer_ids) {
+        AbstractController *ctrl = \
+            m_ruby_system->getAbstractController(mach_id);
+        ret |= (requestor_ctrl->hostId() == ctrl->hostId());
+    }
+    return ret;
+}
+// FFUTSYM
 
 AbstractController::MemoryPort::MemoryPort(const std::string &_name,
                                            AbstractController *_controller,
