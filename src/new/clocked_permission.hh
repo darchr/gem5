@@ -53,8 +53,8 @@ namespace gem5
  * This Clocked SimObject is a reimplementation of DualPort. This is needed to
  * create AccessEvent instead of a simple EventWrapper for adding the access
  * latency of the permission table lookup. This reimplementation also fixes the
- * cpuSidePort's 
- * 
+ * cpuSidePort's
+ *
  * This SimObject is created from the simple memory object that can have
  * multiple requests coming in and going out with and without additional
  * latency. This extra latency is added for the permission checks against a
@@ -73,10 +73,10 @@ namespace gem5
  *
  * The original Mondrian paper doesn't do any of the stuff they mention in
  * their paper. They "create" permission tables from a trace with marked mmaped
- * instructions. 
- * 
+ * instructions.
+ *
  * In this version of the code, the segment sizes are fixed to 4 KiB.
- * 
+ *
  * We are annotating mmaps to create the permission table. The
  * creation latency is ignored but the lookup latency is added to every memory
  * request.
@@ -85,7 +85,7 @@ namespace gem5
 
 // FIXME:
 // We need a template for a queue and a set. There can be multiple entries in
-// the template for a given address to figure out where is the ID. 
+// the template for a given address to figure out where is the ID.
 template<typename T>
 class CustomQueue
 {
@@ -142,7 +142,7 @@ class ClockedPermission : public ClockedObject
                 // Need to maintain the packet_id to keep a track of where
                 // to respond back for a packet.
                 uint64_t packet_id;
-    
+
             public:
                 CPUSidePort(const std::string& name_,
                             PortID id_,
@@ -184,7 +184,7 @@ class ClockedPermission : public ClockedObject
                             ClockedPermission &owner_) : RequestPort(name_),
                                                         owner(owner_)
                 { }
-            
+
             protected:
                 bool recvTimingResp(PacketPtr pkt) override {
                     return owner.recvTimingResp(pkt);
@@ -206,11 +206,20 @@ class ClockedPermission : public ClockedObject
         std::vector<CPUSidePort> cpuSidePorts;
 
         // To enable or disable permission checks. If this is not set, this
-        // SimObject is a simple packet forwarder. 
+        // SimObject is a simple packet forwarder.
         bool enablePermissionCheck;
 
+        // To enable system caches, we need to provide another option to the
+        // user
+        bool useDedicatedCaching;
         // The base of the permission table must be a valid memory address.
         Addr baseAddrPermissionTable;
+
+        unsigned int numberOfEntries;
+
+        bool binarySearch;
+
+        unsigned int permissionEntrySize;
 
         // make sure to use these variables for the MMP lookup
         Tick creationLatency;
@@ -250,7 +259,7 @@ class ClockedPermission : public ClockedObject
         // We need a couple of masks to lookup the cache and permissions
         // efficiently
         uint64_t segment_mask;
-        uint64_t cache_mask;  
+        uint64_t cache_mask;
 
         // We need a  variable for the total number of enteies
         uint64_t total_entries;
@@ -295,7 +304,7 @@ class ClockedPermission : public ClockedObject
         // For the ports to work correctly
         std::unordered_map<PacketId, uint64_t> portMap;
         CustomQueue<uint64_t> retry_queue;
-    
+
         // For the response port
         AddrRangeList getAddrRanges() const;
         Tick recvAtomic(PacketPtr pkt);
@@ -327,7 +336,7 @@ class ClockedPermission : public ClockedObject
 
         // To implement the new packet stuff, here are the mothods
         Addr getPLBAddr(Addr addr);
-    
+
         // We need dual port stats for verification and results.
         struct StatGroup : public statistics::Group
         {
@@ -349,7 +358,7 @@ class ClockedPermission : public ClockedObject
             /** Number of hits in the permission table cache */
             statistics::Scalar numPermissionTableCacheHits;
 
-            /** total number of accesses into the permission table 
+            /** total number of accesses into the permission table
              * (redundant!) */
             statistics::Scalar numPermissionTableAccesses;
 

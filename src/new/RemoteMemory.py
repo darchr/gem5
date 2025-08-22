@@ -29,30 +29,39 @@
 
 from m5.objects.ClockedObject import ClockedObject
 from m5.params import *
-from m5.proxy import *
 from m5.SimObject import (
     PyBindMethod,
     SimObject,
 )
 
-# It might be better to extend this class to implement space-control instead of
-# putting lipstick to add more features.
 
-
-class ClockedPermission(ClockedObject):
+class RemoteMemoryPermissions(ClockedPermission):
     """
-    This is a simple SimObject that sits between the LLC and the memory
+    This is a simple SimObject that sits between the LLC and the remote memory
     controller that is responsible for performing checks with physical
-    addressess. In this version of the SimObject, it can be used to estimate
-    the performance overhead of Mondrian memory protection.
+    addressess. This is based on the DeACT's access-control design.
 
-    With certain extensions, this can also be used as a reverse mapping table
-    for permission checks.
+    Here are a couple of notes to understand the reimplementations of their
+    design:
+    1. DeACT is based on Gen-Z interconnect where hosts let a virtual address
+        to a remote memory location (R.V.A) go out of the host. The R.V.A is
+        translated to a P.A outside the system, which substantially increases
+        the translation latency. They refer to this design as the I-FAM.
+    2. CXL on the other hand ditched this design and opted for the E-FAM-like
+        design, where hosts translates V.A to remote physical addresses (RPA),
+        eliminating the large latency.
+    3. DeACT today cannot be implemented 1-1 on CXL due to the differences in
+        assumptions.
 
-    TODO:
-    We need a traffic generator if we don't want the operating system to manage
-    the stuff this SimObject does. Also that is a better design without the OS
-    getting involved for security reasons.
+    We extented ClockedPermission to implement a flat table structure for the
+    access control per 4 KiB page. While this design works flawlessly (in
+    theory) for pooled memory. However, permission tables needs to either have
+    the same permission per 1 GiB (as per the paper) or the table needs to be
+    replicated N times, where N is the number opf participant hosts.
+
+    Observation here is that there not every page needs to have a different
+    permission per host, but pages can be grouped together for a set of hosts.
+    This will be defined as the "context" in our design.
 
     @params
     :: basic connections ::
@@ -60,10 +69,11 @@ class ClockedPermission(ClockedObject):
     mem_side_port: The mem side port that sends requests downstream
 
     :: timing :: (pretty much for MMP)
-    hit_latency:
-    miss_latency:
+    hit_latency: hit time for access control data in the DeACT$
+    miss_latency: should be the same as the remote memory latency. This
+                should be ignored when scheduing the lookup event (ideally).
 
-    cache_size: size of the MMP cache. The table is small so a small cache
+    cache_size: size of the DeACT cache. The table is small so a small cache
                 should not be a problem
     cache_policy: There are some basic caching policies implemented in this
                 version.
@@ -73,9 +83,9 @@ class ClockedPermission(ClockedObject):
     traffic_side_port: The traffic port that receives requests.
     """
 
-    type = "ClockedPermission"
-    cxx_header = "new/clocked_permission.hh"
-    cxx_class = "gem5::ClockedPermission"
+    type = "RemoteMemoryPermission"
+    cxx_header = "new/remote_memory_permission.hh"
+    cxx_class = "gem5::RemoteMemoryPermission"
 
     # Receives request
     cpu_side_ports = VectorResponsePort("Response side port, sends requests")
@@ -96,46 +106,6 @@ class ClockedPermission(ClockedObject):
         True,
         "To enable or disable \
                                                         permission checks.",
-    )
-
-    # Even if there is an OS driver that sets up the permissions, there will be
-    # a need in the hardware to redirect all memory requests to a permission
-    # region.
-
-    # A final boolean is required to enable or disable dedicated permission
-    # caching. Make sure to set this range as uncacheable in the config script.
-    use_dedicated_caching = Param.Bool(
-        True,
-        "To enable dedicated \
-                                            permission caching.",
-    )
-
-    # To make sure that the table actually exists in the memory, a base address
-    # is needed. The default address is hardcoded into X86's IO range.
-    permission_base_addr = Param.Addr(
-        0xC0000000,
-        "Base of the permission \
-                                                                    table.",
-    )
-
-    # To perform binary lookup or linear lookup, we need to know the number
-    # of entries if the permission are not maintained per segment.
-    number_of_entries = Param.Unsigned(
-        100,
-        "Total number of variable \
-                                        permission table entries.",
-    )
-
-    binary_search = Param.Bool(
-        True,
-        "Assume that the permission table is \
-                                                                    sorted.",
-    )
-
-    permission_entry_size = Param.Unsigned(
-        32,
-        "Size of a permission table \
-                                                                entry.",
     )
 
     # TODO

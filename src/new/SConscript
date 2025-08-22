@@ -30,11 +30,17 @@ Import('*')
 # SimObject('SimpleBlockingPort.py', sim_objects=['SimpleBlockingPort'])
 # SimObject('SimplePort.py', sim_objects=['SimplePort'])
 SimObject('ClockedPermission.py', sim_objects=['ClockedPermission'])
+# SimObject('MyUIODevice.py', sim_objects=['MyUIODevice'])
 
 # Source('dual_port.cc')
 # Source('simple_blocking_port.cc')
 # Source('simple_port.cc')
 Source('clocked_permission.cc')
+# Source('my_uio_device.cc')
+
+# SimObject('MyPCIDevice.py', sim_objects=['MyPCIDevice'])
+# Source('my_pci_device.cc')
+
 
 # Here are the debug flags used in the source code.
 # DebugFlag('DualPort', "Making sure everything works!")
@@ -44,3 +50,5 @@ DebugFlag('PermissionTableEvent', "Making sure that the permission table works!"
 # DebugFlag('SimplePort', "The simple implementation")
 DebugFlag('ClockedPermissionDebug', "For the latency memory object")
 DebugFlag('PermissionPackets', "For custom packets")
+
+DebugFlag('MyUIODevice', "For the MyUIODevice SimObject")

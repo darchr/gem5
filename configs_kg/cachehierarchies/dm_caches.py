@@ -28,13 +28,10 @@ from cachehierarchies.private_l1_private_l2_shared_l3_cache_hierarchy import (
     PrivateL1PrivateL2SharedL3CacheHierarchy,
 )
 
-from m5.objects import (
-    # DualPort,
+from m5.objects import (  # DualPort,; SimpleBlockingPort,; SimplePort,
+    ClockedPermission,
     L2XBar,
     PortTerminator,
-    # SimpleBlockingPort,
-    # SimplePort,
-    ClockedPermission
 )
 
 from gem5.components.boards.abstract_board import AbstractBoard
@@ -82,6 +79,9 @@ class ClassicPrivateL1PrivateL2SharedL3CacheHierarchyWChecks(
         board.connect_system_port(self.membus.cpu_side_ports)
 
         for cntr in board.get_memory().get_memory_controllers():
+            cntr.port = self.membus.mem_side_ports
+
+        for cntr in board.remoteMemory.get_memory_controllers():
             cntr.port = self.membus.mem_side_ports
 
         self.l1icaches = [
@@ -160,6 +160,7 @@ class ClassicPrivateL1PrivateL2SharedL3CacheHierarchyWChecks(
         self.permission_table.mem_side_port = self.membus.cpu_side_ports
         # self.l3cache.mem_side = self.permission_table.data_port
         # self.permission_table.mem_side = self.membus.cpu_side_ports
+        # self.l3cache.mem_side = self.membus.cpu_side_ports
 
 
 class ClassicPrivateL1PrivateL2DMCache(PrivateL1PrivateL2CacheHierarchy):

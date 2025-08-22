@@ -14,7 +14,11 @@ ClockedPermission::ClockedPermission(const ClockedPermissionParams &params) :
     memSidePort(params.name + ".mem_side_port", *this),
     // cpuSidePort(params.name + ".cpu_side_port", this),
     enablePermissionCheck(params.enable_permission_check),
+    useDedicatedCaching(params.use_dedicated_caching),
     baseAddrPermissionTable(params.permission_base_addr),
+    numberOfEntries(params.number_of_entries),
+    binarySearch(params.binary_search),
+    permissionEntrySize(params.permission_entry_size),
     creationLatency(params.creation_latency),
     hitLatency(params.hit_latency),
     missLatency(params.miss_latency),
@@ -55,13 +59,13 @@ ClockedPermission::ClockedPermission(const ClockedPermissionParams &params) :
     // Now set up the cache. We don't really need a lot of cache to maintain
     // this table.
     // We maintain a couple of states of the address in the cache. I am keeping
-    // a couple of values to make sure that it is compatible with all tyoes of 
+    // a couple of values to make sure that it is compatible with all tyoes of
     // caches.
     // address, [is_cached (bool), last_accessed (Tick), access_count (int)]
     // The map is initialized with a dummy entry in the beginning. We might
     // remove this in the future.
     // permission_table.insert({uint64_t(-1), new struct cache_entry_vector});
-    
+
     // Whether an entry is cached or not is detemined by the number of
     // is_cache number.
     total_cached_entries = 0;
@@ -105,11 +109,12 @@ ClockedPermission::recvFunctional(PacketPtr pkt)
 bool
 ClockedPermission::recvTimingReq(PacketPtr pkt, uint64_t packet_id) {
     // If the permission tables are enabled by the user.
-    if (enablePermissionCheck) {
-        // TODO: 
+    ++stats.numIncomingCPUSidePackets;
+    if (enablePermissionCheck && useDedicatedCaching) {
+        // TODO:
         // Change the return structure to a struct with <bool, gem5::Tick>.
         // If this is a miss, then create an additional packet that accesses
-        // the memory to fetch the data from the permission table. 
+        // the memory to fetch the data from the permission table.
         struct permission_handler status = isCachedRequest(pkt->getAddr());
 
         // TODO:
@@ -120,13 +125,13 @@ ClockedPermission::recvTimingReq(PacketPtr pkt, uint64_t packet_id) {
             // this is a linear table and the caching will depend on the
             // structure of this table.
             Addr permission_addr = getPLBAddr(pkt->getAddr());
-        
+
             // even
             // if this is a linear table, the timing correctness is implemented
             // as the lookup latency. this request is only made to make sure
             // that the memory contention is correctly modeled.
             // assume that this is a flat table where the address is the index.
-            
+
             // First create a new request
             Request::Flags flags;
             RequestPtr req = std::make_shared<Request>(
@@ -136,7 +141,7 @@ ClockedPermission::recvTimingReq(PacketPtr pkt, uint64_t packet_id) {
 
             DPRINTF(PermissionPackets,
                 "Created custom packet with addr %#lu and req ID %d\n",
-                                    permission_pkt->getAddr(), requestorId);
+                                    permission_pkt->getAddr(), pkt->requestorId());
             // TODO: What do I do with this packet? Try sending this packet?
             if (memSidePort.sendTimingReq(permission_pkt)) {
                 // what is packet_id
@@ -150,8 +155,8 @@ ClockedPermission::recvTimingReq(PacketPtr pkt, uint64_t packet_id) {
                 retry_queue.push(packet_id);
             }
         }
-        
-        
+
+
         // TODO:
         // Schedule a new AccessEvent with this latency. Since this is a clock
         // edge, both the rising and the falling edges can be used in this
@@ -161,8 +166,99 @@ ClockedPermission::recvTimingReq(PacketPtr pkt, uint64_t packet_id) {
                         clockEdge(static_cast<Cycles>(status.latency / 2)));
 
     }
+    else {
+        // if this is a retry request then skip this
+        if (true) { // retry_queue.empty()) {
+            // This is the beginning of space control with no dedicated caching
+            // first for every memory request in the shared memory region, create
+            // another memory request to enforce permission checks. otherwise the
+            // OS is writing permissions to the permission section
+            if (pkt->getAddr() >= baseAddrPermissionTable &&
+                        pkt->getAddr() < baseAddrPermissionTable + 0x40000000) {
+                // This is an OS request to read or write into the permission table
+                // don't do anything actually!
+            }
+            else {
+                // lookup the entry. the lookup time is dependent up on the number
+                // of permission entries.
+                // XXX: The number of entries is preset.
 
-    // business as usual:
+                // regardless of a dedicated cache is present, the time required to
+                // lookup an entry will always be constant.
+                Tick lookup_time = 0;
+                if (binarySearch)
+                    lookup_time = (gem5::Tick) log2(numberOfEntries);
+                else
+                    lookup_time = numberOfEntries;
+
+                // assume system caching and schedule a number of fake requests to
+                // the dedicated memory region. The packets must be
+                int memory_packes_required = (permissionEntrySize / 64) + 1;
+
+                for (int i = 0 ; i < memory_packes_required ; i++) {
+                    ++stats.numOutgoingMemSidePackets;
+
+                    // even
+                    // if this is a linear table, the timing correctness is implemented
+                    // as the lookup latency. this request is only made to make sure
+                    // that the memory contention is correctly modeled.
+                    // assume that this is a flat table where the address is the index.
+
+                    // First create a new request
+                    // FIXME: There needs to be n number of read requests by 64.
+                    Addr permission_addr = baseAddrPermissionTable + i * 64;
+                    Request::Flags flags;
+                    RequestPtr req = std::make_shared<Request>(
+                                        permission_addr, 1, pkt->req->getFlags(), pkt->requestorId());
+                    PacketPtr permission_pkt = new Packet(req, permission_cmd, 64);
+                    // req->setFlags(Request::VALID_SIZE);
+                    // permission_pkt->setSize(permissionEntrySize);
+
+                    // req->setFlags(Request::UNCACHEABLE | Request::STRICT_ORDER);
+
+                    permission_pkt->allocate();
+
+                    DPRINTF(PermissionPackets,
+                        "Created custom packet for pkt addr %#x with permission addr"
+                        " %#x and size %lu and req ID %d and packet_id %d\n",
+                                        pkt->getAddr(), permission_pkt->getAddr(), permission_pkt->getSize(),
+                                        pkt->requestorId(), packet_id);
+                    // TODO: What do I do with this packet? Try sending this packet?
+                    if (memSidePort.sendTimingReq(permission_pkt)) {
+                        // what is packet_id
+                        ++stats.numPermissionTableAccesses;
+                        portMap[pkt->id] = packet_id;
+                    }
+                    // TODO: can this packet go into the same retry queue?
+                    else {
+                        DPRINTF(PermissionPackets, "Couldn't send %#x for %#x on port %lu\n",
+                                                permission_pkt->getAddr(), pkt->getAddr(), packet_id);
+                        // only store the actual request and delete the fake request.
+                        // it'll be created again.
+                        retry_queue.push(packet_id);
+                        // delete the traffic packet
+                        // delete permission_pkt;
+
+                        // also cannot send the actual packet now
+                        // return false;
+                    }
+                }
+                // for (int i = 0 ; i < memory_packes_required ; i++) {
+                    // simulate this memory request. is this required?
+                    // ++stats.numOutgoingTrafficPackets;
+                    // FIXME: The lookup happens once but the number of memory packets are multiple
+
+                    // this is the additonal latency required to do the lookup.
+                schedule(new EventFunctionWrapper([this, pkt]{ },
+                        name() + ".accessEvent", true),
+                        clockEdge(static_cast<Cycles>(lookup_time)));
+                // }
+            }
+
+        }
+    }
+
+    // business as usual. if the permission packet is not sent, then
     if (memSidePort.sendTimingReq(pkt)) {
         // Send successful, keep the packet_id for later.
         portMap[pkt->id] = packet_id;
@@ -191,9 +287,9 @@ ClockedPermission::recvRespRetry(const PortID id) {
 bool
 ClockedPermission::recvTimingResp(PacketPtr pkt) {
     // TODO: delete the packet if this is a permission packet
-    if (pkt->getAddr() == baseAddrPermissionTable) {
-            DPRINTF(PermissionPackets, "Got response for permission pkt %#lu\n",
-                                                            pkt->getAddr());
+    if (pkt->getAddr() >= baseAddrPermissionTable && pkt->getAddr() < baseAddrPermissionTable + 0x40000000) {
+            DPRINTF(PermissionPackets, "Got response for permission pkt %#x and size %d\n",
+                                                            pkt->getAddr(), pkt->getSize());
         // do not send this packet to the CPU side ports as the job of the
         // SimObject is over.
         delete pkt;
@@ -209,7 +305,7 @@ ClockedPermission::recvReqRetry() {
         uint64_t id = retry_queue.front();
         cpuSidePorts[id].sendRetryReq();
         retry_queue.pop();
-        DPRINTF(ClockedPermissionDebug, "Found the retry Issue! Port %lu\n", 
+        DPRINTF(ClockedPermissionDebug, "Found the retry Issue! Port %lu\n",
                                                                         id);
     }
 }
@@ -268,14 +364,14 @@ ClockedPermission::isCachedRequest(gem5::Addr addr) {
     Simple caching function that determines the caching variable from the
     class contructor and then makes sure to return where the given address
     has the values in the cache.
-    
+
     @params
     addr: address to check inside the cache
-    
+
     :returns:
         A struct with cache hit status and the latency value.
     */
-    
+
     // figure out what kind of cache I am using.
     ++stats.numPermissionTableAccesses;
 
@@ -319,7 +415,7 @@ ClockedPermission::simpleLRU(gem5::Addr addr) {
     // MMP. the lateny of a hit is actually a variable latency. Since this
     // is a binary lookup, the latency is log2 N where N is the number
     // of entries. Make sure that the latency is never 0.
-    Tick latency = permission_table_entries > 0 ? 
+    Tick latency = permission_table_entries > 0 ?
                                     std::log2(permission_table_entries) : 1;
 
     if (lookup != permission_table.end()) {
@@ -365,7 +461,7 @@ ClockedPermission::simpleLRU(gem5::Addr addr) {
                 // make sure to update the current lookup
                 lookup->second->is_cached = true;
                 lookup->second->access_count = 1;
-                
+
             }
         }
     }
@@ -398,7 +494,7 @@ ClockedPermission::simpleLRU(gem5::Addr addr) {
             gem5::Addr key;
             for (auto it = permission_table.begin();
                             it !=  permission_table.end(); it++) {
-                if (min_count < it->second->access_count && 
+                if (min_count < it->second->access_count &&
                                             it->second->is_cached == true) {
                     min_count = it->second->access_count;
                     key = it->first;
@@ -415,7 +511,7 @@ ClockedPermission::simpleLRU(gem5::Addr addr) {
     // check if this address is in the cache
     return_struct.latency = latency;
     return return_struct;
-    
+
 }
 
 ClockedPermission::permission_handler
@@ -497,7 +593,7 @@ ClockedPermission::simpleMRU(gem5::Addr addr) {
             gem5::Addr key;
             for (auto it = permission_table.begin();
                             it !=  permission_table.end(); it++) {
-                if (max_count > it->second->last_accessed && 
+                if (max_count > it->second->last_accessed &&
                                             it->second->is_cached == true) {
                     max_count = it->second->last_accessed;
                     key = it->first;

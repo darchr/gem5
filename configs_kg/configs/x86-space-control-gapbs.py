@@ -1,4 +1,4 @@
-# Copyright (c) 2021 The Regents of the University of California.
+# Copyright (c) 2025 The Regents of the University of California.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -25,7 +25,28 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 """
+This script is an example configuration script to run the gapbs
+benchmarks on the x86 architecture with permission checks enabled.
+It sets up a full-system simulation with a KVM processor for booting
+the OS and a Timing processor for running the benchmark. The script
+makes sure that this is a single system as KVM is not supported by the
+pure-gem5 simulation model.
 
+Here are the steps that happen.
+1. OS boot.
+2. Sets up the MMIO driver/library
+3. Allocate the memory.
+4. Switch
+5. Add permissions to the table
+    a. Uncacheable with additional lookup latency
+    b. system cache with additional lookup latency
+    c. dedicated cache with additional lookup latency
+    d. varying the lookup latency -- using a large graph
+6. do 1B ticks and report CPI or IPC.
+7. Baseline:
+    a. Pure CXL
+    b. Mondrian -- What is the difference?
+    c. DeACT    -> Create an additional memory request for every memory request
 
 """
 import argparse
@@ -37,7 +58,7 @@ import time
 sys.path.append(
     os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir))
 )
-from boards.x86_permission_board import X86PermissionBoard
+from boards.x86_space_control_board import X86SpaceControlBoard
 
 import m5
 from m5.objects import (
@@ -95,10 +116,17 @@ cache_hierarchy = ClassicPrivateL1PrivateL2SharedL3CacheHierarchyWChecks(
     l3_size="8MiB",
 )
 
-# configure the permission table
+# configure the permission table for space control
 cache_hierarchy.get_permission_table().enable_permission_check = True
+cache_hierarchy.get_permission_table().use_dedicated_caching = False
+# make sure that the permission parameters are setup correctly.
+cache_hierarchy.get_permission_table().permission_base_addr = 0x140000000
+cache_hierarchy.get_permission_table().number_of_entries = 1
+cache_hierarchy.get_permission_table().binary_search = True
+# using parameters from the driver.
+cache_hierarchy.get_permission_table().permission_entry_size = 655408
+
 cache_hierarchy.get_permission_table().total_memory_size = 0x20000000
-cache_hierarchy.get_permission_table().permission_base_addr = 0x80000000
 
 # Memory: Dual Channel DDR4 2400 DRAM device.
 # The X86 board only supports 3 GiB of main memory.
@@ -121,13 +149,12 @@ processor = SimpleSwitchableProcessor(
 
 # Here we setup the board. The X86Board allows for Full-System X86 simulations
 
-board = X86PermissionBoard(
+board = X86SpaceControlBoard(
     clk_freq="3GHz",
     processor=processor,
     cache_hierarchy=cache_hierarchy,
     memory=memory,
-    os_memory_range="1G",
-    permission_table_range=AddrRange(start=0x0, size="1GiB"),
+    remote_memory=SingleChannelDDR4_2400(size="32GiB"),
 )
 
 
@@ -150,13 +177,14 @@ cmd = [
     "echo '12345' | sudo -S ndctl create-namespace -f -enamespace0.0 -m devdax;",
     # Enable users to read/write to the device
     "echo '12345' | sudo -S chmod a+rw /dev/dax0.0;",
-    "echo '12345' | sudo -S dmesg;",
+    # "echo '12345' | sudo -S dmesg;",
     "ls /dev;",
     "sleep 1;",
     # Ignore the boot time stats. Allocate a tiny graph.
     "echo '12345' | sudo /home/gem5/shared-gapbs/allocator -S 1 -x 0 -g 10;",
     # This program can simply exit now.
     "m5 exit;",
+    "echo '12345' | sudo /home/gem5/shared-gapbs/bc -S 1 -x 1 -g 10;",
 ]
 workload = CustomWorkload(
     function="set_kernel_disk_workload",
@@ -175,7 +203,7 @@ workload = CustomWorkload(
             "root=/dev/sda2",
             "no_systemd=true",  # init=/bin/bash",
             # "memmap=8G!7G",
-            "mem=1G",
+            # "mem=1G",
         ],
     },
 )
@@ -188,6 +216,7 @@ def handle_workbegin():
     m5.stats.reset()
     global start_tick
     start_tick = m5.curTick()
+    print("config: switching cpus")
     processor.switch()
     yield False  # E.g., continue the simulation.
 
@@ -195,6 +224,7 @@ def handle_workbegin():
 def handle_workend():
     print("Dump stats at the end of the ROI!")
     m5.stats.dump()
+    print("config: finished simulation!")
     yield True  # Stop the simulation. We're done.
 
 
@@ -204,7 +234,11 @@ def on_exit():
 
 simulator = Simulator(
     board=board,
-    on_exit_event={ExitEvent.EXIT: on_exit()},
+    on_exit_event={
+        ExitEvent.EXIT: on_exit(),
+        ExitEvent.WORKBEGIN: handle_workbegin(),
+        ExitEvent.WORKEND: handle_workend(),
+    },
 )
 
 # We maintain the wall clock time.
@@ -223,8 +257,8 @@ print("Using KVM cpu")
 simulator.run()
 simulator.run()
 simulator.run()
-simulator.run()
-simulator.run()
+# simulator.run()
+# simulator.run()
 end_tick = m5.curTick()
 # Since we simulated the ROI in details, therefore, simulation is over at this
 # point.
