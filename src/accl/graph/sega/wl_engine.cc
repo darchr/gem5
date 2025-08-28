@@ -85,6 +85,18 @@ WLEngine::registerMPU(MPU* mpu)
     owner = mpu;
 }
 
+EncoderDecoder*
+WLEngine::getEncoder() const
+{
+    return owner ? owner->getEncoder() : nullptr;
+}
+
+EncoderDecoder*
+WLEngine::getDecoder() const
+{
+    return owner ? owner->getDecoder() : nullptr;
+}
+
 AddrRangeList
 WLEngine::getAddrRanges()
 {
@@ -166,6 +178,18 @@ WLEngine::done()
 bool
 WLEngine::handleIncomingUpdate(PacketPtr pkt)
 {
+    // Get SEGA decoding delay for incoming updates from router
+    Tick decoding_delay = 0;
+    if (getDecoder()) {
+        decoding_delay = getDecoder()->getDelay();
+        DPRINTF(WLEngine, "%s: Adding SEGA decoding delay of %lu ticks "
+                "for incoming update from router. nextCycle()=%lu,"
+                "final_time=%lu\n",
+                __func__, decoding_delay, nextCycle(),
+                nextCycle() + decoding_delay
+        );
+    }
+
     Addr update_addr = pkt->getAddr();
     uint32_t update_value = pkt->getLE<uint32_t>();
 
@@ -204,7 +228,8 @@ WLEngine::handleIncomingUpdate(PacketPtr pkt)
     delete pkt;
 
     if (!nextReadEvent.scheduled()) {
-        schedule(nextReadEvent, nextCycle());
+        // Add decoding delay to the next read event scheduling
+        schedule(nextReadEvent, nextCycle() + decoding_delay);
     }
     return true;
 }

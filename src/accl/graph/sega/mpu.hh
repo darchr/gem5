@@ -35,6 +35,7 @@
 #include "accl/graph/base/data_structs.hh"
 #include "accl/graph/sega/accl_router.hh"
 #include "accl/graph/sega/coalesce_engine.hh"
+#include "accl/graph/sega/encoder_decoder.hh"
 #include "accl/graph/sega/enums.hh"
 #include "accl/graph/sega/push_engine.hh"
 #include "accl/graph/sega/wl_engine.hh"
@@ -60,12 +61,18 @@ class MPU : public SimObject
     CoalesceEngine* coalesceEngine;
     PushEngine* pushEngine;
 
+    EncoderDecoder* encoder;
+    EncoderDecoder* decoder;
+
   public:
     PARAMS(MPU);
     MPU(const Params& params);
     void registerCenteralController(CenteralController* centeral_controller);
     void registerRouter(AcclRouter* router);
     void notifyRouterDone();
+
+    EncoderDecoder* getEncoder() const { return encoder; }
+    EncoderDecoder* getDecoder() const { return decoder; }
 
     void setProcessingMode(ProcessingMode mode) { coalesceEngine->setProcessingMode(mode); }
     void createAsyncPopCountDirectory(int atoms_per_block) { coalesceEngine->createAsyncPopCountDirectory(atoms_per_block); }

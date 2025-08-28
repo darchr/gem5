@@ -35,6 +35,7 @@
 #include "accl/graph/base/data_structs.hh"
 #include "accl/graph/base/graph_workload.hh"
 #include "accl/graph/sega/base_memory_engine.hh"
+#include "accl/graph/sega/encoder_decoder.hh"
 #include "accl/graph/sega/enums.hh"
 #include "base/addr_range_map.hh"
 #include "base/intmath.hh"
@@ -57,7 +58,7 @@ class PushEngine : public BaseMemoryEngine
 
       public:
         ReqPort(const std::string& name, PushEngine* owner, PortID id) :
-          RequestPort(name, owner), 
+          RequestPort(name, owner),
           owner(owner), blockedPacket(nullptr), _id(id)
         {}
         void sendPacket(PacketPtr pkt);
@@ -202,6 +203,9 @@ class PushEngine : public BaseMemoryEngine
                 PortID idx = InvalidPortID) override;
     virtual void init() override;
     void registerMPU(MPU* mpu);
+
+    EncoderDecoder* getEncoder() const;
+    EncoderDecoder* getDecoder() const;
 
     void recvWorkload(GraphWorkload* workload) { graphWorkload = workload; }
     virtual void recvFunctional(PacketPtr pkt) { memPort.sendFunctional(pkt); }

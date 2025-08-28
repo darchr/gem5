@@ -85,6 +85,16 @@ def interleave_addresses(plain_range, num_channels, cache_line_size):
 class GPT(SubSystem):
     def __init__(self, register_file_size: int, cache_size: str):
         super().__init__()
+
+        # Add encoder/decoder components for SEGA processing
+        self.encoder = EncoderDecoder(
+            bit_width=3, is_encoder=True, dual_output=True
+        )
+
+        self.decoder = EncoderDecoder(
+            bit_width=3, is_encoder=False, dual_output=True
+        )
+
         self.wl_engine = WLEngine(
             update_queue_size=64,
             register_file_size=register_file_size,
@@ -130,6 +140,8 @@ class GPT(SubSystem):
             wl_engine=self.wl_engine,
             coalesce_engine=self.coalesce_engine,
             push_engine=self.push_engine,
+            encoder=self.encoder,
+            decoder=self.decoder,
         )
 
     def getRespPort(self):

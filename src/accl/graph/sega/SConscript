@@ -34,6 +34,7 @@ SimObject("MPU.py", sim_objects=["MPU"])
 SimObject("PushEngine.py", sim_objects=["PushEngine"])
 SimObject("WLEngine.py", sim_objects=["WLEngine"])
 SimObject("AcclRouter.py", sim_objects=["AcclRouter"])
+SimObject("EncoderDecoder.py", sim_objects=["EncoderDecoder"])
 
 Source("base_memory_engine.cc")
 Source("centeral_controller.cc")
@@ -43,6 +44,7 @@ Source("mpu.cc")
 Source("push_engine.cc")
 Source("wl_engine.cc")
 Source("accl_router.cc")
+Source("encoder_decoder.cc")
 
 DebugFlag("BaseMemoryEngine")
 DebugFlag("CenteralController")
@@ -53,6 +55,7 @@ DebugFlag("SEGAStructureSize")
 DebugFlag("MSDebug")
 DebugFlag("WLEngine")
 DebugFlag("AcclRouter")
+DebugFlag("EncoderDecoder")
 
 CompoundFlag("MPU", ["CoalesceEngine", "PushEngine",
                     "WLEngine", "BaseMemoryEngine"])

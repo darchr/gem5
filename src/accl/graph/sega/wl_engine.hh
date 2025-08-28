@@ -35,6 +35,7 @@
 #include "accl/graph/base/base_reduce_engine.hh"
 #include "accl/graph/base/graph_workload.hh"
 #include "accl/graph/base/data_structs.hh"
+#include "accl/graph/sega/encoder_decoder.hh"
 #include "accl/graph/sega/enums.hh"
 #include "base/statistics.hh"
 #include "params/WLEngine.hh"
@@ -143,6 +144,9 @@ class WLEngine : public BaseReduceEngine
     void handleIncomingWL(Addr addr, WorkListItem wl);
 
     void checkRetryReq();
+
+    EncoderDecoder* getEncoder() const;
+    EncoderDecoder* getDecoder() const;
 
     bool done();
 };

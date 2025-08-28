@@ -41,7 +41,9 @@ MPU::MPU(const Params& params):
     system(params.system),
     wlEngine(params.wl_engine),
     coalesceEngine(params.coalesce_engine),
-    pushEngine(params.push_engine)
+    pushEngine(params.push_engine),
+    encoder(params.encoder),
+    decoder(params.decoder)
 {
     wlEngine->registerMPU(this);
     coalesceEngine->registerMPU(this);

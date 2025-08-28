@@ -46,3 +46,6 @@ class MPU(SimObject):
     push_engine = Param.PushEngine(
         NULL, "Internal PushEngine for each " "instance of MPU object."
     )
+
+    encoder = Param.EncoderDecoder(NULL, "SEGA encoder for data compression")
+    decoder = Param.EncoderDecoder(NULL, "SEGA decoder for data decompression")

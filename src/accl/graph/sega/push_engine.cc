@@ -28,6 +28,7 @@
 
 #include "accl/graph/sega/push_engine.hh"
 
+#include "accl/graph/sega/encoder_decoder.hh"
 #include "accl/graph/sega/mpu.hh"
 #include "base/intmath.hh"
 #include "debug/PushEngine.hh"
@@ -90,6 +91,18 @@ void
 PushEngine::registerMPU(MPU* mpu)
 {
     owner = mpu;
+}
+
+EncoderDecoder*
+PushEngine::getEncoder() const
+{
+    return owner ? owner->getEncoder() : nullptr;
+}
+
+EncoderDecoder*
+PushEngine::getDecoder() const
+{
+    return owner ? owner->getDecoder() : nullptr;
 }
 
 void
@@ -500,6 +513,7 @@ PushEngine::processNextUpdatePushEvent()
         std::tie(src, value) = sourceAndValueMaps[i][dst];
 
         PacketPtr pkt = createUpdatePacket<uint32_t>(dst, value);
+
         outPorts[i].sendPacket(pkt);
         destinationQueues[i].pop_front();
         sourceAndValueMaps[i].erase(dst);
@@ -515,7 +529,18 @@ PushEngine::processNextUpdatePushEvent()
     // what happens here with temporal delay?
     assert(!nextUpdatePushEvent.scheduled());
     if (next_time_send > 0) {
-        schedule(nextUpdatePushEvent, nextCycle());
+        // Add SEGA encoding delay to the next update scheduling
+        Tick encoding_delay = 0;
+        if (getEncoder()) {
+            encoding_delay = getEncoder()->getDelay();
+            DPRINTF(PushEngine, "%s: Adding SEGA encoding delay of %lu ticks "
+                    "to next update push event. nextCycle()=%lu,"
+                    "final_time=%lu\n",
+                    __func__, encoding_delay, nextCycle(),
+                    nextCycle() + encoding_delay
+                );
+        }
+        schedule(nextUpdatePushEvent, nextCycle() + encoding_delay);
         // maybe: schedule(nextUpdatePushEvent,
         // curTick() + next_time_send * clockPeriod());
     }
