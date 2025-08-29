@@ -69,7 +69,7 @@ DebugFlag('RubyStats')
 DebugFlag('RubyResourceStalls')
 DebugFlag('RubyProtocol')
 DebugFlag('RubyHitMiss')
-DebugFlag('MBRUBY')
+DebugFlag('MBShrInfo')
 
 CompoundFlag('Ruby', [ 'RubyQueue', 'RubyNetwork', 'RubyTester',
     'RubyGenerated', 'RubySlicc', 'RubySystem', 'RubyCache',

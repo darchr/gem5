@@ -45,6 +45,7 @@
 #include "base/intmath.hh"
 #include "base/logging.hh"
 #include "debug/HtmMem.hh"
+#include "debug/MBShrInfo.hh"
 #include "debug/RubyCache.hh"
 #include "debug/RubyCacheTrace.hh"
 #include "debug/RubyResourceStalls.hh"
@@ -572,7 +573,16 @@ CacheMemoryStats::CacheMemoryStats(statistics::Group *parent)
       ADD_STAT(m_prefetch_misses, "Number of cache prefetch misses"),
       ADD_STAT(m_prefetch_accesses, "Number of cache prefetch accesses",
                m_prefetch_hits + m_prefetch_misses),
-      ADD_STAT(m_accessModeType, "")
+      ADD_STAT(m_accessModeType, ""),
+      ADD_STAT(dir_sharers_list_updates, "Number of directory sharers list updates"),
+      ADD_STAT(dir_sharers_list_noChange, "Number of directory sharers list no change"),
+      ADD_STAT(sharers_count_socket, "Distribution of how many sockets were sharing an address"),
+      ADD_STAT(shared_addr_min_index, "Minimum index sharing socket"),
+      ADD_STAT(shared_addr_max_index, "Maximum index sharing socket"),
+      ADD_STAT(shared_addr_dist_sockets, "Distance between sharing sockets"),
+      ADD_STAT(shared_addr_loads, "Number of loads to shared addresses"),
+      ADD_STAT(shared_addr_stores, "Number of stores to shared addresses"),
+      ADD_STAT(shared_addr_accesses, "Number of accesses to shared addresses")
 {
     numDataArrayReads
         .flags(statistics::nozero);
@@ -637,6 +647,36 @@ CacheMemoryStats::CacheMemoryStats(statistics::Group *parent)
             .flags(statistics::nozero)
             ;
     }
+
+    // MB
+    // dir_sharers_list_updates
+    //     .flags(statistics::nozero | statistics::nonan);
+    // dir_sharers_list_noChange
+    //     .flags(statistics::nozero | statistics::nonan);
+    sharers_count_socket
+    .init(70)
+    .flags(statistics::nozero | statistics::nonan);
+
+    shared_addr_min_index
+        .init(70)
+        .flags(statistics::nozero | statistics::nonan);
+
+    shared_addr_max_index
+        .init(70)
+        .flags(statistics::nozero | statistics::nonan);
+
+    shared_addr_dist_sockets
+        .init(70)
+        .flags(statistics::nozero | statistics::nonan);
+    shared_addr_loads
+        .init(1000)
+        .flags(statistics::nozero | statistics::nonan);
+    shared_addr_stores
+        .init(1000)
+        .flags(statistics::nozero | statistics::nonan);
+    shared_addr_accesses
+        .init(2000)
+        .flags(statistics::nozero | statistics::nonan);
 }
 
 // assumption: SLICC generated files will only call this function
@@ -817,6 +857,118 @@ void
 CacheMemory::profilePrefetchMiss()
 {
     cacheMemoryStats.m_prefetch_misses++;
+}
+
+// MB
+void
+CacheMemory::profileDirSharersListUpdates()
+{
+    cacheMemoryStats.dir_sharers_list_updates++;
+}
+
+void
+CacheMemory::profileDirSharersListNoChange()
+{
+    cacheMemoryStats.dir_sharers_list_noChange++;
+}
+
+void
+CacheMemory::profileSharedAddressAccess(Addr address, MachineID requestor, int sharersCount, int reqType)
+{
+    auto it = shared_address_access_table.find(address);
+    int64_t page = address >> 12;
+
+    if (it == shared_address_access_table.end()) {
+        SharedAddressAccess entry;
+        entry.loadAccesses = 0;
+        entry.storeAccesses = 0;
+        entry.perMachineAccesses.resize(515, 0);
+        if (reqType == 0) {
+            entry.loadAccesses++;
+        } else if (reqType == 1) {
+            entry.storeAccesses++;
+        }
+        entry.perMachineAccesses[requestor.getNum()]++;
+        shared_address_access_table[address] = std::move(entry);
+        DPRINTF(MBShrInfo, "prof: count: %d, addr: %#x, page: %#x, type: %d, ld: %d, st: %d, req: %d\n",
+            sharersCount, address, page, reqType, entry.loadAccesses, entry.storeAccesses, requestor.getNum());
+    } else {
+        if (reqType == 0) {
+            it->second.loadAccesses++;
+        } else if (reqType == 1) {
+            it->second.storeAccesses++;
+        }
+        it->second.perMachineAccesses[requestor.getNum()]++;
+        DPRINTF(MBShrInfo, "prof: count: %d, addr: %#x, page: %#x, type: %d, ld: %d, st: %d, req: %d\n",
+            sharersCount, address, page, reqType, it->second.loadAccesses, it->second.storeAccesses, requestor.getNum());
+    }
+}
+
+void
+CacheMemory::recordStatsSharedAddressAccess(Addr address)
+{
+    int64_t page = address >> 12;
+    DPRINTF(MBShrInfo, "rec: %#x in page %#x\n",
+            address, page);
+    auto it = shared_address_access_table.find(address);
+
+    if (it == shared_address_access_table.end()) {
+        DPRINTF(MBShrInfo, "rec %#x not found\n",
+                address);
+        return;
+    }
+
+    int totalSharerSockets = 0;
+    int minIndex = -1;
+    int maxIndex = -1;
+    int visitedSocket = -1;
+    int currentSocket = -1;
+
+    for (int i = 0; i < static_cast<int>(it->second.perMachineAccesses.size()); i++) {
+        if (it->second.perMachineAccesses[i] > 0) {
+            currentSocket = findSocketIndex(i);
+            if (currentSocket == -1) {
+                // ID belongs to IO Dir and DMAs
+                continue;
+            }
+            assert(currentSocket >= 0 && currentSocket <= 63);
+            if (minIndex == -1) {
+                minIndex = currentSocket;
+            }
+            maxIndex = currentSocket;
+            if (currentSocket != visitedSocket) {
+                totalSharerSockets++;
+                visitedSocket = currentSocket;
+            }
+        }
+    }
+
+    assert(minIndex != -1);
+    assert(maxIndex != -1);
+    cacheMemoryStats.sharers_count_socket.sample(totalSharerSockets);
+    cacheMemoryStats.shared_addr_min_index.sample(minIndex);
+    cacheMemoryStats.shared_addr_max_index.sample(maxIndex);
+    cacheMemoryStats.shared_addr_dist_sockets.sample(std::abs(maxIndex - minIndex));
+    cacheMemoryStats.shared_addr_loads.sample(it->second.loadAccesses);
+    cacheMemoryStats.shared_addr_stores.sample(it->second.storeAccesses);
+    cacheMemoryStats.shared_addr_accesses.sample(it->second.loadAccesses + it->second.storeAccesses);
+
+    shared_address_access_table.erase(it);
+}
+
+int
+CacheMemory::findSocketIndex(int versionID) {
+    if (versionID == 0) {
+        return 0;
+    }
+    else if (versionID >= 1 && versionID <= 64) {
+        return versionID-1;
+    }
+    else if (versionID >= 65 && versionID <= 512) {
+        // Shift down to start at 0 for 65..71
+        return (versionID - 65) / 7;
+    }
+    return -1; // versionID belongs to IO Dir and DMAs
 }
 
 } // namespace ruby

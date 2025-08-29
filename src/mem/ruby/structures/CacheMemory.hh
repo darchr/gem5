@@ -50,6 +50,7 @@
 #include "mem/cache/replacement_policies/base.hh"
 #include "mem/cache/replacement_policies/replaceable_entry.hh"
 #include "mem/ruby/common/DataBlock.hh"
+#include "mem/ruby/common/MachineID.hh"
 #include "mem/ruby/protocol/CacheRequestType.hh"
 #include "mem/ruby/protocol/CacheResourceType.hh"
 #include "mem/ruby/protocol/RubyRequest.hh"
@@ -254,6 +255,18 @@ class CacheMemory : public SimObject
           statistics::Formula m_prefetch_accesses;
 
           statistics::Vector m_accessModeType;
+
+          // MB
+          statistics::Scalar dir_sharers_list_updates;
+          statistics::Scalar dir_sharers_list_noChange;
+          statistics::Histogram sharers_count_socket;
+          statistics::Histogram shared_addr_min_index;
+          statistics::Histogram shared_addr_max_index;
+          statistics::Histogram shared_addr_dist_sockets;
+          statistics::Histogram shared_addr_loads;
+          statistics::Histogram shared_addr_stores;
+          statistics::Histogram shared_addr_accesses;
+
       } cacheMemoryStats;
 
     public:
@@ -263,6 +276,22 @@ class CacheMemory : public SimObject
       void profileDemandMiss();
       void profilePrefetchHit();
       void profilePrefetchMiss();
+
+      // MB
+      void profileDirSharersListUpdates();
+      void profileDirSharersListNoChange();
+      void profileSharedAddressAccess(Addr address, MachineID requestor, int sharersCount, int reqType);
+      void recordStatsSharedAddressAccess(Addr address);
+      int findSocketIndex(int versionID);
+
+      struct SharedAddressAccess
+      {
+          uint64_t loadAccesses;
+          uint64_t storeAccesses;
+          std::vector<uint64_t> perMachineAccesses; // index = machine ID
+      };
+
+      std::unordered_map<Addr, SharedAddressAccess> shared_address_access_table;
 };
 
 std::ostream& operator<<(std::ostream& out, const CacheMemory& obj);

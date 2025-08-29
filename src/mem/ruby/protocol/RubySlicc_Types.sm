@@ -123,6 +123,8 @@ structure (NetDest, external = "yes", non_obj="yes", implicit_ctor="m_ruby_syste
   MachineID smallestElement(MachineType);
   NetDest OR(NetDest);
   NetDest AND(NetDest);
+  // MB
+  bool isEqual(NetDest);
 }
 
 structure (Sequencer, external = "yes") {
@@ -237,6 +239,12 @@ structure (CacheMemory, external = "yes") {
   void profileDemandMiss();
   void profilePrefetchHit();
   void profilePrefetchMiss();
+
+  // MB
+  void profileDirSharersListUpdates();
+  void profileDirSharersListNoChange();
+  void profileSharedAddressAccess(Addr, MachineID, int, int);
+  void recordStatsSharedAddressAccess(Addr);
 }
 
 structure (WireBuffer, inport="yes", outport="yes", external = "yes") {
