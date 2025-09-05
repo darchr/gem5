@@ -55,6 +55,20 @@ class ComponentPower(PyEnum):
     TFF_ACTIVE = 105.6
 
 
+class EncoderDecoderPower(PyEnum):
+    # Static power (µW)
+    ENC3_STATIC = 65.68
+    DEC3_STATIC = 59.67
+    ENC6_DUAL_STATIC = 122.2  # 6-bit, two temporal outputs (3+3)
+    DEC6_DUAL_STATIC = 119.3
+
+    # Active power (nW)
+    ENC3_ACTIVE = 553.0  # 0.553 µW = 553 nW
+    DEC3_ACTIVE = 471.0  # 0.471 µW = 471 nW
+    ENC6_DUAL_ACTIVE = 1036.0  # 1.036 µW = 1036 nW
+    DEC6_DUAL_ACTIVE = 941.0  # 0.941 µW = 941 nW
+
+
 class ComponentJJ(PyEnum):
     # Number of Josephson Junctions (JJs)
     SPLITTER = 3
@@ -62,6 +76,73 @@ class ComponentJJ(PyEnum):
     CROSSPOINT = 13
     COUNTING_NETWORK = 60
     TFF = 10
+
+
+def get_encoder_decoder_power(
+    bit_width: int, is_encoder: bool, dual_output: bool = True
+):
+    """
+    Returns power dict with Watts, matching router's unit conversions.
+    - static_uW -> W via *1e-6
+    - active_nW -> W via *1e-9
+    """
+    if bit_width == 3:
+        static_uW = (
+            EncoderDecoderPower.ENC3_STATIC.value
+            if is_encoder
+            else EncoderDecoderPower.DEC3_STATIC.value
+        )
+        active_nW = (
+            EncoderDecoderPower.ENC3_ACTIVE.value
+            if is_encoder
+            else EncoderDecoderPower.DEC3_ACTIVE.value
+        )
+    elif bit_width == 6:
+        if not dual_output:
+            raise ValueError(
+                "Power numbers for 6-bit single-output encoder/decoder are not specified."
+            )
+        static_uW = (
+            EncoderDecoderPower.ENC6_DUAL_STATIC.value
+            if is_encoder
+            else EncoderDecoderPower.DEC6_DUAL_STATIC.value
+        )
+        active_nW = (
+            EncoderDecoderPower.ENC6_DUAL_ACTIVE.value
+            if is_encoder
+            else EncoderDecoderPower.DEC6_DUAL_ACTIVE.value
+        )
+    else:
+        raise ValueError(
+            f"Unsupported bit_width={bit_width}; expected 3 or 6."
+        )
+
+    active_W = active_nW * 1e-9
+    static_W = static_uW * 1e-6
+    total_W = active_W + static_W
+    return {
+        "active_power": active_W,
+        "static_power": static_W,
+        "total_power": total_W,
+    }
+
+
+def get_encoder_decoder_energy(
+    bit_width: int, is_encoder: bool, time_ticks: int, dual_output: bool = True
+):
+    """
+    Energy = Power * time; assumes 1 tick = 1 ps (like router's getEnergy()).
+    """
+    p = get_encoder_decoder_power(bit_width, is_encoder, dual_output)
+    # Convert ticks (ps) to seconds via 1e-12, same as router.
+    active_E = p["active_power"] * time_ticks * 1e-12
+    static_E = p["static_power"] * time_ticks * 1e-12
+    total_E = active_E + static_E
+    return {
+        "active_energy": active_E,
+        "static_energy": static_E,
+        "total_energy": total_E,
+    }
 
 
 def interleave_addresses(plain_range, num_channels, cache_line_size):
@@ -164,6 +245,47 @@ class GPT(SubSystem):
 
     def set_vertex_range(self, vertex_range):
         self.vertex_mem_ctrl.range = vertex_range
+
+    def getEncoderPowerAndArea(self):
+        # Uses the params you set when constructing self.encoder
+        bw = int(self.encoder.bit_width)
+        is_enc = True
+        dual = bool(getattr(self.encoder, "dual_output", True))
+        p = get_encoder_decoder_power(bw, is_enc, dual)
+        print(f"[Encoder] bit_width={bw}, dual_output={dual}")
+        print(f"[Encoder] Active power: {p['active_power']:.15f} W")
+        print(f"[Encoder] Static power: {p['static_power']:.15f} W")
+        print(f"[Encoder] Total power:  {p['total_power']:.15f} W")
+        return p
+
+    def getDecoderPowerAndArea(self):
+        bw = int(self.decoder.bit_width)
+        is_enc = False
+        dual = bool(getattr(self.decoder, "dual_output", True))
+        p = get_encoder_decoder_power(bw, is_enc, dual)
+        print(f"[Decoder] bit_width={bw}, dual_output={dual}")
+        print(f"[Decoder] Active power: {p['active_power']:.15f} W")
+        print(f"[Decoder] Static power: {p['static_power']:.15f} W")
+        print(f"[Decoder] Total power:  {p['total_power']:.15f} W")
+        return p
+
+    def getEncoderEnergy(self, time_ticks: int):
+        bw = int(self.encoder.bit_width)
+        dual = bool(getattr(self.encoder, "dual_output", True))
+        e = get_encoder_decoder_energy(bw, True, time_ticks, dual)
+        print(
+            f"[Encoder] Energy for {time_ticks} ticks: total {e['total_energy']:.15f} J"
+        )
+        return e["total_energy"]
+
+    def getDecoderEnergy(self, time_ticks: int):
+        bw = int(self.decoder.bit_width)
+        dual = bool(getattr(self.decoder, "dual_output", True))
+        e = get_encoder_decoder_energy(bw, False, time_ticks, dual)
+        print(
+            f"[Decoder] Energy for {time_ticks} ticks: total {e['total_energy']:.15f} J"
+        )
+        return e["total_energy"]
 
 
 class EdgeMemory(SubSystem):
