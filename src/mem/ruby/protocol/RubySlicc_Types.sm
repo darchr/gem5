@@ -243,8 +243,8 @@ structure (CacheMemory, external = "yes") {
   // MB
   void profileDirSharersListUpdates();
   void profileDirSharersListNoChange();
-  void profileSharedAddressAccess(Addr, MachineID, int, int);
-  void recordStatsSharedAddressAccess(Addr);
+  void profileSharedBlockAccess(Addr, MachineID, int, int, Tick);
+  void recordStatsSharedBlockAccess(Addr, Tick);
 }
 
 structure (WireBuffer, inport="yes", outport="yes", external = "yes") {

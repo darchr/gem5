@@ -3442,7 +3442,7 @@ action(Finalize_UpdateDirectoryFromTBE, desc="") {
         cache.profileDirSharersListNoChange();
       }
 
-      if (tbe.dir_sharers.count() > 0) {
+      // if (tbe.dir_sharers.count() > 0) {
         // cache.profileMachineAddrSharersHist(tbe.dir_sharers.count());
         int accessType := -1;
         if ((tbe.reqType == CHIRequestType:Load) ||
@@ -3450,29 +3450,34 @@ action(Finalize_UpdateDirectoryFromTBE, desc="") {
             (tbe.reqType == CHIRequestType:ReadOnce) ||
             (tbe.reqType == CHIRequestType:ReadShared) ||
             (tbe.reqType == CHIRequestType:ReadNotSharedDirty) ||
-            (tbe.reqType == CHIRequestType:ReadUnique) ||
+            // (tbe.reqType == CHIRequestType:ReadUnique) ||
             (tbe.reqType == CHIRequestType:MakeReadUnique) ||
             (tbe.reqType == CHIRequestType:ReadNoSnp) ||
             (tbe.reqType == CHIRequestType:ReadNoSnpSep)) {
           accessType := 0; // Read
         } else if ((tbe.reqType == CHIRequestType:Store) ||
                     (tbe.reqType == CHIRequestType:AtomicStore) ||
-                    (tbe.reqType == CHIRequestType:StoreLine)) {
+                    (tbe.reqType == CHIRequestType:StoreLine) || 
+                    (tbe.reqType == CHIRequestType:ReadUnique) ||
+                    (tbe.reqType == CHIRequestType:WriteUniquePtl) ||
+                    (tbe.reqType == CHIRequestType:WriteUniqueFull) ||
+                    (tbe.reqType == CHIRequestType:WriteUniqueZero)){
           accessType := 1; // Write
 
         }
-        cache.profileSharedAddressAccess(address, tbe.requestor, tbe.dir_sharers.count(), accessType);
+        DPRINTF(MBShrInfo, "slicc req type: %d\n", tbe.reqType);
+        cache.profileSharedBlockAccess(address, tbe.requestor, tbe.dir_sharers.count(), accessType, curTick());
 
-      }
+      // }
     // }
 
     dir_entry.sharers := tbe.dir_sharers;
   } else {
     assert((tbe.dir_ownerExists == false) && tbe.dir_sharers.isEmpty());
-    // MB
-    // record stats
-    cache.recordStatsSharedAddressAccess(address);
     if(directory.isTagPresent(address)) {
+      // MB
+      // record stats
+      cache.recordStatsSharedBlockAccess(address, curTick());
       directory.deallocate(address);
     }
   }
@@ -3494,7 +3499,7 @@ action(Deallocate_DirEntry, desc="") {
 
   // MB
   // record stats
-  // cache.recordStatsSharedAddressAccess(address);
+  cache.recordStatsSharedBlockAccess(address, curTick());
 
   directory.deallocate(address);
 }

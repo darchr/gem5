@@ -71,6 +71,10 @@ namespace ruby
 class CacheMemory : public SimObject
 {
   public:
+    static constexpr int PAGE_SHIFT  = 12;
+    static constexpr int BLOCK_SHIFT = 6;
+    static constexpr Addr BLOCK_MASK = (1u << BLOCK_SHIFT) - 1; // 0x3F
+
     typedef RubyCacheParams Params;
     typedef std::shared_ptr<replacement_policy::ReplacementData> ReplData;
     CacheMemory(const Params &p);
@@ -259,13 +263,37 @@ class CacheMemory : public SimObject
           // MB
           statistics::Scalar dir_sharers_list_updates;
           statistics::Scalar dir_sharers_list_noChange;
-          statistics::Histogram sharers_count_socket;
-          statistics::Histogram shared_addr_min_index;
-          statistics::Histogram shared_addr_max_index;
-          statistics::Histogram shared_addr_dist_sockets;
-          statistics::Histogram shared_addr_loads;
-          statistics::Histogram shared_addr_stores;
-          statistics::Histogram shared_addr_accesses;
+          
+          statistics::Histogram sharersCountSocketBlock;
+          statistics::Histogram sharedBlockMinIndex;
+          statistics::Histogram sharedBlockMaxIndex;
+          statistics::Histogram sharedBlockDistSockets;
+          statistics::Histogram sharedBlockLoads;
+          statistics::Histogram sharedBlockStores;
+          statistics::Histogram sharedBlockElse;
+          statistics::Histogram sharedBlockAccesses;
+          statistics::Scalar allocDirEntryCount;
+          statistics::Scalar deallocDirEntryCount;
+          statistics::Scalar notFoundBlocks;
+          statistics::Scalar totDirEntryLifeTime;
+          statistics::Formula avgDirEntryLifeTime;
+          statistics::Histogram histDirEntryLifeTime;
+
+          statistics::Histogram sharersCountSocketPage;
+          statistics::Histogram sharedPageMinIndex;
+          statistics::Histogram sharedPageMaxIndex;
+          statistics::Histogram sharedPageDistSockets;
+          statistics::Histogram sharedPageLoads;
+          statistics::Histogram sharedPageStores;
+          statistics::Histogram sharedPageElse;
+          statistics::Histogram sharedPageAccesses;
+          statistics::Scalar allocPageCount;
+          statistics::Scalar deallocPageCount;
+          statistics::Scalar notFoundPages;
+          statistics::Scalar totPageLifeTime;
+          statistics::Formula avgPageLifeTime;
+          statistics::Histogram histPageLifeTime;
+
 
       } cacheMemoryStats;
 
@@ -280,18 +308,30 @@ class CacheMemory : public SimObject
       // MB
       void profileDirSharersListUpdates();
       void profileDirSharersListNoChange();
-      void profileSharedAddressAccess(Addr address, MachineID requestor, int sharersCount, int reqType);
-      void recordStatsSharedAddressAccess(Addr address);
+      void profileSharedBlockAccess(Addr address, MachineID requestor, int sharersCount, int reqType, Tick curTick);
+      void recordStatsSharedBlockAccess(Addr address, Tick curTick);
+      void profileSharedPageAccess(Addr address, MachineID requestor, int sharersCount, int reqType) {};
       int findSocketIndex(int versionID);
+      
+      struct BlockAccess {
+        bool isUsed = false;
+        bool accessed = false;
+        uint16_t loadBlock = 0;    // narrower type is usually enough
+        uint16_t storeBlock = 0;
+        uint16_t anyThingElse = 0;
+        Tick dirEntryAllocTick = 0;
+        std::array<uint16_t, 64> perSocketAccesses{}; // zero-initialized
+    };
 
-      struct SharedAddressAccess
-      {
-          uint64_t loadAccesses;
-          uint64_t storeAccesses;
-          std::vector<uint64_t> perMachineAccesses; // index = machine ID
-      };
+    struct PageAccess {
+        std::array<BlockAccess, 64> blocks{};   // 64 blocks/page
+        Tick firstAccessTick = 0;
+        Tick mostRecentAccessTick = 0;
+    };
 
-      std::unordered_map<Addr, SharedAddressAccess> shared_address_access_table;
+    // If you don't need key ordering, prefer unordered_map for speed:
+    // std::unordered_map<Addr, PageAccess> pageAccessTracker;
+    std::map<Addr, PageAccess> pageAccessTracker;
 };
 
 std::ostream& operator<<(std::ostream& out, const CacheMemory& obj);

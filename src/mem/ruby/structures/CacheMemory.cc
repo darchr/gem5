@@ -576,13 +576,38 @@ CacheMemoryStats::CacheMemoryStats(statistics::Group *parent)
       ADD_STAT(m_accessModeType, ""),
       ADD_STAT(dir_sharers_list_updates, "Number of directory sharers list updates"),
       ADD_STAT(dir_sharers_list_noChange, "Number of directory sharers list no change"),
-      ADD_STAT(sharers_count_socket, "Distribution of how many sockets were sharing an address"),
-      ADD_STAT(shared_addr_min_index, "Minimum index sharing socket"),
-      ADD_STAT(shared_addr_max_index, "Maximum index sharing socket"),
-      ADD_STAT(shared_addr_dist_sockets, "Distance between sharing sockets"),
-      ADD_STAT(shared_addr_loads, "Number of loads to shared addresses"),
-      ADD_STAT(shared_addr_stores, "Number of stores to shared addresses"),
-      ADD_STAT(shared_addr_accesses, "Number of accesses to shared addresses")
+      ADD_STAT(sharersCountSocketBlock,statistics::units::Count::get(), "Distribution of how many sockets were sharing an address"),
+      ADD_STAT(sharedBlockMinIndex,statistics::units::Count::get(), "Minimum index sharing socket"),
+      ADD_STAT(sharedBlockMaxIndex,statistics::units::Count::get(), "Maximum index sharing socket"),
+      ADD_STAT(sharedBlockDistSockets,statistics::units::Count::get(), "Distance between sharing sockets"),
+      ADD_STAT(sharedBlockLoads,statistics::units::Count::get(), "Number of loads to shared addresses"),
+      ADD_STAT(sharedBlockStores,statistics::units::Count::get(), "Number of stores to shared addresses"),
+      ADD_STAT(sharedBlockElse,statistics::units::Count::get(), ""),
+      ADD_STAT(sharedBlockAccesses,statistics::units::Count::get(), "Number of accesses to shared addresses"),
+      ADD_STAT(allocDirEntryCount,statistics::units::Count::get(), "Number of allocated directory entry"),
+      ADD_STAT(deallocDirEntryCount,statistics::units::Count::get(), ""),
+      ADD_STAT(notFoundBlocks, "Number of not found blocks"),
+      ADD_STAT(totDirEntryLifeTime, statistics::units::Tick::get(), ""),
+      ADD_STAT(avgDirEntryLifeTime, statistics::units::Rate<
+                statistics::units::Tick, statistics::units::Count>::get(), ""),
+      ADD_STAT(histDirEntryLifeTime,statistics::units::Count::get(), ""),
+
+      ADD_STAT(sharersCountSocketPage,statistics::units::Count::get(), "Distribution of how many sockets were sharing an address"),
+      ADD_STAT(sharedPageMinIndex,statistics::units::Count::get(), "Minimum index sharing socket"),
+      ADD_STAT(sharedPageMaxIndex,statistics::units::Count::get(), "Maximum index sharing socket"),
+      ADD_STAT(sharedPageDistSockets,statistics::units::Count::get(), "Distance between sharing sockets"),
+      ADD_STAT(sharedPageLoads,statistics::units::Count::get(), "Number of loads to shared addresses"),
+      ADD_STAT(sharedPageStores,statistics::units::Count::get(), "Number of stores to shared addresses"),
+      ADD_STAT(sharedPageElse,statistics::units::Count::get(), ""),
+      ADD_STAT(sharedPageAccesses,statistics::units::Count::get(), "Number of accesses to shared addresses"),
+      ADD_STAT(allocPageCount, statistics::units::Count::get(), "Number of allocated page"),
+      ADD_STAT(deallocPageCount, statistics::units::Count::get(), ""),
+      ADD_STAT(notFoundPages, statistics::units::Count::get(), "Number of not found pages"),
+      ADD_STAT(totPageLifeTime, statistics::units::Tick::get(), ""),
+      ADD_STAT(avgPageLifeTime, statistics::units::Rate<
+                statistics::units::Tick, statistics::units::Count>::get(), ""),
+      ADD_STAT(histPageLifeTime,statistics::units::Count::get(), "")
+
 {
     numDataArrayReads
         .flags(statistics::nozero);
@@ -653,30 +678,70 @@ CacheMemoryStats::CacheMemoryStats(statistics::Group *parent)
     //     .flags(statistics::nozero | statistics::nonan);
     // dir_sharers_list_noChange
     //     .flags(statistics::nozero | statistics::nonan);
-    sharers_count_socket
+    sharersCountSocketBlock
     .init(70)
     .flags(statistics::nozero | statistics::nonan);
 
-    shared_addr_min_index
+    sharedBlockMinIndex
         .init(70)
         .flags(statistics::nozero | statistics::nonan);
 
-    shared_addr_max_index
+    sharedBlockMaxIndex
         .init(70)
         .flags(statistics::nozero | statistics::nonan);
 
-    shared_addr_dist_sockets
+    sharedBlockDistSockets
         .init(70)
         .flags(statistics::nozero | statistics::nonan);
-    shared_addr_loads
+    sharedBlockLoads
         .init(1000)
         .flags(statistics::nozero | statistics::nonan);
-    shared_addr_stores
+    sharedBlockStores
         .init(1000)
         .flags(statistics::nozero | statistics::nonan);
-    shared_addr_accesses
+    sharedBlockElse
+        .init(1000)
+        .flags(statistics::nozero | statistics::nonan);
+    sharedBlockAccesses
         .init(2000)
         .flags(statistics::nozero | statistics::nonan);
+    avgDirEntryLifeTime.precision(2);
+    avgDirEntryLifeTime = (totDirEntryLifeTime / deallocDirEntryCount);
+    histDirEntryLifeTime
+        .init(100)
+        .flags(statistics::nozero | statistics::nonan);
+
+    
+    sharersCountSocketPage
+        .init(70)
+        .flags(statistics::nozero | statistics::nonan);
+    sharedPageMinIndex
+        .init(70)
+        .flags(statistics::nozero | statistics::nonan);
+    sharedPageMaxIndex
+        .init(70)
+        .flags(statistics::nozero | statistics::nonan);
+    sharedPageDistSockets
+        .init(70)
+        .flags(statistics::nozero | statistics::nonan);
+    sharedPageLoads
+        .init(1000)
+        .flags(statistics::nozero | statistics::nonan);
+    sharedPageStores
+        .init(1000)
+        .flags(statistics::nozero | statistics::nonan);
+    sharedPageElse
+        .init(1000)
+        .flags(statistics::nozero | statistics::nonan);
+    sharedPageAccesses
+        .init(2000)
+        .flags(statistics::nozero | statistics::nonan);
+    avgPageLifeTime.precision(2);
+    avgPageLifeTime = (totPageLifeTime / deallocPageCount);
+    histPageLifeTime
+        .init(100)
+        .flags(statistics::nozero | statistics::nonan);
+
 }
 
 // assumption: SLICC generated files will only call this function
@@ -872,88 +937,171 @@ CacheMemory::profileDirSharersListNoChange()
     cacheMemoryStats.dir_sharers_list_noChange++;
 }
 
-void
-CacheMemory::profileSharedAddressAccess(Addr address, MachineID requestor, int sharersCount, int reqType)
+void CacheMemory::profileSharedBlockAccess(Addr address,
+                                           MachineID requestor,
+                                           int sharersCount,
+                                           int reqType,
+                                           Tick curTick)
 {
-    auto it = shared_address_access_table.find(address);
-    int64_t page = address >> 12;
+    const Addr pageNumber = address >> PAGE_SHIFT;                // page index
+    const size_t blockIdx = (address >> BLOCK_SHIFT) & BLOCK_MASK;// 0..63
+    const uint16_t sockIdx = findSocketIndex(requestor.getNum());
 
-    if (it == shared_address_access_table.end()) {
-        SharedAddressAccess entry;
-        entry.loadAccesses = 0;
-        entry.storeAccesses = 0;
-        entry.perMachineAccesses.resize(515, 0);
-        if (reqType == 0) {
-            entry.loadAccesses++;
-        } else if (reqType == 1) {
-            entry.storeAccesses++;
-        }
-        entry.perMachineAccesses[requestor.getNum()]++;
-        shared_address_access_table[address] = std::move(entry);
-        DPRINTF(MBShrInfo, "prof: count: %d, addr: %#x, page: %#x, type: %d, ld: %d, st: %d, req: %d\n",
-            sharersCount, address, page, reqType, entry.loadAccesses, entry.storeAccesses, requestor.getNum());
-    } else {
-        if (reqType == 0) {
-            it->second.loadAccesses++;
-        } else if (reqType == 1) {
-            it->second.storeAccesses++;
-        }
-        it->second.perMachineAccesses[requestor.getNum()]++;
-        DPRINTF(MBShrInfo, "prof: count: %d, addr: %#x, page: %#x, type: %d, ld: %d, st: %d, req: %d\n",
-            sharersCount, address, page, reqType, it->second.loadAccesses, it->second.storeAccesses, requestor.getNum());
+    // inserts default-constructed PageAccess only if absent; no double lookup
+    // inserted: a bool:
+    //      true if a new element was inserted,
+    //      false if the key already existed.
+    auto [it, inserted] = pageAccessTracker.try_emplace(pageNumber);
+    PageAccess& page = it->second;
+
+    if (inserted) {
+        page.firstAccessTick = curTick;
+        cacheMemoryStats.allocPageCount++;        
     }
+
+    page.mostRecentAccessTick = curTick;
+
+    BlockAccess& block = page.blocks[blockIdx];
+    if (!block.isUsed) {
+        block.isUsed = true;
+        block.accessed = true;
+        block.dirEntryAllocTick = curTick;
+        cacheMemoryStats.allocDirEntryCount++;
+    }
+
+    // Update load/store counters
+    if (reqType == 0) {
+        ++block.loadBlock;
+    } else if (reqType == 1) {
+        ++block.storeBlock;
+    }  else { // else: ignore or assert invalid type
+        ++block.anyThingElse;
+    }
+    ++block.perSocketAccesses[sockIdx];
+
+    int totalSharerSockets = 0;
+    for (size_t i = 0; i < block.perSocketAccesses.size(); ++i) {
+        if (block.perSocketAccesses[i] > 0) {
+            ++totalSharerSockets;
+        }
+    }
+
+    DPRINTF(MBShrInfo,
+        "prof: count: %d, totshrs: %d, addr: %#x, page: %#x, blk: %d, skt: %d, type: %d, ld: %u, st: %u, reqtor: %d\n",
+        sharersCount, totalSharerSockets, address, pageNumber, blockIdx, sockIdx, reqType,
+        block.loadBlock, block.storeBlock, requestor.getNum());
 }
 
 void
-CacheMemory::recordStatsSharedAddressAccess(Addr address)
+CacheMemory::recordStatsSharedBlockAccess(Addr address, Tick curTick)
 {
-    int64_t page = address >> 12;
-    DPRINTF(MBShrInfo, "rec: %#x in page %#x\n",
-            address, page);
-    auto it = shared_address_access_table.find(address);
+    const Addr pageNumber = address >> PAGE_SHIFT;
+    const size_t blockIdx = (address >> BLOCK_SHIFT) & BLOCK_MASK; // 0..63
 
-    if (it == shared_address_access_table.end()) {
-        DPRINTF(MBShrInfo, "rec %#x not found\n",
-                address);
+    DPRINTF(MBShrInfo, "rec: addr %#x, page %#x, blockIdx %llu\n",
+            address, pageNumber, static_cast<unsigned long long>(blockIdx));
+
+    auto it = pageAccessTracker.find(pageNumber);
+
+    if (it == pageAccessTracker.end()) {
+        DPRINTF(MBShrInfo, "rec %#x not found (no page)\n", address);
+        cacheMemoryStats.notFoundPages++;
         return;
     }
 
+    PageAccess& page = it->second;
+    BlockAccess& block = page.blocks[blockIdx];
+
+    if (!block.accessed) {
+        DPRINTF(MBShrInfo, "rec %#x not found (unused block)\n", address);
+        cacheMemoryStats.notFoundBlocks++;
+        return;
+    }
+
+    // --- gather stats BEFORE resetting the block ---
     int totalSharerSockets = 0;
     int minIndex = -1;
     int maxIndex = -1;
-    int visitedSocket = -1;
-    int currentSocket = -1;
 
-    for (int i = 0; i < static_cast<int>(it->second.perMachineAccesses.size()); i++) {
-        if (it->second.perMachineAccesses[i] > 0) {
-            currentSocket = findSocketIndex(i);
-            if (currentSocket == -1) {
-                // ID belongs to IO Dir and DMAs
-                continue;
-            }
-            assert(currentSocket >= 0 && currentSocket <= 63);
-            if (minIndex == -1) {
-                minIndex = currentSocket;
-            }
-            maxIndex = currentSocket;
-            if (currentSocket != visitedSocket) {
-                totalSharerSockets++;
-                visitedSocket = currentSocket;
-            }
+    for (size_t i = 0; i < block.perSocketAccesses.size(); ++i) {
+        if (block.perSocketAccesses[i] > 0) {
+            if (minIndex == -1) minIndex = static_cast<int>(i);
+            maxIndex = static_cast<int>(i);
+            ++totalSharerSockets;
         }
     }
 
+    assert(block.dirEntryAllocTick != 0);
+    const Tick lifetime = (curTick - block.dirEntryAllocTick) / 1000; // ns
+    cacheMemoryStats.deallocDirEntryCount++;
+
     assert(minIndex != -1);
     assert(maxIndex != -1);
-    cacheMemoryStats.sharers_count_socket.sample(totalSharerSockets);
-    cacheMemoryStats.shared_addr_min_index.sample(minIndex);
-    cacheMemoryStats.shared_addr_max_index.sample(maxIndex);
-    cacheMemoryStats.shared_addr_dist_sockets.sample(std::abs(maxIndex - minIndex));
-    cacheMemoryStats.shared_addr_loads.sample(it->second.loadAccesses);
-    cacheMemoryStats.shared_addr_stores.sample(it->second.storeAccesses);
-    cacheMemoryStats.shared_addr_accesses.sample(it->second.loadAccesses + it->second.storeAccesses);
 
-    shared_address_access_table.erase(it);
+    cacheMemoryStats.sharersCountSocketBlock.sample(totalSharerSockets);
+    cacheMemoryStats.sharedBlockMinIndex.sample(minIndex);
+    cacheMemoryStats.sharedBlockMaxIndex.sample(maxIndex);
+    cacheMemoryStats.sharedBlockDistSockets.sample(std::abs(maxIndex - minIndex));
+    cacheMemoryStats.sharedBlockLoads.sample(block.loadBlock);
+    cacheMemoryStats.sharedBlockStores.sample(block.storeBlock);
+    cacheMemoryStats.sharedBlockElse.sample(block.anyThingElse);
+    cacheMemoryStats.sharedBlockAccesses.sample(block.loadBlock + block.storeBlock);
+    cacheMemoryStats.totDirEntryLifeTime += lifetime;
+    cacheMemoryStats.histDirEntryLifeTime.sample(lifetime);
+
+    // --- reset the CURRENT block FIRST ---
+    block.isUsed = false;
+
+    // --- now check if the page has ANY used blocks left ---
+    bool anyUsed = false;
+    uint8_t accessed = 0;
+    for (const auto& b : page.blocks) {
+        if (b.isUsed) { anyUsed = true; break; }
+        if (b.accessed) { accessed++; }
+    }
+    if (!anyUsed && accessed >= 2) {
+        int sharersCount = 0;
+        int min = -1;
+        int max = -1;
+        uint16_t loadsCount = 0;
+        uint16_t storesCount = 0;
+        uint16_t anyThingElseCount = 0;
+
+        for (size_t i = 0; i < page.blocks.size(); ++i) {
+            if (page.blocks[i].accessed) {
+                if (min == -1) {
+                    min = static_cast<int>(i);
+                }
+                max = static_cast<int>(i);
+                loadsCount += page.blocks[i].loadBlock;
+                storesCount += page.blocks[i].storeBlock;
+                anyThingElseCount += page.blocks[i].anyThingElse;
+                for (size_t j = 0; j < page.blocks.size(); ++j) {
+                    if (page.blocks[i].perSocketAccesses[j] > 0) {
+                        ++sharersCount;
+                    }
+                }
+            }
+        }
+        assert(page.mostRecentAccessTick != 0 && page.firstAccessTick != 0);
+        Tick pageLifetime = (page.mostRecentAccessTick - page.firstAccessTick) / 1000; // ns
+        cacheMemoryStats.deallocPageCount++;
+        assert(min != -1);
+        assert(max != -1);
+
+        cacheMemoryStats.sharersCountSocketPage.sample(sharersCount);
+        cacheMemoryStats.sharedPageMinIndex.sample(min);
+        cacheMemoryStats.sharedPageMaxIndex.sample(max);
+        cacheMemoryStats.sharedPageDistSockets.sample(std::abs(max - min));
+        cacheMemoryStats.sharedPageLoads.sample(loadsCount);
+        cacheMemoryStats.sharedPageStores.sample(storesCount);
+        cacheMemoryStats.sharedPageElse.sample(anyThingElseCount);
+        cacheMemoryStats.sharedPageAccesses.sample(loadsCount + storesCount);
+        cacheMemoryStats.totPageLifeTime += pageLifetime;
+        cacheMemoryStats.histPageLifeTime.sample(pageLifetime);
+
+        pageAccessTracker.erase(it);
+    }
 }
 
 int
