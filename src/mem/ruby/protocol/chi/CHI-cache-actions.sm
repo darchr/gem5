@@ -3432,7 +3432,6 @@ action(Finalize_UpdateDirectoryFromTBE, desc="") {
     dir_entry.ownerExists := tbe.dir_ownerExists;
     dir_entry.ownerIsExcl := tbe.dir_ownerIsExcl;
     dir_entry.owner := tbe.dir_owner;
-
     // MB
     // capturing all the changes, before updating dir entry
     // if (is_HN) {
@@ -3441,36 +3440,7 @@ action(Finalize_UpdateDirectoryFromTBE, desc="") {
       } else {
         cache.profileDirSharersListNoChange();
       }
-
-      // if (tbe.dir_sharers.count() > 0) {
-        // cache.profileMachineAddrSharersHist(tbe.dir_sharers.count());
-        int accessType := -1;
-        if ((tbe.reqType == CHIRequestType:Load) ||
-            (tbe.reqType == CHIRequestType:AtomicLoad) ||
-            (tbe.reqType == CHIRequestType:ReadOnce) ||
-            (tbe.reqType == CHIRequestType:ReadShared) ||
-            (tbe.reqType == CHIRequestType:ReadNotSharedDirty) ||
-            // (tbe.reqType == CHIRequestType:ReadUnique) ||
-            (tbe.reqType == CHIRequestType:MakeReadUnique) ||
-            (tbe.reqType == CHIRequestType:ReadNoSnp) ||
-            (tbe.reqType == CHIRequestType:ReadNoSnpSep)) {
-          accessType := 0; // Read
-        } else if ((tbe.reqType == CHIRequestType:Store) ||
-                    (tbe.reqType == CHIRequestType:AtomicStore) ||
-                    (tbe.reqType == CHIRequestType:StoreLine) || 
-                    (tbe.reqType == CHIRequestType:ReadUnique) ||
-                    (tbe.reqType == CHIRequestType:WriteUniquePtl) ||
-                    (tbe.reqType == CHIRequestType:WriteUniqueFull) ||
-                    (tbe.reqType == CHIRequestType:WriteUniqueZero)){
-          accessType := 1; // Write
-
-        }
-        DPRINTF(MBShrInfo, "slicc req type: %d\n", tbe.reqType);
-        cache.profileSharedBlockAccess(address, tbe.requestor, tbe.dir_sharers.count(), accessType, curTick());
-
-      // }
     // }
-
     dir_entry.sharers := tbe.dir_sharers;
   } else {
     assert((tbe.dir_ownerExists == false) && tbe.dir_sharers.isEmpty());
@@ -3492,6 +3462,8 @@ action(Deallocate_CacheBlock, desc="") {
 action(Allocate_DirEntry, desc="") {
   assert(directory.isTagPresent(address) == false);
   directory.allocate(address);
+  // MB
+  cache.profileDirEntryAllocation(address, curTick());
 }
 
 action(Deallocate_DirEntry, desc="") {
@@ -3833,6 +3805,17 @@ action(Profile_Miss, desc="") {
   bool is_remote_can_notify := tbe.is_remote_pf && upstream_prefetch_trains_prefetcher;
   if (is_demand) {
     cache.profileDemandMiss();
+    // MB
+    int req_type := -1;
+    if (isReadReqType(tbe.reqType)) {
+      req_type := 0;
+    } else if (isWriteReqType(tbe.reqType)) {
+      req_type := 1;
+    } else {
+      req_type := -1;
+    }
+    cache.profileDataArrayAccess(address, tbe.requestor, req_type, curTick());
+
   } else {
     assert(use_prefetcher || tbe.is_remote_pf);
     cache.profilePrefetchMiss();
@@ -3860,6 +3843,16 @@ action(Profile_Hit, desc="") {
   bool is_remote_can_notify := tbe.is_remote_pf && upstream_prefetch_trains_prefetcher;
   if (is_demand) {
     cache.profileDemandHit();
+    // MB
+    int req_type := -1;
+    if (isReadReqType(tbe.reqType)) {
+      req_type := 0;
+    } else if (isWriteReqType(tbe.reqType)) {
+      req_type := 1;
+    } else {
+      req_type := -1;
+    }
+    cache.profileDataArrayAccess(address, tbe.requestor, req_type, curTick());
   } else {
     assert(use_prefetcher || tbe.is_remote_pf);
     cache.profilePrefetchHit();
@@ -3944,6 +3937,8 @@ action(TagArrayWrite, desc="") {
 action(DataArrayRead, desc="") {
   assert(is_valid(tbe));
   tbe.delayNextAction := curTick() + cyclesToTicks(dataLatency());
+  // MB
+  // cache.profileDataArrayAccess(address, tbe.requestor, 0, curTick());
 }
 
 action(DataArrayWrite, desc="") {
@@ -3953,6 +3948,9 @@ action(DataArrayWrite, desc="") {
   if(wait_for_cache_wr) {
     tbe.delayNextAction := curTick() + cyclesToTicks(dataLatency());
   }
+  // MB
+  // cache.profileDataArrayAccess(address, tbe.requestor, 1, curTick());
+
 }
 
 action(ReadHitPipe, desc="") {

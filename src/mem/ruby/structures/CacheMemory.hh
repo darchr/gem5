@@ -275,6 +275,7 @@ class CacheMemory : public SimObject
           statistics::Scalar allocDirEntryCount;
           statistics::Scalar deallocDirEntryCount;
           statistics::Scalar notFoundBlocks;
+          statistics::Scalar notRecDirEntry;
           statistics::Scalar totDirEntryLifeTime;
           statistics::Formula avgDirEntryLifeTime;
           statistics::Histogram histDirEntryLifeTime;
@@ -308,20 +309,19 @@ class CacheMemory : public SimObject
       // MB
       void profileDirSharersListUpdates();
       void profileDirSharersListNoChange();
-      void profileSharedBlockAccess(Addr address, MachineID requestor, int sharersCount, int reqType, Tick curTick);
+      void profileDirEntryAllocation(Addr address, Tick curTick);
+      void profileDataArrayAccess(Addr address, MachineID requestor, int reqType, Tick curTick);
       void recordStatsSharedBlockAccess(Addr address, Tick curTick);
-      void profileSharedPageAccess(Addr address, MachineID requestor, int sharersCount, int reqType) {};
       int findSocketIndex(int versionID);
       
       struct BlockAccess {
         bool isUsed = false;
-        bool accessed = false;
         uint16_t loadBlock = 0;    // narrower type is usually enough
         uint16_t storeBlock = 0;
         uint16_t anyThingElse = 0;
         Tick dirEntryAllocTick = 0;
         std::array<uint16_t, 64> perSocketAccesses{}; // zero-initialized
-    };
+      };
 
     struct PageAccess {
         std::array<BlockAccess, 64> blocks{};   // 64 blocks/page
