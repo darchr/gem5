@@ -119,17 +119,17 @@ board.set_workload(workload)
 
 
 def handle_exit_event():
-    for num_iterations in range(10):
-        print(f"Done with iteration #{num_iterations}")
-        m5.stats.dump()
-        print(f"Dumped stats at the end of the iteration #{num_iterations}")
-        if num_iterations < 9:
-            m5.setMaxTick(m5.curTick() + 10_000_000_000)  # simulate another 10 ms
-        elif num_iterations == 9:
-            m5.setMaxTick(m5.curTick() + 100_000_000_000)  # simulate another 100 ms
-        yield False  # Continue the simulation.
-    print(f"Dump stats since all the iterations completed")
-    m5.stats.dump()
+    # for num_iterations in range(10):
+    #     print(f"Done with iteration #{num_iterations}")
+    #     m5.stats.dump()
+    #     print(f"Dumped stats at the end of the iteration #{num_iterations}")
+    #     if num_iterations < 9:
+    #         m5.setMaxTick(m5.curTick() + 10_000_000_000)  # simulate another 10 ms
+    #     elif num_iterations == 9:
+    #         m5.setMaxTick(m5.curTick() + 100_000_000_000)  # simulate another 100 ms
+    #     yield False  # Continue the simulation.
+    # print(f"Dump stats since all the iterations completed")
+    # m5.stats.dump()
     yield True  # Stop the simulation. We're done.
 
 

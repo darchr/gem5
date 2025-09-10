@@ -46,6 +46,7 @@
 #include "base/logging.hh"
 #include "debug/HtmMem.hh"
 #include "debug/MBShrInfo.hh"
+#include "debug/MBShrInfoShort.hh"
 #include "debug/RubyCache.hh"
 #include "debug/RubyCacheTrace.hh"
 #include "debug/RubyResourceStalls.hh"
@@ -574,24 +575,9 @@ CacheMemoryStats::CacheMemoryStats(statistics::Group *parent)
       ADD_STAT(m_prefetch_accesses, "Number of cache prefetch accesses",
                m_prefetch_hits + m_prefetch_misses),
       ADD_STAT(m_accessModeType, ""),
+
       ADD_STAT(dir_sharers_list_updates, "Number of directory sharers list updates"),
       ADD_STAT(dir_sharers_list_noChange, "Number of directory sharers list no change"),
-      ADD_STAT(sharersCountSocketBlock,statistics::units::Count::get(), "Distribution of how many sockets were sharing an address"),
-      ADD_STAT(sharedBlockMinIndex,statistics::units::Count::get(), "Minimum index sharing socket"),
-      ADD_STAT(sharedBlockMaxIndex,statistics::units::Count::get(), "Maximum index sharing socket"),
-      ADD_STAT(sharedBlockDistSockets,statistics::units::Count::get(), "Distance between sharing sockets"),
-      ADD_STAT(sharedBlockLoads,statistics::units::Count::get(), "Number of loads to shared addresses"),
-      ADD_STAT(sharedBlockStores,statistics::units::Count::get(), "Number of stores to shared addresses"),
-      ADD_STAT(sharedBlockElse,statistics::units::Count::get(), ""),
-      ADD_STAT(sharedBlockAccesses,statistics::units::Count::get(), "Number of accesses to shared addresses"),
-      ADD_STAT(allocDirEntryCount,statistics::units::Count::get(), "Number of allocated directory entry"),
-      ADD_STAT(deallocDirEntryCount,statistics::units::Count::get(), ""),
-      ADD_STAT(notFoundBlocks, "Number of not found blocks"),
-      ADD_STAT(notRecDirEntry, "Number of not recorded directory entries"),
-      ADD_STAT(totDirEntryLifeTime, statistics::units::Tick::get(), ""),
-      ADD_STAT(avgDirEntryLifeTime, statistics::units::Rate<
-                statistics::units::Tick, statistics::units::Count>::get(), ""),
-      ADD_STAT(histDirEntryLifeTime,statistics::units::Count::get(), ""),
 
       ADD_STAT(sharersCountSocketPage,statistics::units::Count::get(), "Distribution of how many sockets were sharing an address"),
       ADD_STAT(sharedPageMinIndex,statistics::units::Count::get(), "Minimum index sharing socket"),
@@ -602,12 +588,13 @@ CacheMemoryStats::CacheMemoryStats(statistics::Group *parent)
       ADD_STAT(sharedPageElse,statistics::units::Count::get(), ""),
       ADD_STAT(sharedPageAccesses,statistics::units::Count::get(), "Number of accesses to shared addresses"),
       ADD_STAT(allocPageCount, statistics::units::Count::get(), "Number of allocated page"),
-      ADD_STAT(deallocPageCount, statistics::units::Count::get(), ""),
+      ADD_STAT(recordedPageStats, statistics::units::Count::get(), ""),
       ADD_STAT(notFoundPages, statistics::units::Count::get(), "Number of not found pages"),
-      ADD_STAT(totPageLifeTime, statistics::units::Tick::get(), ""),
-      ADD_STAT(avgPageLifeTime, statistics::units::Rate<
+      ADD_STAT(noFirstRecentTickPages, statistics::units::Count::get(), "Number of pages with no first/recent AccessTick"),
+      ADD_STAT(totPageRecordTime, statistics::units::Tick::get(), ""),
+      ADD_STAT(avgPageRecordTime, statistics::units::Rate<
                 statistics::units::Tick, statistics::units::Count>::get(), ""),
-      ADD_STAT(histPageLifeTime,statistics::units::Count::get(), "")
+      ADD_STAT(histPageRecordTime,statistics::units::Count::get(), "")
 
 {
     numDataArrayReads
@@ -679,40 +666,7 @@ CacheMemoryStats::CacheMemoryStats(statistics::Group *parent)
     //     .flags(statistics::nozero | statistics::nonan);
     // dir_sharers_list_noChange
     //     .flags(statistics::nozero | statistics::nonan);
-    sharersCountSocketBlock
-    .init(70)
-    .flags(statistics::nozero | statistics::nonan);
-
-    sharedBlockMinIndex
-        .init(70)
-        .flags(statistics::nozero | statistics::nonan);
-
-    sharedBlockMaxIndex
-        .init(70)
-        .flags(statistics::nozero | statistics::nonan);
-
-    sharedBlockDistSockets
-        .init(70)
-        .flags(statistics::nozero | statistics::nonan);
-    sharedBlockLoads
-        .init(1000)
-        .flags(statistics::nozero | statistics::nonan);
-    sharedBlockStores
-        .init(1000)
-        .flags(statistics::nozero | statistics::nonan);
-    sharedBlockElse
-        .init(1000)
-        .flags(statistics::nozero | statistics::nonan);
-    sharedBlockAccesses
-        .init(2000)
-        .flags(statistics::nozero | statistics::nonan);
-    avgDirEntryLifeTime.precision(2);
-    avgDirEntryLifeTime = (totDirEntryLifeTime / deallocDirEntryCount);
-    histDirEntryLifeTime
-        .init(100)
-        .flags(statistics::nozero | statistics::nonan);
-
-    
+        
     sharersCountSocketPage
         .init(70)
         .flags(statistics::nozero | statistics::nonan);
@@ -737,9 +691,9 @@ CacheMemoryStats::CacheMemoryStats(statistics::Group *parent)
     sharedPageAccesses
         .init(2000)
         .flags(statistics::nozero | statistics::nonan);
-    avgPageLifeTime.precision(2);
-    avgPageLifeTime = (totPageLifeTime / deallocPageCount);
-    histPageLifeTime
+    avgPageRecordTime.precision(2);
+    avgPageRecordTime = (totPageRecordTime / recordedPageStats);
+    histPageRecordTime
         .init(100)
         .flags(statistics::nozero | statistics::nonan);
 
@@ -939,27 +893,6 @@ CacheMemory::profileDirSharersListNoChange()
 }
 
 void
-CacheMemory::profileDirEntryAllocation(Addr address, Tick curTick)
-{
-    const Addr pageNumber = address >> PAGE_SHIFT;                // page index
-    const size_t blockIdx = (address >> BLOCK_SHIFT) & BLOCK_MASK;// 0..63
-    
-    // inserts default-constructed PageAccess only if absent; no double lookup
-    // inserted: a bool:
-    //      true if a new element was inserted,
-    //      false if the key already existed.
-    auto [it, inserted] = pageAccessTracker.try_emplace(pageNumber);
-    PageAccess& page = it->second;
-    BlockAccess& block = page.blocks[blockIdx];
-    block.dirEntryAllocTick = curTick;
-    cacheMemoryStats.allocDirEntryCount++;
-
-    DPRINTF(MBShrInfo,
-    "DEA: addr: %#x, page: %#x, blk: %d, inserted: %d\n",
-    address, pageNumber, blockIdx, inserted);
-}
-
-void
 CacheMemory::profileDataArrayAccess(Addr address,
                                     MachineID requestor,
                                     int reqType,
@@ -972,6 +905,13 @@ CacheMemory::profileDataArrayAccess(Addr address,
     auto [it, inserted] = pageAccessTracker.try_emplace(pageNumber);
     PageAccess& page = it->second;
 
+    DPRINTF(MBShrInfo,
+        "DAA a: addr: %#x, page: %#x, blk: %d, skt: %d, inserted: %d, 1st: %d recst: %d rctAcc: %d\n",
+        address, pageNumber, blockIdx, sockIdx, inserted,
+        static_cast<unsigned long long>(page.firstAccessTick),
+        static_cast<unsigned long long>(page.mostRecentStatsRecordedTick),
+        static_cast<unsigned long long>(page.mostRecentAccessTick));
+
     if (inserted) {
         page.firstAccessTick = curTick;
         cacheMemoryStats.allocPageCount++;        
@@ -983,7 +923,6 @@ CacheMemory::profileDataArrayAccess(Addr address,
     page.mostRecentAccessTick = curTick;
 
     BlockAccess& block = page.blocks[blockIdx];
-    block.isUsed = true;
 
     // Update load/store counters
     if (reqType == 0) {
@@ -995,17 +934,11 @@ CacheMemory::profileDataArrayAccess(Addr address,
     }
     ++block.perSocketAccesses[sockIdx];
 
-    int totalSharerSockets = 0;
-    for (size_t i = 0; i < block.perSocketAccesses.size(); ++i) {
-        if (block.perSocketAccesses[i] > 0) {
-            ++totalSharerSockets;
-        }
-    }
-
     DPRINTF(MBShrInfo,
-        "DAA: totshrs: %d, addr: %#x, page: %#x, blk: %d, skt: %d, inserted: %d, type: %d, ld: %u, st: %u, reqtor: %d\n",
-        totalSharerSockets, address, pageNumber, blockIdx, sockIdx, inserted, reqType,
-        block.loadBlock, block.storeBlock, requestor.getNum());
+        "DAA b: 1st: %d recst: %d rctAcc: %d\n",
+        static_cast<unsigned long long>(page.firstAccessTick),
+        static_cast<unsigned long long>(page.mostRecentStatsRecordedTick),
+        static_cast<unsigned long long>(page.mostRecentAccessTick));
 }
 
 void
@@ -1025,119 +958,101 @@ CacheMemory::recordStatsSharedBlockAccess(Addr address, Tick curTick)
         return;
     }
 
+    if (it->second.firstAccessTick == 0 || it->second.mostRecentAccessTick == 0) {
+        DPRINTF(MBShrInfo, "rec %#x not found (no first/recent AccessTick)\n", address);
+        cacheMemoryStats.noFirstRecentTickPages++;
+        return;
+    }
+
     PageAccess& page = it->second;
-    BlockAccess& block = page.blocks[blockIdx];
 
-    if (block.dirEntryAllocTick == 0) {
-        DPRINTF(MBShrInfo, "rec %#x not found (dirEntryAllocTick = 0)\n", address);
-        cacheMemoryStats.notRecDirEntry++;
+    // --- check if the page can record its stats ---
+    bool recordPageStats = false;
+    Tick interval = 0;
+    if (page.mostRecentStatsRecordedTick == 0) {
+        assert(page.firstAccessTick != 0);
+        interval = curTick - page.firstAccessTick;
+    } else {
+        interval = curTick - page.mostRecentStatsRecordedTick;
+    }
+
+    if (interval >= 1000000000) {
+        recordPageStats = true;
+    }
+    DPRINTF(MBShrInfoShort, "a: adr: %#x page: %#x blk: %#x | curTick: %llu 1stAcc: %llu stRec: %llu rctAcc: %llu interval: %llu flag: %d\n",
+            address, pageNumber, blockIdx, static_cast<unsigned long long>(curTick),
+            static_cast<unsigned long long>(page.firstAccessTick),
+            static_cast<unsigned long long>(page.mostRecentStatsRecordedTick),
+            static_cast<unsigned long long>(page.mostRecentAccessTick),
+            static_cast<unsigned long long>(interval), recordPageStats);
+
+    if (!recordPageStats) {
+        DPRINTF(MBShrInfo, "rec adr: %#x page: %#x not time yet\n", address, pageNumber);
         return;
     }
-    if (!block.isUsed) {
-        DPRINTF(MBShrInfo, "rec %#x not found (untouched block)\n", address);
-        cacheMemoryStats.notFoundBlocks++;
-        return;
-    }
+    
+    // page.mostRecentStatsRecordedTick = curTick;
+    // --- record the page stats ---
+    // DPRINTF(MBShrInfo, "rec adr: %#x page: %#x recording stats\n", address, pageNumber);
+    int sharersCount = 0;
+    int minSocket = -1;
+    int maxSocket = -1;
+    bool found = false;
+    uint16_t loadsCount = 0;
+    uint16_t storesCount = 0;
+    uint16_t anyThingElseCount = 0;
 
-    // --- gather stats BEFORE resetting the block ---
-    int totalSharerSockets = 0;
-    int minIndex = -1;
-    int maxIndex = -1;
-
-    for (size_t i = 0; i < block.perSocketAccesses.size(); ++i) {
-        if (block.perSocketAccesses[i] > 0) {
-            if (minIndex == -1) {
-                minIndex = static_cast<int>(i);
-            }
-            maxIndex = static_cast<int>(i);
-            ++totalSharerSockets;
-        }
-    }
-
-    assert(block.dirEntryAllocTick != 0);
-    const Tick lifetime = (curTick - block.dirEntryAllocTick) / 1000; // ns
-    assert(minIndex != -1);
-    assert(maxIndex != -1);
-    assert(totalSharerSockets > 0);
-
-    cacheMemoryStats.deallocDirEntryCount++;
-    cacheMemoryStats.sharersCountSocketBlock.sample(totalSharerSockets);
-    cacheMemoryStats.sharedBlockMinIndex.sample(minIndex);
-    cacheMemoryStats.sharedBlockMaxIndex.sample(maxIndex);
-    cacheMemoryStats.sharedBlockDistSockets.sample(std::abs(maxIndex - minIndex));
-    cacheMemoryStats.sharedBlockLoads.sample(block.loadBlock);
-    cacheMemoryStats.sharedBlockStores.sample(block.storeBlock);
-    cacheMemoryStats.sharedBlockElse.sample(block.anyThingElse);
-    cacheMemoryStats.sharedBlockAccesses.sample(block.loadBlock + block.storeBlock + block.anyThingElse);
-    cacheMemoryStats.totDirEntryLifeTime += lifetime;
-    cacheMemoryStats.histDirEntryLifeTime.sample(lifetime);
-
-    // --- reset the CURRENT block FIRST ---
-    block.isUsed = false;
-
-    // --- now check if the page has ANY used blocks left ---
-    bool anyUsed = false;
-    for (const auto& b : page.blocks) {
-        if (b.isUsed) {
-            anyUsed = true;
-            break;
-        }
-    }
-    if (!anyUsed) {
-        int sharersCount = 0;
-        int minSocket = -1;
-        int maxSocket = -1;
-        bool found = false;
-        uint16_t loadsCount = 0;
-        uint16_t storesCount = 0;
-        uint16_t anyThingElseCount = 0;
-
-        for (const auto& block : page.blocks) {
-            if (block.loadBlock > 0 ||
-                block.storeBlock > 0 ||
-                block.anyThingElse > 0) {
-                    loadsCount += block.loadBlock;
-                    storesCount += block.storeBlock;
-                    anyThingElseCount += block.anyThingElse;
-                    for (int j = 0; j < block.perSocketAccesses.size(); j++) {
-                        if (block.perSocketAccesses[j] > 0) {
-                            sharersCount++;
-                            if (!found) {
-                                minSocket = maxSocket = j;
-                                found = true;
-                            } else {
-                                if (j < minSocket) {
-                                    minSocket = j;
-                                }
-                                if (j > maxSocket) {
-                                    maxSocket = j;
-                                }
+    for (const auto& block : page.blocks) {
+        if (block.loadBlock > 0 ||
+            block.storeBlock > 0 ||
+            block.anyThingElse > 0) {
+                loadsCount += block.loadBlock;
+                storesCount += block.storeBlock;
+                anyThingElseCount += block.anyThingElse;
+                for (int j = 0; j < block.perSocketAccesses.size(); j++) {
+                    if (block.perSocketAccesses[j] > 0) {
+                        sharersCount++;
+                        if (!found) {
+                            minSocket = maxSocket = j;
+                            found = true;
+                        } else {
+                            if (j < minSocket) {
+                                minSocket = j;
+                            }
+                            if (j > maxSocket) {
+                                maxSocket = j;
                             }
                         }
                     }
-            }
+                }
         }
-        assert(page.mostRecentAccessTick != 0);
-        assert(page.firstAccessTick != 0);
-        Tick pageLifetime = (page.mostRecentAccessTick - page.firstAccessTick) / 1000; // ns
-        cacheMemoryStats.deallocPageCount++;
-        assert(minSocket != -1);
-        assert(maxSocket != -1);
-        assert(sharersCount > 0);
-
-        cacheMemoryStats.sharersCountSocketPage.sample(sharersCount);
-        cacheMemoryStats.sharedPageMinIndex.sample(minSocket);
-        cacheMemoryStats.sharedPageMaxIndex.sample(maxSocket);
-        cacheMemoryStats.sharedPageDistSockets.sample(std::abs(maxSocket - minSocket));
-        cacheMemoryStats.sharedPageLoads.sample(loadsCount);
-        cacheMemoryStats.sharedPageStores.sample(storesCount);
-        cacheMemoryStats.sharedPageElse.sample(anyThingElseCount);
-        cacheMemoryStats.sharedPageAccesses.sample(loadsCount + storesCount + anyThingElseCount);
-        cacheMemoryStats.totPageLifeTime += pageLifetime;
-        cacheMemoryStats.histPageLifeTime.sample(pageLifetime);
-
-        pageAccessTracker.erase(it);
     }
+    assert(page.mostRecentAccessTick != 0);
+    assert(page.firstAccessTick != 0);
+    Tick pageRecordTime = (page.mostRecentAccessTick - page.firstAccessTick) / 1000; // ns
+    cacheMemoryStats.recordedPageStats++;
+    assert(minSocket != -1);
+    assert(maxSocket != -1);
+    assert(sharersCount > 0);
+
+    cacheMemoryStats.sharersCountSocketPage.sample(sharersCount);
+    cacheMemoryStats.sharedPageMinIndex.sample(minSocket);
+    cacheMemoryStats.sharedPageMaxIndex.sample(maxSocket);
+    cacheMemoryStats.sharedPageDistSockets.sample(std::abs(maxSocket - minSocket));
+    cacheMemoryStats.sharedPageLoads.sample(loadsCount);
+    cacheMemoryStats.sharedPageStores.sample(storesCount);
+    cacheMemoryStats.sharedPageElse.sample(anyThingElseCount);
+    cacheMemoryStats.sharedPageAccesses.sample(loadsCount + storesCount + anyThingElseCount);
+    cacheMemoryStats.totPageRecordTime += pageRecordTime;
+    cacheMemoryStats.histPageRecordTime.sample(pageRecordTime);
+
+    page.resetInPlace();
+    page.mostRecentStatsRecordedTick = curTick;
+    DPRINTF(MBShrInfoShort, "b: 1stAcc: %llu stRec: %llu rctAcc: %llu\n",
+            static_cast<unsigned long long>(page.firstAccessTick),
+            static_cast<unsigned long long>(page.mostRecentStatsRecordedTick),
+            static_cast<unsigned long long>(page.mostRecentAccessTick));
+
 }
 
 int

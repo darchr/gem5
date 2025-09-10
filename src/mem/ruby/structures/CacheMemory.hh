@@ -263,23 +263,7 @@ class CacheMemory : public SimObject
           // MB
           statistics::Scalar dir_sharers_list_updates;
           statistics::Scalar dir_sharers_list_noChange;
-          
-          statistics::Histogram sharersCountSocketBlock;
-          statistics::Histogram sharedBlockMinIndex;
-          statistics::Histogram sharedBlockMaxIndex;
-          statistics::Histogram sharedBlockDistSockets;
-          statistics::Histogram sharedBlockLoads;
-          statistics::Histogram sharedBlockStores;
-          statistics::Histogram sharedBlockElse;
-          statistics::Histogram sharedBlockAccesses;
-          statistics::Scalar allocDirEntryCount;
-          statistics::Scalar deallocDirEntryCount;
-          statistics::Scalar notFoundBlocks;
-          statistics::Scalar notRecDirEntry;
-          statistics::Scalar totDirEntryLifeTime;
-          statistics::Formula avgDirEntryLifeTime;
-          statistics::Histogram histDirEntryLifeTime;
-
+                    
           statistics::Histogram sharersCountSocketPage;
           statistics::Histogram sharedPageMinIndex;
           statistics::Histogram sharedPageMaxIndex;
@@ -289,11 +273,12 @@ class CacheMemory : public SimObject
           statistics::Histogram sharedPageElse;
           statistics::Histogram sharedPageAccesses;
           statistics::Scalar allocPageCount;
-          statistics::Scalar deallocPageCount;
+          statistics::Scalar recordedPageStats;
           statistics::Scalar notFoundPages;
-          statistics::Scalar totPageLifeTime;
-          statistics::Formula avgPageLifeTime;
-          statistics::Histogram histPageLifeTime;
+          statistics::Scalar noFirstRecentTickPages;
+          statistics::Scalar totPageRecordTime;
+          statistics::Formula avgPageRecordTime;
+          statistics::Histogram histPageRecordTime;
 
 
       } cacheMemoryStats;
@@ -309,17 +294,14 @@ class CacheMemory : public SimObject
       // MB
       void profileDirSharersListUpdates();
       void profileDirSharersListNoChange();
-      void profileDirEntryAllocation(Addr address, Tick curTick);
       void profileDataArrayAccess(Addr address, MachineID requestor, int reqType, Tick curTick);
       void recordStatsSharedBlockAccess(Addr address, Tick curTick);
       int findSocketIndex(int versionID);
       
       struct BlockAccess {
-        bool isUsed = false;
         uint16_t loadBlock = 0;    // narrower type is usually enough
         uint16_t storeBlock = 0;
         uint16_t anyThingElse = 0;
-        Tick dirEntryAllocTick = 0;
         std::array<uint16_t, 64> perSocketAccesses{}; // zero-initialized
       };
 
@@ -327,6 +309,18 @@ class CacheMemory : public SimObject
         std::array<BlockAccess, 64> blocks{};   // 64 blocks/page
         Tick firstAccessTick = 0;
         Tick mostRecentAccessTick = 0;
+        Tick mostRecentStatsRecordedTick = 0;
+
+        void resetInPlace() {
+          firstAccessTick = 0;
+          mostRecentAccessTick = 0;
+          for (auto& block : blocks) {
+              block.loadBlock = 0;
+              block.storeBlock = 0;
+              block.anyThingElse = 0;
+              block.perSocketAccesses.fill(0);
+          }
+        }
     };
 
     // If you don't need key ordering, prefer unordered_map for speed:

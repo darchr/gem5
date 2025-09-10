@@ -243,7 +243,6 @@ structure (CacheMemory, external = "yes") {
   // MB
   void profileDirSharersListUpdates();
   void profileDirSharersListNoChange();
-  void profileDirEntryAllocation(Addr, Tick);
   void profileDataArrayAccess(Addr, MachineID, int, Tick);
   void recordStatsSharedBlockAccess(Addr, Tick);
 }

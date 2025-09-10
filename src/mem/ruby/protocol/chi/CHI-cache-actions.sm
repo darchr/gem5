@@ -3462,8 +3462,6 @@ action(Deallocate_CacheBlock, desc="") {
 action(Allocate_DirEntry, desc="") {
   assert(directory.isTagPresent(address) == false);
   directory.allocate(address);
-  // MB
-  cache.profileDirEntryAllocation(address, curTick());
 }
 
 action(Deallocate_DirEntry, desc="") {
