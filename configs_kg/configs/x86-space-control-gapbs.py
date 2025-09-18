@@ -45,7 +45,7 @@ Here are the steps that happen.
 6. do 1B ticks and report CPI or IPC.
 7. Baseline:
     a. Pure CXL
-    b. Mondrian -- What is the difference?
+    b. Mondrian -- What is the difference? -> Lookup latency
     c. DeACT    -> Create an additional memory request for every memory request
 
 """
@@ -122,9 +122,10 @@ cache_hierarchy.get_permission_table().use_dedicated_caching = False
 # make sure that the permission parameters are setup correctly.
 cache_hierarchy.get_permission_table().permission_base_addr = 0x140000000
 cache_hierarchy.get_permission_table().number_of_entries = 1
-cache_hierarchy.get_permission_table().binary_search = True
-# using parameters from the driver.
-cache_hierarchy.get_permission_table().permission_entry_size = 655408
+cache_hierarchy.get_permission_table().binary_search = False
+# using parameters from the driver. After the cacheline version is finished,
+# this latency is drastically reduced!
+cache_hierarchy.get_permission_table().permission_entry_size = 64
 
 cache_hierarchy.get_permission_table().total_memory_size = 0x20000000
 

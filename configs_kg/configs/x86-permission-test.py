@@ -154,7 +154,7 @@ cmd = [
     "ls /dev;",
     "sleep 1;",
     # Ignore the boot time stats. Allocate a tiny graph.
-    "echo '12345' | sudo /home/gem5/shared-gapbs/allocator -S 1 -x 0 -g 10;",
+    "echo '12345' | sudo /home/gem5/shared-gapbs/allocator -S 1 -x 0 -g 20;",
     # This program can simply exit now.
     "m5 exit;",
 ]

@@ -168,7 +168,7 @@ ClockedPermission::recvTimingReq(PacketPtr pkt, uint64_t packet_id) {
     }
     else {
         // if this is a retry request then skip this
-        if (true) { // retry_queue.empty()) {
+        if (retry_queue.empty()) {
             // This is the beginning of space control with no dedicated caching
             // first for every memory request in the shared memory region, create
             // another memory request to enforce permission checks. otherwise the
@@ -193,7 +193,7 @@ ClockedPermission::recvTimingReq(PacketPtr pkt, uint64_t packet_id) {
 
                 // assume system caching and schedule a number of fake requests to
                 // the dedicated memory region. The packets must be
-                int memory_packes_required = (permissionEntrySize / 64) + 1;
+                int memory_packes_required = (permissionEntrySize / 64);
 
                 for (int i = 0 ; i < memory_packes_required ; i++) {
                     ++stats.numOutgoingMemSidePackets;
@@ -227,7 +227,12 @@ ClockedPermission::recvTimingReq(PacketPtr pkt, uint64_t packet_id) {
                     if (memSidePort.sendTimingReq(permission_pkt)) {
                         // what is packet_id
                         ++stats.numPermissionTableAccesses;
-                        portMap[pkt->id] = packet_id;
+                        portMap[permission_pkt->id] = packet_id;
+                        // this is the additonal latency required to do the lookup.
+                        schedule(new EventFunctionWrapper([this, permission_pkt]{ },
+                            name() + ".accessEvent", true),
+                            clockEdge(static_cast<Cycles>(lookup_time)));
+
                     }
                     // TODO: can this packet go into the same retry queue?
                     else {
@@ -235,12 +240,15 @@ ClockedPermission::recvTimingReq(PacketPtr pkt, uint64_t packet_id) {
                                                 permission_pkt->getAddr(), pkt->getAddr(), packet_id);
                         // only store the actual request and delete the fake request.
                         // it'll be created again.
+                        //
+                        // do not push the permission packet into the retry
+                        // queue
                         retry_queue.push(packet_id);
                         // delete the traffic packet
-                        // delete permission_pkt;
+                        delete permission_pkt;
 
                         // also cannot send the actual packet now
-                        // return false;
+                        return false;
                     }
                 }
                 // for (int i = 0 ; i < memory_packes_required ; i++) {
@@ -248,10 +256,6 @@ ClockedPermission::recvTimingReq(PacketPtr pkt, uint64_t packet_id) {
                     // ++stats.numOutgoingTrafficPackets;
                     // FIXME: The lookup happens once but the number of memory packets are multiple
 
-                    // this is the additonal latency required to do the lookup.
-                schedule(new EventFunctionWrapper([this, pkt]{ },
-                        name() + ".accessEvent", true),
-                        clockEdge(static_cast<Cycles>(lookup_time)));
                 // }
             }
 
@@ -264,9 +268,12 @@ ClockedPermission::recvTimingReq(PacketPtr pkt, uint64_t packet_id) {
         portMap[pkt->id] = packet_id;
         return true;
     }
+
+    // cannot send this packet now.
     DPRINTF(ClockedPermissionDebug, "Failed to send %#x on port %lu\n",
                                                     pkt->getAddr(), packet_id);
-    retry_queue.push(packet_id);
+    if (!(pkt->getAddr() == baseAddrPermissionTable))
+        retry_queue.push(packet_id);
     return false;
 }
 
