@@ -45,10 +45,11 @@ Here are the steps that happen.
 6. do 1B ticks and report CPI or IPC.
 7. Baseline:
     a. Pure CXL
-    b. Mondrian -- What is the difference?
+    b. Mondrian -- What is the difference? The memory request sizes are different.
     c. DeACT    -> Create an additional memory request for every memory request
 
 """
+
 import argparse
 import os
 import sys
@@ -59,6 +60,11 @@ sys.path.append(
     os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir))
 )
 from boards.x86_space_control_board import X86SpaceControlBoard
+
+from cachehierarchies.private_l1_private_l2_shared_l3_cache_hierarchy import (
+    PrivateL1PrivateL2SharedL3CacheHierarchy,
+)
+
 
 import m5
 from m5.objects import (
@@ -109,7 +115,7 @@ from cachehierarchies.dm_caches import *  # ClassicPrivateL1PrivateL2SharedL3Cac
 #     l1i_size = "32KiB",
 #     l2_size = "512 KiB",)
 
-cache_hierarchy = ClassicPrivateL1PrivateL2SharedL3CacheHierarchyWChecks(
+cache_hierarchy = ClassicPrivateL1PrivateL2SharedL3CacheHierarchyWOChecks(
     l1d_size="32KiB",
     l1i_size="32KiB",
     l2_size="512 KiB",
@@ -181,10 +187,10 @@ cmd = [
     "ls /dev;",
     "sleep 1;",
     # Ignore the boot time stats. Allocate a tiny graph.
-    "echo '12345' | sudo /home/gem5/shared-gapbs/allocator -S 1 -x 0 -g 10;",
+    "echo '12345' | sudo /home/gem5/shared-gapbs/allocator -S 1 -x 0 -g 22;",
     # This program can simply exit now.
     "m5 exit;",
-    "echo '12345' | sudo /home/gem5/shared-gapbs/bc -S 1 -x 1 -g 10;",
+    "echo '12345' | sudo /home/gem5/shared-gapbs/bc -S 1 -x 1 -g 22;",
 ]
 workload = CustomWorkload(
     function="set_kernel_disk_workload",
@@ -256,7 +262,9 @@ print("Using KVM cpu")
 
 simulator.run()
 simulator.run()
-simulator.run()
+
+# Let's put everything to the test! 1B ticks to compare
+simulator.run(1_000_000_000_000)
 # simulator.run()
 # simulator.run()
 end_tick = m5.curTick()

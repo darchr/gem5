@@ -297,6 +297,10 @@ class ClockedPermission : public ClockedObject
 
         std::map<gem5::Addr, cache_entry_vector*> permission_table;
 
+        // keep a permissions checker to ensure that permissions aren't sent
+        // more than once for the same address.
+        std::unordered_map<gem5::Addr, bool> permission_checker;
+
         // we need a class variable for the additional latency until we find a
         // way to pass method parameters
         Tick class_latency;
@@ -333,6 +337,9 @@ class ClockedPermission : public ClockedObject
         struct permission_handler simpleLRU(gem5::Addr addr);
         struct permission_handler simpleMRU(gem5::Addr addr);
         struct permission_handler simpleRandom(gem5::Addr addr);
+
+        // send permission packets
+        bool sendPermissionPackets(PacketPtr pkt);
 
         // To implement the new packet stuff, here are the mothods
         Addr getPLBAddr(Addr addr);

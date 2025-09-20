@@ -27,6 +27,8 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+import os
+
 from m5.objects.ClockedObject import ClockedObject
 from m5.params import *
 from m5.proxy import *
@@ -94,8 +96,7 @@ class ClockedPermission(ClockedObject):
     # We need a toggle function to enable or disable MMP checks
     enable_permission_check = Param.Bool(
         True,
-        "To enable or disable \
-                                                        permission checks.",
+        "To enable or disable permission checks.",
     )
 
     # Even if there is an OS driver that sets up the permissions, there will be
@@ -106,36 +107,31 @@ class ClockedPermission(ClockedObject):
     # caching. Make sure to set this range as uncacheable in the config script.
     use_dedicated_caching = Param.Bool(
         True,
-        "To enable dedicated \
-                                            permission caching.",
+        "To enable dedicated permission caching.",
     )
 
     # To make sure that the table actually exists in the memory, a base address
     # is needed. The default address is hardcoded into X86's IO range.
     permission_base_addr = Param.Addr(
         0xC0000000,
-        "Base of the permission \
-                                                                    table.",
+        "Base of the permission table.",
     )
 
     # To perform binary lookup or linear lookup, we need to know the number
     # of entries if the permission are not maintained per segment.
     number_of_entries = Param.Unsigned(
         100,
-        "Total number of variable \
-                                        permission table entries.",
+        "Total number of variable permission table entries.",
     )
 
     binary_search = Param.Bool(
         True,
-        "Assume that the permission table is \
-                                                                    sorted.",
+        "Assume that the permission table is sorted.",
     )
 
     permission_entry_size = Param.Unsigned(
         32,
-        "Size of a permission table \
-                                                                entry.",
+        "Size of a permission table entry.",
     )
 
     # TODO
@@ -173,7 +169,7 @@ class ClockedPermission(ClockedObject):
     # an infinite bandwidth connection where the checks happen very fast
     # without queuing or buffering.
 
-    # Adding more parameters to enable disaggregated memory info
+    # Adding more parameters to enable disaggregated memory info.
     host_id = Param.Int(0, "Host ID, if simulating CXL-like system")
 
     # Adding params for enabling interrupts. If there is a write to this addr,
@@ -185,5 +181,19 @@ class ClockedPermission(ClockedObject):
                         X86 systems. The OS needs to monitor this address \
                         as well",
     )
+
+    # We need to write the permission table as a JSON entry for the SimObject
+    # to be able to cache these entries. Permission packet and the actual
+    # memory packets are not blocking, meaning that a permission packet is
+    # generated for a given memory request and the permission packet is
+    # scheduled first, and, then the actual memory packet is sent to the memory
+    # before the permission packet response is received from the memory for
+    # performance purposes. The actual check is assumed to be done at the
+    # recvTimingResp. But for the timing model to work correctly, a lazy
+    # implementation follows where the permission entries are also entered as a
+    # input JSON file for the permission cache to work. Flat table papers don't
+    # have this problem.
+    # host_permission_table_json = Param.String(os.path.join(os.getcwd(), ""),
+    #                                     "Path to the permission table JSON")
 
     # What else do we need?

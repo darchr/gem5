@@ -50,5 +50,6 @@ DebugFlag('PermissionTableEvent', "Making sure that the permission table works!"
 # DebugFlag('SimplePort', "The simple implementation")
 DebugFlag('ClockedPermissionDebug', "For the latency memory object")
 DebugFlag('PermissionPackets', "For custom packets")
+DebugFlag('RemoteAddress', "For debugging if packets go to the remote memory")
 
 DebugFlag('MyUIODevice', "For the MyUIODevice SimObject")

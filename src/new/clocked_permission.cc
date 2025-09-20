@@ -6,6 +6,7 @@
 #include "debug/PermissionTableEvent.hh"
 #include "debug/ClockedPermissionDebug.hh"
 #include "debug/PermissionPackets.hh"
+#include "debug/RemoteAddress.hh"
 
 namespace gem5 {
 
@@ -106,174 +107,472 @@ ClockedPermission::recvFunctional(PacketPtr pkt)
 //     requestorId = -1;
 // }
 
+
+// bool
+// ClockedPermission::recvTimingReq(PacketPtr pkt, uint64_t packet_id) {
+//     // If the permission tables are enabled by the user.
+//     ++stats.numIncomingCPUSidePackets;
+//     bool did_permission_failed = false;
+//     if (pkt->getAddr() >= 4294967296 && pkt->getAddr() < 38654705664)
+//         // 50% of the requests need to be here! why is this not getting printed?????
+//         DPRINTF(RemoteAddress, "Remote address %#x\n", pkt->getAddr());
+//     /*
+//     if (enablePermissionCheck && useDedicatedCaching) {
+//         // for debugging only
+//         // make this throw an error!
+//         assert(false && "disabled if-else condition\n");
+
+//         // TODO:
+//         // Change the return structure to a struct with <bool, gem5::Tick>.
+//         // If this is a miss, then create an additional packet that accesses
+//         // the memory to fetch the data from the permission table.
+//         struct permission_handler status = isCachedRequest(pkt->getAddr());
+
+//         // TODO:
+//         // Create an additional dummy packet that handles a PLB miss. This
+//         // only happens if there is a PLB miss
+//         if (status.is_cached == false) {
+//             // figure out where is the entry stored in the permission table.
+//             // this is a linear table and the caching will depend on the
+//             // structure of this table.
+//             Addr permission_addr = getPLBAddr(pkt->getAddr());
+
+//             // even
+//             // if this is a linear table, the timing correctness is implemented
+//             // as the lookup latency. this request is only made to make sure
+//             // that the memory contention is correctly modeled.
+//             // assume that this is a flat table where the address is the index.
+
+//             // First create a new request
+//             Request::Flags flags;
+//             RequestPtr req = std::make_shared<Request>(
+//                                 permission_addr, 1, pkt->req->getFlags(), pkt->requestorId());
+//             PacketPtr permission_pkt = new Packet(req, permission_cmd);
+//             permission_pkt->allocate();
+
+//             DPRINTF(PermissionPackets,
+//                 "Created custom packet with addr %#lu and req ID %d\n",
+//                                 permission_pkt->getAddr(), pkt->requestorId());
+//             // TODO: What do I do with this packet? Try sending this packet?
+//             if (memSidePort.sendTimingReq(permission_pkt)) {
+//                 // what is packet_id
+//                 portMap[pkt->id] = packet_id;
+//             }
+//             // TODO: can this packet go into the same retry queue?
+//             else {
+//                 DPRINTF(PermissionPackets, "Couldn't send %#lu on port %lu\n",
+//                                         permission_pkt->getAddr(), packet_id);
+
+//                 retry_queue.push(packet_id);
+//             }
+//         }
+
+
+//         // TODO:
+//         // Schedule a new AccessEvent with this latency. Since this is a clock
+//         // edge, both the rising and the falling edges can be used in this
+//         // case. Maybe cite the dual edged flip flop if needed in the paper.
+//         schedule(new EventFunctionWrapper([this, pkt]{ },
+//                         name() + ".accessEvent", true),
+//                         clockEdge(static_cast<Cycles>(status.latency / 2)));
+
+//     }
+//     else {
+//         // if this is a retry request then skip this. why?
+//         // if (retry_queue.empty()) {
+//         // for every request that goes to the remote memory, check for permissions.
+//             // if (retry_queue.empty() && pkt->getAddr() >= 0x100000000 &&
+//             //             pkt->getAddr() < 0x800000000) {
+
+//             // make sure to print the address if this is a remote memory request
+//             if (pkt->getAddr() >= 4294967296 && pkt->getAddr() < 38654705664)
+//                 // 50% of the requests need to be here! why is this not getting printed?????
+//                 DPRINTF(RemoteAddress, "Remote address %#x\n", pkt->getAddr());
+
+//             // if this is a remote memory request, then check for permissions.
+//             // if (pkt->getAddr() >= 0x100000000 &&
+//             //             pkt->getAddr() < 0x800000000) {
+//             // This is the beginning of space control with no dedicated caching
+//             // first for every memory request in the shared memory region, create
+//             // another memory request to enforce permission checks. otherwise the
+//             // OS is writing permissions to the permission section
+//             if (pkt->getAddr() >= baseAddrPermissionTable &&
+//                         pkt->getAddr() < baseAddrPermissionTable + 0x40000000) {
+//                 // This is an OS request to read or write into the permission table
+//                 // don't do anything actually!
+//                 DPRINTF(PermissionPackets, "Writing to the permission table at %#x\n", pkt->getAddr());
+//                 // disable this
+//                 assert(false && "artifacts aren't created yet for this kind of testing!\n");
+//             }
+//             else {
+//                 // lookup the entry. the lookup time is dependent up on the number
+//                 // of permission entries.
+//                 // XXX: The number of entries is preset.
+
+//                 // regardless of a dedicated cache is present, the time required to
+//                 // lookup an entry will always be constant.
+//                 Tick lookup_time = 0;
+//                 if (binarySearch)
+//                     lookup_time = (gem5::Tick) log2(numberOfEntries);
+//                 else
+//                     lookup_time = numberOfEntries;
+
+//                 // assume system caching and schedule a number of fake requests to
+//                 // the dedicated memory region. The packets must be
+//                 int memory_packes_required = (permissionEntrySize / 64);
+
+//                 for (int i = 0 ; i < memory_packes_required ; i++) {
+//                     ++stats.numOutgoingMemSidePackets;
+
+//                     // even
+//                     // if this is a linear table, the timing correctness is implemented
+//                     // as the lookup latency. this request is only made to make sure
+//                     // that the memory contention is correctly modeled.
+//                     // assume that this is a flat table where the address is the index.
+
+//                     // First create a new request
+//                     // FIXME: There needs to be n number of read requests by 64.
+//                     Addr permission_addr = baseAddrPermissionTable + i * 64;
+//                     // Request::Flags flags;
+//                     RequestPtr req = std::make_shared<Request>(
+//                                         permission_addr, 1, pkt->req->getFlags(), pkt->requestorId());
+//                     PacketPtr permission_pkt = new Packet(req, permission_cmd, 64);
+//                     // req->setFlags(Request::VALID_SIZE);
+//                     // permission_pkt->setSize(permissionEntrySize);
+
+//                     // system caches should not be used for permission packets.
+//                     // permission_pkt->req->setFlags(Request::UNCACHEABLE);
+
+//                     permission_pkt->allocate();
+
+//                     DPRINTF(PermissionPackets,
+//                         "Created custom packet for pkt addr %#x with permission addr"
+//                         " %#x and size %lu and req ID %d and packet_id %d\n",
+//                                         pkt->getAddr(), permission_pkt->getAddr(), permission_pkt->getSize(),
+//                                         pkt->requestorId(), packet_id);
+//                     // TODO: What do I do with this packet? Try sending this packet?
+//                     if (memSidePort.sendTimingReq(permission_pkt)) {
+//                         // what is packet_id
+//                         ++stats.numPermissionTableAccesses;
+                        
+//                         // this should not happen
+//                         // portMap[permission_pkt->id] = packet_id;
+
+//                         // this is the additonal latency required to do the lookup.
+//                         schedule(new EventFunctionWrapper([this, permission_pkt]{ },
+//                             name() + ".accessEvent", true),
+//                             clockEdge(static_cast<Cycles>(lookup_time)));
+
+//                     }
+//                     // TODO: can this packet go into the same retry queue?
+//                     else {
+//                         DPRINTF(PermissionPackets, "Couldn't send %#x for %#x on port %lu\n",
+//                                                 permission_pkt->getAddr(), pkt->getAddr(), packet_id);
+//                         // only store the actual request and delete the fake request.
+//                         // it'll be created again.
+//                         //
+//                         // do not push the permission packet into the retry
+//                         // queue
+//                         // retry_queue.push(packet_id);
+//                         did_permission_failed = true;
+//                         // delete the traffic packet
+//                         delete permission_pkt;
+//                         // delete req;
+
+//                         // also cannot send the actual packet now as the permission packet will always go first.
+//                         return false;
+//                     }
+//                 }
+//                 // for (int i = 0 ; i < memory_packes_required ; i++) {
+//                     // simulate this memory request. is this required?
+//                     // ++stats.numOutgoingTrafficPackets;
+//                     // FIXME: The lookup happens once but the number of memory packets are multiple
+
+//                 // }
+//             }
+
+//         }
+//         // else {
+//             // this packet does to local memory
+//         // }
+//     }
+
+//     // if (!did_permission_failed) {
+//     */
+//     // business as usual. if the permission packet is not sent, then this part of the code will never reach
+//     if (memSidePort.sendTimingReq(pkt)) {
+//         // Send successful, keep the packet_id for later.s
+//         portMap[pkt->id] = packet_id;
+//         // if (did_permission_failed) 
+//         //     assert(false && "it doesn't make sense that the permission packet failed!\n");
+//         return true;
+//         // }
+//     }
+
+//     // cannot send this packet now.
+//     DPRINTF(ClockedPermissionDebug, "Failed to send %#x on port %lu\n",
+//                                                     pkt->getAddr(), packet_id);
+//     // if (!(pkt->getAddr() == baseAddrPermissionTable) && !did_permission_failed)
+//     retry_queue.push(packet_id);
+//     return false;
+// }
+
+bool
+ClockedPermission::sendPermissionPackets(PacketPtr pkt) {
+    // this is a helper function that sends permission packets to the memsideport
+    return true;
+}
+
 bool
 ClockedPermission::recvTimingReq(PacketPtr pkt, uint64_t packet_id) {
     // If the permission tables are enabled by the user.
     ++stats.numIncomingCPUSidePackets;
-    if (enablePermissionCheck && useDedicatedCaching) {
-        // TODO:
-        // Change the return structure to a struct with <bool, gem5::Tick>.
-        // If this is a miss, then create an additional packet that accesses
-        // the memory to fetch the data from the permission table.
-        struct permission_handler status = isCachedRequest(pkt->getAddr());
-
-        // TODO:
-        // Create an additional dummy packet that handles a PLB miss. This
-        // only happens if there is a PLB miss
-        if (status.is_cached == false) {
-            // figure out where is the entry stored in the permission table.
-            // this is a linear table and the caching will depend on the
-            // structure of this table.
-            Addr permission_addr = getPLBAddr(pkt->getAddr());
-
-            // even
-            // if this is a linear table, the timing correctness is implemented
-            // as the lookup latency. this request is only made to make sure
-            // that the memory contention is correctly modeled.
-            // assume that this is a flat table where the address is the index.
-
-            // First create a new request
-            Request::Flags flags;
-            RequestPtr req = std::make_shared<Request>(
-                                permission_addr, 1, pkt->req->getFlags(), pkt->requestorId());
-            PacketPtr permission_pkt = new Packet(req, permission_cmd);
-            permission_pkt->allocate();
-
-            DPRINTF(PermissionPackets,
-                "Created custom packet with addr %#lu and req ID %d\n",
-                                    permission_pkt->getAddr(), pkt->requestorId());
-            // TODO: What do I do with this packet? Try sending this packet?
-            if (memSidePort.sendTimingReq(permission_pkt)) {
-                // what is packet_id
-                portMap[pkt->id] = packet_id;
-            }
-            // TODO: can this packet go into the same retry queue?
-            else {
-                DPRINTF(PermissionPackets, "Couldn't send %#lu on port %lu\n",
-                                        permission_pkt->getAddr(), packet_id);
-
-                retry_queue.push(packet_id);
-            }
+    // keep different states to track the packet
+    int did_permission_failed = 0x0;
+    if (pkt->getAddr() >= 4294967296 && pkt->getAddr() < 38654705664)
+        // 50% of the requests need to be here! why is this not getting printed?????
+        DPRINTF(RemoteAddress, "Remote address %#x\n", pkt->getAddr());
+    
+    // if permission checks are not enabled, then this simobject doesn't do
+    // anything
+    if (enablePermissionCheck) {
+        // permission cache is not implemented yet
+        if (useDedicatedCaching) {
+            assert(false && "Caching is not implemented yet\n");
         }
+        else {
+            // simple uncached version.
+            // TODO: enable system-level permission
 
-
-        // TODO:
-        // Schedule a new AccessEvent with this latency. Since this is a clock
-        // edge, both the rising and the falling edges can be used in this
-        // case. Maybe cite the dual edged flip flop if needed in the paper.
-        schedule(new EventFunctionWrapper([this, pkt]{ },
-                        name() + ".accessEvent", true),
-                        clockEdge(static_cast<Cycles>(status.latency / 2)));
-
-    }
-    else {
-        // if this is a retry request then skip this
-        if (retry_queue.empty()) {
-            // This is the beginning of space control with no dedicated caching
-            // first for every memory request in the shared memory region, create
-            // another memory request to enforce permission checks. otherwise the
-            // OS is writing permissions to the permission section
-            if (pkt->getAddr() >= baseAddrPermissionTable &&
-                        pkt->getAddr() < baseAddrPermissionTable + 0x40000000) {
-                // This is an OS request to read or write into the permission table
-                // don't do anything actually!
-            }
-            else {
-                // lookup the entry. the lookup time is dependent up on the number
-                // of permission entries.
-                // XXX: The number of entries is preset.
-
-                // regardless of a dedicated cache is present, the time required to
-                // lookup an entry will always be constant.
-                Tick lookup_time = 0;
-                if (binarySearch)
-                    lookup_time = (gem5::Tick) log2(numberOfEntries);
-                else
-                    lookup_time = numberOfEntries;
-
-                // assume system caching and schedule a number of fake requests to
-                // the dedicated memory region. The packets must be
-                int memory_packes_required = (permissionEntrySize / 64);
-
-                for (int i = 0 ; i < memory_packes_required ; i++) {
-                    ++stats.numOutgoingMemSidePackets;
-
-                    // even
-                    // if this is a linear table, the timing correctness is implemented
-                    // as the lookup latency. this request is only made to make sure
-                    // that the memory contention is correctly modeled.
-                    // assume that this is a flat table where the address is the index.
-
-                    // First create a new request
-                    // FIXME: There needs to be n number of read requests by 64.
-                    Addr permission_addr = baseAddrPermissionTable + i * 64;
-                    Request::Flags flags;
-                    RequestPtr req = std::make_shared<Request>(
-                                        permission_addr, 1, pkt->req->getFlags(), pkt->requestorId());
-                    PacketPtr permission_pkt = new Packet(req, permission_cmd, 64);
-                    // req->setFlags(Request::VALID_SIZE);
-                    // permission_pkt->setSize(permissionEntrySize);
-
-                    // req->setFlags(Request::UNCACHEABLE | Request::STRICT_ORDER);
-
-                    permission_pkt->allocate();
-
-                    DPRINTF(PermissionPackets,
-                        "Created custom packet for pkt addr %#x with permission addr"
-                        " %#x and size %lu and req ID %d and packet_id %d\n",
-                                        pkt->getAddr(), permission_pkt->getAddr(), permission_pkt->getSize(),
-                                        pkt->requestorId(), packet_id);
-                    // TODO: What do I do with this packet? Try sending this packet?
-                    if (memSidePort.sendTimingReq(permission_pkt)) {
-                        // what is packet_id
-                        ++stats.numPermissionTableAccesses;
-                        portMap[permission_pkt->id] = packet_id;
-                        // this is the additonal latency required to do the lookup.
-                        schedule(new EventFunctionWrapper([this, permission_pkt]{ },
-                            name() + ".accessEvent", true),
-                            clockEdge(static_cast<Cycles>(lookup_time)));
-
+            // permission checks only happen for remote memory addresses!
+            // TODO: Fix hardcoding issues
+            if (pkt->getAddr() >= 4294967296 && pkt->getAddr() < 38654705664 && permission_checker[pkt->getAddr()] == false) {
+                // this request can be either in the data section or the table
+                if (pkt->getAddr() >= baseAddrPermissionTable &&
+                pkt->getAddr() < baseAddrPermissionTable + 0x40000000) {
+                    // This is an OS request to read or write into the
+                    // permission table don't do anything and let this request
+                    // pass.
+                    if (pkt->isRead()) {
+                        DPRINTF(PermissionPackets,
+                                "Reading from the permission table at %#x\n",
+                                pkt->getAddr());
                     }
-                    // TODO: can this packet go into the same retry queue?
                     else {
-                        DPRINTF(PermissionPackets, "Couldn't send %#x for %#x on port %lu\n",
-                                                permission_pkt->getAddr(), pkt->getAddr(), packet_id);
-                        // only store the actual request and delete the fake request.
-                        // it'll be created again.
-                        //
-                        // do not push the permission packet into the retry
-                        // queue
-                        retry_queue.push(packet_id);
-                        // delete the traffic packet
-                        delete permission_pkt;
-
-                        // also cannot send the actual packet now
-                        return false;
+                        DPRINTF(PermissionPackets,
+                                "Writing into the permission table at %#x\n",
+                                pkt->getAddr());
                     }
-                }
-                // for (int i = 0 ; i < memory_packes_required ; i++) {
-                    // simulate this memory request. is this required?
-                    // ++stats.numOutgoingTrafficPackets;
-                    // FIXME: The lookup happens once but the number of memory packets are multiple
+                    // disable this
+                    assert(false &&
+                        "artifacts aren't created yet for this kind of "
+                        " testing!\n");
 
-                // }
+                }
+                else {
+                    // there needs to be a permission lookup.
+                    // regardless of a dedicated cache is present, the time
+                    //  required to lookup an entry will always be constant.
+                    Tick lookup_time = 0;
+                    if (binarySearch)
+                        lookup_time = (gem5::Tick) log2(numberOfEntries);
+                    else
+                        lookup_time = numberOfEntries;
+
+                    // assume system caching and schedule a number of fake 
+                    // requests to the dedicated memory region. The packets 
+                    // must be of 64 bytes.
+                    int memory_packes_required = (permissionEntrySize / 64);
+
+                    for (int i = 0 ; i < memory_packes_required ; i++) {
+                        // out of all the remote memory requests, these many
+                        // are going to read the permission table!
+                        ++stats.numOutgoingMemSidePackets;
+
+                        // even
+                        // if this is a linear table, the timing correctness is implemented
+                        // as the lookup latency. this request is only made to make sure
+                        // that the memory contention is correctly modeled.
+                        // assume that this is a flat table where the address is the index.
+
+                        // First create a new request
+                        // FIXME: There needs to be n number of read requests by 64.
+                        Addr permission_addr = baseAddrPermissionTable + i * 64;
+                        // Request::Flags flags;
+                        RequestPtr req = std::make_shared<Request>(
+                                            permission_addr,
+                                            1,
+                                            pkt->req->getFlags(),
+                                            pkt->requestorId());
+                        PacketPtr permission_pkt = new Packet(req,
+                                                             permission_cmd,
+                                                            64);
+                        // req->setFlags(Request::VALID_SIZE);
+                        // permission_pkt->setSize(permissionEntrySize);
+
+                        // system caches should not be used for permission packets.
+                        // permission_pkt->req->setFlags(Request::UNCACHEABLE);
+
+                        permission_pkt->allocate();
+
+                        DPRINTF(PermissionPackets,
+                            "Created custom packet for pkt addr %#x with "
+                            "permission addr %#x and size %lu and req ID %d "
+                            "and packet_id %d\n", pkt->getAddr(),
+                                                    permission_pkt->getAddr(),
+                                                    permission_pkt->getSize(),
+                                                    pkt->requestorId(),
+                                                    packet_id);
+                        
+                        if (memSidePort.sendTimingReq(permission_pkt)) {
+                            // what is packet_id
+                            ++stats.numPermissionTableAccesses;
+                            // the permission packet went through, now see if
+                            // the real packet can go through in the same tick
+                            did_permission_failed = 0x2;
+                            
+                            // this is an infinite cache rn.
+                            permission_checker[pkt->getAddr()] = true;
+                            
+                            // this should not happen
+                            portMap[permission_pkt->id] = packet_id;
+
+                            // this is the additonal latency required to do the lookup.
+                            schedule(new EventFunctionWrapper([this, permission_pkt]{ },
+                                name() + ".accessEvent", true),
+                                clockEdge(static_cast<Cycles>(lookup_time)));
+
+                        }
+                        // TODO: can this packet go into the same retry queue?
+                        else {
+                            DPRINTF(PermissionPackets, "Couldn't send %#x for %#x on port %lu\n",
+                                                    permission_pkt->getAddr(), pkt->getAddr(), packet_id);
+                            // only store the actual request and delete the fake request.
+                            // it'll be created again.
+                            //
+                            // do not push the permission packet into the retry
+                            // queue
+                            // retry_queue.push(packet_id);
+                            did_permission_failed = 0x1;
+                            // delete the traffic packet
+                            delete permission_pkt;
+                            // delete req;
+
+                            // also cannot send the actual packet now as the permission packet will always go first.
+                            // return false;
+                        }
+
+                        // just schedule this event and delete the packet for
+                        // now.
+                        // this is the additonal latency required to do the lookup.
+                        // schedule(new EventFunctionWrapper([this, permission_pkt]{ },
+                        //     name() + ".accessEvent", true),
+                        //     clockEdge(static_cast<Cycles>(lookup_time)));
+                        
+                        // delete permission_pkt;
+
+                        // keep packet map
+                        // permission_tracker[pkt->getAddr()] = 
+
+                        // if 
+                        
+                        /*
+                                This logic is incorrect
+                                plan
+                                send the permission packet and queue the actual
+                                packet
+                                when retried, look if the corresponding
+                                permission packet is sent already.
+                                if yes, then send the actual packet.
+
+                        // TODO: What do I do with this packet? Try sending this packet?
+                        if (memSidePort.sendTimingReq(permission_pkt)) {
+                            // what is packet_id
+                            ++stats.numPermissionTableAccesses;
+                            
+                            // this should not happen
+                            // portMap[permission_pkt->id] = packet_id;
+
+                            // this is the additonal latency required to do the lookup.
+                            schedule(new EventFunctionWrapper([this, permission_pkt]{ },
+                                name() + ".accessEvent", true),
+                                clockEdge(static_cast<Cycles>(lookup_time)));
+
+                        }
+                        // TODO: can this packet go into the same retry queue?
+                        else {
+                            DPRINTF(PermissionPackets, "Couldn't send %#x for %#x on port %lu\n",
+                                                    permission_pkt->getAddr(), pkt->getAddr(), packet_id);
+                            // only store the actual request and delete the fake request.
+                            // it'll be created again.
+                            //
+                            // do not push the permission packet into the retry
+                            // queue
+                            // retry_queue.push(packet_id);
+                            did_permission_failed = true;
+                            // delete the traffic packet
+                            delete permission_pkt;
+                            // delete req;
+
+                            // also cannot send the actual packet now as the permission packet will always go first.
+                            return false;
+                        }
+                        */
+                    }
+
+                }
+
             }
 
         }
     }
 
-    // business as usual. if the permission packet is not sent, then
+    // business as usual. if the permission packet is not sent, then this part
+    // of the code will never reach.
     if (memSidePort.sendTimingReq(pkt)) {
-        // Send successful, keep the packet_id for later.
+        // Send successful, keep the packet_id for later.s
         portMap[pkt->id] = packet_id;
+
+        if (did_permission_failed == 0x2) {
+            // a permission packet was sent and so was the actual packet
+            DPRINTF(PermissionPackets, "Both permission and actual packet sent for %#x\n",
+                                                    pkt->getAddr());
+        }
+        else if (did_permission_failed == 0x1) {
+            // permission packet failed to send, so did the actual packet
+            DPRINTF(PermissionPackets, "Both permission and actual packet failed for %#x\n",
+                                                    pkt->getAddr());
+
+            assert(false && "it doesn't make sense that the permission packet failed!\n");
+        }
+        // else {
+        //     // no permission packet was sent, only the actual packet was sent
+        //     DPRINTF(PermissionPackets, "Only actual packet sent for %#x\n",
+        //                                             pkt->getAddr());
+        // }
+        // if (did_permission_failed) 
         return true;
+        // }
     }
 
     // cannot send this packet now.
+    if (did_permission_failed == 0x2) {
+        // a permission packet was sent and so was the actual packet
+        DPRINTF(PermissionPackets, "Permission packet for %#x was sent but the actual packet failed!\n",
+                                                pkt->getAddr());
+    }
+    else if (did_permission_failed == 0x1) {
+        // permission packet failed to send, so did the actual packet
+        DPRINTF(PermissionPackets, "Both permission and actual packet failed for %#x\n",
+                                                pkt->getAddr());
+
+        assert(false && "it doesn't make sense that the permission packet failed!\n");
+    }
+
     DPRINTF(ClockedPermissionDebug, "Failed to send %#x on port %lu\n",
                                                     pkt->getAddr(), packet_id);
-    if (!(pkt->getAddr() == baseAddrPermissionTable))
-        retry_queue.push(packet_id);
+    // if (!(pkt->getAddr() == baseAddrPermissionTable) && !did_permission_failed)
+    retry_queue.push(packet_id);
     return false;
 }
 

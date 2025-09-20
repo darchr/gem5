@@ -120,7 +120,7 @@ cache_hierarchy = ClassicPrivateL1PrivateL2SharedL3CacheHierarchyWChecks(
 cache_hierarchy.get_permission_table().enable_permission_check = True
 cache_hierarchy.get_permission_table().use_dedicated_caching = False
 # make sure that the permission parameters are setup correctly.
-cache_hierarchy.get_permission_table().permission_base_addr = 0x140000000
+cache_hierarchy.get_permission_table().permission_base_addr = 0x7C0000000 # 0x140000000
 cache_hierarchy.get_permission_table().number_of_entries = 1
 cache_hierarchy.get_permission_table().binary_search = False
 # using parameters from the driver. After the cacheline version is finished,
@@ -182,10 +182,10 @@ cmd = [
     "ls /dev;",
     "sleep 1;",
     # Ignore the boot time stats. Allocate a tiny graph.
-    "echo '12345' | sudo /home/gem5/shared-gapbs/allocator -S 1 -x 0 -g 10;",
+    "echo '12345' | sudo /home/gem5/shared-gapbs/allocator -S 1 -x 0 -g 22;",
     # This program can simply exit now.
     "m5 exit;",
-    "echo '12345' | sudo /home/gem5/shared-gapbs/bc -S 1 -x 1 -g 10;",
+    "echo '12345' | sudo /home/gem5/shared-gapbs/bc -S 1 -x 1 -g 22;",
 ]
 workload = CustomWorkload(
     function="set_kernel_disk_workload",
@@ -257,7 +257,10 @@ print("Using KVM cpu")
 
 simulator.run()
 simulator.run()
-simulator.run()
+
+# Let's put everything to the test! 1B ticks to compare
+simulator.run(1_000_000_000_000)
+
 # simulator.run()
 # simulator.run()
 end_tick = m5.curTick()

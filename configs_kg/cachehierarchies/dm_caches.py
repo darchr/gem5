@@ -163,6 +163,121 @@ class ClassicPrivateL1PrivateL2SharedL3CacheHierarchyWChecks(
         # self.l3cache.mem_side = self.membus.cpu_side_ports
 
 
+
+class ClassicPrivateL1PrivateL2SharedL3CacheHierarchyWOChecks(
+    PrivateL1PrivateL2SharedL3CacheHierarchy
+):
+    def __init__(
+        self,
+        l1d_size: str,
+        l1i_size: str,
+        l2_size: str,
+        l3_size: str,
+        l3_assoc: int = 16,
+    ):
+        super().__init__(
+            l1d_size=l1d_size,
+            l1i_size=l1i_size,
+            l2_size=l2_size,
+            l3_size=l3_size,
+            l3_assoc=l3_assoc,
+        )
+
+    # We need new APIs to get the permission_atble
+    def get_permission_table(self) -> ClockedPermission:
+        raise(AttributeError, "This class does not have a permission table.")
+
+    @overrides(PrivateL1PrivateL2SharedL3CacheHierarchy)
+    def incorporate_cache(self, board: AbstractBoard) -> None:
+        # Set up the system port for functional access from the simulator.
+        board.connect_system_port(self.membus.cpu_side_ports)
+
+        for cntr in board.get_memory().get_memory_controllers():
+            cntr.port = self.membus.mem_side_ports
+
+        for cntr in board.remoteMemory.get_memory_controllers():
+            cntr.port = self.membus.mem_side_ports
+
+        self.l1icaches = [
+            L1ICache(size=self._l1i_size)
+            for i in range(board.get_processor().get_num_cores())
+        ]
+        self.l1dcaches = [
+            L1DCache(size=self._l1d_size)
+            for i in range(board.get_processor().get_num_cores())
+        ]
+        self.l2buses = [
+            L2XBar() for i in range(board.get_processor().get_num_cores())
+        ]
+        self.l2caches = [
+            L2Cache(size=self._l2_size, writeback_clean=True)
+            for i in range(board.get_processor().get_num_cores())
+        ]
+
+        self.l3cache = L2Cache(
+            size=self._l3_size,
+            assoc=self._l3_assoc,
+            tag_latency=self._l3_tag_latency,
+            data_latency=self._l3_data_latency,
+            response_latency=self._l3_response_latency,
+            mshrs=self._l3_mshrs,
+            tgts_per_mshr=self._l3_tgts_per_mshr,
+            writeback_clean=False,
+        )
+        self.l3cache.write_buffers = 16
+        # self.l3cache.clusivity = "mostly_incl"
+        # There is only one l3 bus, which connects l3 to the membus
+        self.l3bus = L2XBar()
+        # Make sure to have a huge snoop filter capacity (mostly a bug)
+        # self.l3bus.snoop_filter.max_capacity = "32MiB"
+        # ITLB Page walk caches
+        self.iptw_caches = [
+            MMUCache(size="8KiB")
+            for _ in range(board.get_processor().get_num_cores())
+        ]
+        # DTLB Page walk caches
+        self.dptw_caches = [
+            MMUCache(size="8KiB")
+            for _ in range(board.get_processor().get_num_cores())
+        ]
+
+        if board.has_coherent_io():
+            self._setup_io_cache(board)
+
+        for i, cpu in enumerate(board.get_processor().get_cores()):
+            cpu.connect_icache(self.l1icaches[i].cpu_side)
+            cpu.connect_dcache(self.l1dcaches[i].cpu_side)
+
+            self.l1icaches[i].mem_side = self.l2buses[i].cpu_side_ports
+            self.l1dcaches[i].mem_side = self.l2buses[i].cpu_side_ports
+            self.iptw_caches[i].mem_side = self.l2buses[i].cpu_side_ports
+            self.dptw_caches[i].mem_side = self.l2buses[i].cpu_side_ports
+
+            self.l2buses[i].mem_side_ports = self.l2caches[i].cpu_side
+
+            self.l2caches[i].mem_side = self.l3bus.cpu_side_ports
+
+            cpu.connect_walker_ports(
+                self.iptw_caches[i].cpu_side, self.dptw_caches[i].cpu_side
+            )
+
+            if board.get_processor().get_isa() == ISA.X86:
+                int_req_port = self.membus.mem_side_ports
+                int_resp_port = self.membus.cpu_side_ports
+                cpu.connect_interrupt(int_req_port, int_resp_port)
+            else:
+                cpu.connect_interrupt()
+                
+        self.l3bus.mem_side_ports = self.l3cache.cpu_side
+
+        # Connect the l3cache.mem_side to the dual port object
+        # self.l3cache.mem_side = self.permission_table.cpu_side_ports
+        # self.permission_table.mem_side_port = self.membus.cpu_side_ports
+        # self.l3cache.mem_side = self.permission_table.data_port
+        # self.permission_table.mem_side = self.membus.cpu_side_ports
+
+        self.l3cache.mem_side = self.membus.cpu_side_ports
+
 class ClassicPrivateL1PrivateL2DMCache(PrivateL1PrivateL2CacheHierarchy):
     def __init__(
         self,
