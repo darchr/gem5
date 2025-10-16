@@ -47,10 +47,16 @@ PushEngine::PushEngine(const Params& params):
     examineWindow(params.examine_window),
     maxPropagatesPerCycle(params.max_propagates_per_cycle),
     updateQueueSize(params.update_queue_size),
+    nextSequenceNum(0),
     nextVertexPullEvent([this] { processNextVertexPullEvent(); }, name()),
-    nextMemoryReadEvent([this] { processNextMemoryReadEvent(); }, name()),
+    nextMemoryReadEvent(
+        [this] { processNextMemoryReadEvent(); },
+        name()),
     nextPropagateEvent([this] { processNextPropagateEvent(); }, name()),
     nextUpdatePushEvent([this] { processNextUpdatePushEvent(); }, name()),
+    processPropagateCompleteEvent(
+        [this] { processPropagateComplete(); },
+        name()),
     stats(*this)
 {
     destinationQueues.clear();
@@ -355,7 +361,11 @@ PushEngine::processNextPropagateEvent()
     int num_tries = 0;
     int num_reads = 0;
     std::deque<std::tuple<MetaEdge, Tick>> temp_edge;
-    uint32_t update_value, delay;
+    uint32_t update_value, delay = 1;
+
+    // Get temporal adder if available
+    TemporalAdder* adder = owner->getTemporalAdder();
+
     for (int i = 0; i < examineWindow; i++) {
         if (metaEdgeQueue.empty()) {
             break;
@@ -373,23 +383,88 @@ PushEngine::processNextPropagateEvent()
         DPRINTF(PushEngine, "%s: The edge to process is %s.\n",
                                 __func__, meta_edge.to_string());
 
-        std::tie(update_value, delay) =
-            graphWorkload->propagate(meta_edge.value, meta_edge.weight);
-        temp_edge.pop_front();
-        num_tries++;
+        // FORCE everything through Temporal Adder
+        bool usedTemporalAdder = false;
+        if (adder) {
+            // Check if adder has available units
+            unsigned availableUnits = adder->getAvailableUnits();
 
-        if (enqueueUpdate(meta_edge.src, meta_edge.dst, update_value)) {
-            DPRINTF(PushEngine, "%s: Sent %s to port queues.\n",
-                                            __func__, meta_edge.to_string());
-            num_reads++;
-            stats.numPropagates++;
-            stats.edgeQueueLatency.sample(
-                    (curTick() - entrance_tick) * 1e9 / getClockFrequency());
+            if (availableUnits == 0) {
+                // All parallel units are busy, buffer this propagate for later
+                DPRINTF(PushEngine,
+                        "%s: Adder busy, buffering propagate."
+                        " value=%u, weight=%u, pending=%lu\n",
+                        __func__, meta_edge.value, meta_edge.weight,
+                        pendingPropagates.size());
+
+                // Keep in temp_edge to retry later
+                stats.numAdderBusy++;
+                // Break out of loop - no units available
+                break;
+            } else {
+                // Use temporal adder for BFS: value + 1
+                int unitId = adder->addEnable(meta_edge.value, 1);
+                if (unitId >= 0) {
+                    // Store pending propagate with sequence number and unit ID
+                    PendingPropagate pp;
+                    pp.metaEdge = meta_edge;
+                    pp.entranceTick = entrance_tick;
+                    pp.completionTime = curTick() + adder->getLatency();
+                    pp.delay = 1; // BFS standard delay
+                    // Assign sequence number
+                    pp.sequenceNum = nextSequenceNum++;
+                    pp.unitId = unitId;  // Track which unit is processing this
+                    pendingPropagates.push_back(pp);
+
+                    DPRINTF(PushEngine,
+                            "%s: Adder unit %d: value=%u, "
+                            "weight=%u, completion=%lu, seq=%lu,"
+                            " pending=%lu, avail=%u\n",
+                            __func__, unitId,
+                            meta_edge.value, meta_edge.weight,
+                            pp.completionTime,
+                            pp.sequenceNum, pendingPropagates.size(),
+                            availableUnits - 1);
+
+                    stats.numTemporalPropagates++;
+                    usedTemporalAdder = true;
+
+                    // Schedule completion event AFTER the adder completes
+                    // Add 1 tick to ensure adder's completeOperation()
+                    // runs first
+                    if (!processPropagateCompleteEvent.scheduled()) {
+                        schedule(processPropagateCompleteEvent,
+                            pp.completionTime + 1
+                        );
+                    }
+
+                    // Remove this edge from temp queue
+                    temp_edge.pop_front();
+                    num_tries++;
+                    num_propagates++;
+
+                    // Continue to next edge - try to fill more parallel units
+                } else {
+                    // Adder couldn't accept
+                    DPRINTF(PushEngine,
+                    "%s: Adder addEnable failed despite available units!\n",
+                    __func__);
+                    stats.numImmediatePropagates++;
+                    break;
+                }
+            }
         } else {
-            temp_edge.emplace_back(meta_edge, entrance_tick);
-            stats.updateQueueFull++;
+            // No adder available - FAIL
+            panic(
+            "%s: No temporal adder available! "
+            " All propagates must use adder.\n",
+            __func__);
         }
-        num_propagates++;
+
+        // This code should not be reached with forced temporal adder
+        if (!usedTemporalAdder) {
+            panic("%s: usedTemporalAdder should always be true!\n", __func__);
+        }
 
         if (temp_edge.empty()) {
             break;
@@ -399,6 +474,7 @@ PushEngine::processNextPropagateEvent()
         }
     }
 
+    // Put unprocessed edges back into queue
     while (!temp_edge.empty()) {
         metaEdgeQueue.push_front(temp_edge.back());
         temp_edge.pop_back();
@@ -406,10 +482,120 @@ PushEngine::processNextPropagateEvent()
 
     stats.numPropagatesHist.sample(num_propagates);
 
+    // Schedule next propagate event if there are more edges to process
     assert(!nextPropagateEvent.scheduled());
     if (!metaEdgeQueue.empty()) {
         schedule(nextPropagateEvent, curTick() + delay * clockPeriod() +
                 (0.6 * clockPeriod())); // propagation delay of MGU
+    }
+}
+
+void
+PushEngine::processPropagateComplete()
+{
+    TemporalAdder* adder = owner->getTemporalAdder();
+
+    if (!adder) {
+        DPRINTF(PushEngine, "%s: No temporal adder available!\n", __func__);
+        return;
+    }
+
+    if (pendingPropagates.empty()) {
+        DPRINTF(PushEngine, "%s: No pending propagates!\n", __func__);
+        return;
+    }
+
+    // Process operations IN SEQUENCE NUMBER ORDER (FIFO by submission time)
+    // Even if they complete at the same tick, we must process in submission
+    // order to maintain deterministic behavior matching the serial version
+    bool processedAny = false;
+    int numProcessed = 0;
+
+    while (!pendingPropagates.empty()) {
+        PendingPropagate& pp = pendingPropagates.front();
+
+        // Check if this operation has completed
+        if (pp.completionTime > curTick()) {
+            // This operation and all following ones are not ready yet
+            // (they're ordered by submission time, but
+            // completionTime might vary)
+            break;
+        }
+
+        // Operation is complete,
+        // read results from the SPECIFIC UNIT that processed it
+        uint32_t sum = adder->getSumFromUnit(pp.unitId);
+        uint32_t carry = adder->getCarryFromUnit(pp.unitId);
+
+        DPRINTF(PushEngine, "%s: Temporal propagate complete at tick %lu. "
+                "sequenceNum=%lu, unitId=%u, "
+                "Original value=%u, weight=%u, sum=%u, carry=%u, "
+                "numProcessed=%d, pendingPropagates.size()=%lu\n",
+                __func__, curTick(), pp.sequenceNum, pp.unitId,
+                pp.metaEdge.value, pp.metaEdge.weight,
+                sum, carry, numProcessed, pendingPropagates.size());
+
+        // For BFS: reconstruct full value from carry and sum
+        uint32_t update_value = carry * adder->getModValue() + sum;
+
+        DPRINTF(PushEngine,
+                "%s: Reconstructed full value: "
+                " %u = %u * %u + %u (seq=%lu, unit=%u)\n",
+                __func__, update_value, carry, adder->getModValue(), sum,
+                pp.sequenceNum, pp.unitId);
+
+        // Now enqueue the update IN ORDER (by sequence number)
+        if (enqueueUpdate(pp.metaEdge.src, pp.metaEdge.dst, update_value)) {
+            DPRINTF(PushEngine,
+                    "%s: Sent temporal propagate result to port queues. "
+                    "MetaEdge: %s, update_value: %u, seq=%lu, unit=%u\n",
+                    __func__, pp.metaEdge.to_string(), update_value,
+                    pp.sequenceNum, pp.unitId);
+            stats.numPropagates++;
+            stats.edgeQueueLatency.sample(
+                    (curTick() - pp.entranceTick) * 1e9 / getClockFrequency());
+
+            // Remove this completed operation
+            pendingPropagates.pop_front();
+            processedAny = true;
+            numProcessed++;
+        } else {
+            DPRINTF(PushEngine,
+                    "%s: Update queue full, stopping completion processing\n",
+                    __func__);
+            stats.updateQueueFull++;
+
+            // Retry later - don't remove from queue
+            if (!processPropagateCompleteEvent.scheduled()) {
+                schedule(processPropagateCompleteEvent, nextCycle());
+            }
+            break;
+        }
+    }
+
+    DPRINTF(PushEngine,
+            "%s: Processed %d completed operations. "
+            "Remaining pendingPropagates: %lu\n",
+            __func__, numProcessed, pendingPropagates.size());
+
+    // After processing completions, trigger next
+    // propagate event to submit more operations if adder has free units
+    if (!metaEdgeQueue.empty() && !nextPropagateEvent.scheduled()) {
+        DPRINTF(PushEngine, "%s: Scheduling next propagate event. "
+                "metaEdgeQueue.size()=%lu, adder availableUnits=%u\n",
+                __func__, metaEdgeQueue.size(), adder->getAvailableUnits());
+        schedule(nextPropagateEvent, nextCycle());
+    }
+
+    // If there are still pending operations, schedule next
+    // completion check
+    if (!pendingPropagates.empty() &&
+        !processPropagateCompleteEvent.scheduled()) {
+        Tick nextCompletionTime = pendingPropagates.front().completionTime;
+        DPRINTF(PushEngine,
+                "%s: Scheduling next completion check at tick %lu\n",
+                __func__, nextCompletionTime + 1);
+        schedule(processPropagateCompleteEvent, nextCompletionTime + 1);
     }
 }
 
@@ -562,6 +748,12 @@ PushEngine::PushStats::PushStats(PushEngine& _push):
              "Number of updates sent to the network."),
     ADD_STAT(numWastefulEdgesRead, statistics::units::Count::get(),
              "Number of wasteful edges read from edge memory."),
+    ADD_STAT(numTemporalPropagates, statistics::units::Count::get(),
+             "Number of propagates using Temporal Adder."),
+    ADD_STAT(numImmediatePropagates, statistics::units::Count::get(),
+             "Number of propagates using immediate computation."),
+    ADD_STAT(numAdderBusy, statistics::units::Count::get(),
+             "Number of times Temporal Adder was busy."),
     ADD_STAT(TEPS, statistics::units::Rate<statistics::units::Count,
                                     statistics::units::Second>::get(),
              "Traversed Edges Per Second."),

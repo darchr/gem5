@@ -164,22 +164,31 @@ if __name__ == "__m5_main__":
         total_dec_power = 0.0
         total_enc_energy = 0.0
         total_dec_energy = 0.0
+        total_ta_power = 0.0
+        total_ta_energy = 0.0
 
         for g in system.gpts:
             p_enc = g.getEncoderPowerAndArea()
             p_dec = g.getDecoderPowerAndArea()
+            p_ta = g.getTemporalAdderPowerAndArea()
             total_enc_power += p_enc["total_power"]
             total_dec_power += p_dec["total_power"]
+            total_ta_power += p_ta["total_power"]
 
             total_enc_energy += g.getEncoderEnergy(end_time)
             total_dec_energy += g.getDecoderEnergy(end_time)
+            total_ta_energy += g.getTemporalAdderEnergy(end_time)
 
         print(f"[ENC] Aggregate total power:  {total_enc_power:.15f} W")
         print(f"[DEC] Aggregate total power:  {total_dec_power:.15f} W")
+        print(f"[TA]  Aggregate total power:  {total_ta_power:.15f} W")
         print(
             f"[ENC] Aggregate energy @ {end_time} ticks: {total_enc_energy:.15f} J"
         )
         print(
             f"[DEC] Aggregate energy @ {end_time} ticks: {total_dec_energy:.15f} J"
+        )
+        print(
+            f"[TA]  Aggregate energy @ {end_time} ticks: {total_ta_energy:.15f} J"
         )
         system.print_answer()

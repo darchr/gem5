@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (c) 2017 Jason Lowe-Power
+# Copyright (c) 2025 The Regents of the University of California.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -26,30 +26,20 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 from m5.params import *
-from m5.proxy import *
-from m5.SimObject import SimObject
+from m5.objects.ClockedObject import ClockedObject
 
 
-class MPU(SimObject):
-    type = "MPU"
-    cxx_header = "accl/graph/sega/mpu.hh"
-    cxx_class = "gem5::MPU"
+class TemporalAdder(ClockedObject):
+    type = "TemporalAdder"
+    cxx_header = "accl/graph/sega/temporal_adder.hh"
+    cxx_class = "gem5::TemporalAdder"
 
-    system = Param.System(Parent.any, "System this MPU is a part of")
-
-    wl_engine = Param.WLEngine(
-        NULL, "Internal WLEngine for each instance of " "MPU object."
+    # Parameters
+    mod_value = Param.Unsigned(8, "Modulus value for addition (default: 8).")
+    latency_cycles = Param.Unsigned(
+        3, "Number of clock cycles for operation latency (default: 3)."
     )
-    coalesce_engine = Param.CoalesceEngine(
-        NULL, "Internal CoalesceEngine for " "each instance of MPU object."
-    )
-    push_engine = Param.PushEngine(
-        NULL, "Internal PushEngine for each " "instance of MPU object."
-    )
-
-    encoder = Param.EncoderDecoder(NULL, "SEGA encoder for data compression")
-    decoder = Param.EncoderDecoder(NULL, "SEGA decoder for data decompression")
-
-    temporal_adder = Param.TemporalAdder(
-        NULL, "Temporal adder for arithmetic operations"
+    num_parallel_units = Param.Unsigned(
+        1,
+        "Number of parallel addition units (default: 1, max throughput: 1 op/cycle).",
     )

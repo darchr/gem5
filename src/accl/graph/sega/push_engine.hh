@@ -164,6 +164,22 @@ class PushEngine : public BaseMemoryEngine
     EventFunctionWrapper nextUpdatePushEvent;
     void processNextUpdatePushEvent();
 
+    // Temporal Adder support for propagate operations
+    struct PendingPropagate
+    {
+        MetaEdge metaEdge;
+        Tick entranceTick;
+        Tick completionTime;
+        uint32_t result;     // Will store the propagated value
+        uint32_t delay;      // Delay from workload
+        uint64_t sequenceNum; // Submission order for deterministic processing
+        unsigned unitId;     // Which temporal adder unit is processing this
+    };
+    std::deque<PendingPropagate> pendingPropagates;
+    uint64_t nextSequenceNum;  // Counter for assigning sequence numbers
+    EventFunctionWrapper processPropagateCompleteEvent;
+    void processPropagateComplete();
+
     struct PushStats : public statistics::Group
     {
       PushStats(PushEngine& push);
@@ -179,6 +195,11 @@ class PushEngine : public BaseMemoryEngine
       statistics::Scalar updateQueueCoalescions;
       statistics::Scalar numUpdates;
       statistics::Scalar numWastefulEdgesRead;
+
+      // Temporal Adder statistics
+      statistics::Scalar numTemporalPropagates;
+      statistics::Scalar numImmediatePropagates;
+      statistics::Scalar numAdderBusy;
 
       statistics::Formula TEPS;
 

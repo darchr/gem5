@@ -35,6 +35,7 @@ SimObject("PushEngine.py", sim_objects=["PushEngine"])
 SimObject("WLEngine.py", sim_objects=["WLEngine"])
 SimObject("AcclRouter.py", sim_objects=["AcclRouter"])
 SimObject("EncoderDecoder.py", sim_objects=["EncoderDecoder"])
+SimObject("TemporalAdder.py", sim_objects=["TemporalAdder"])
 
 Source("base_memory_engine.cc")
 Source("centeral_controller.cc")
@@ -45,6 +46,7 @@ Source("push_engine.cc")
 Source("wl_engine.cc")
 Source("accl_router.cc")
 Source("encoder_decoder.cc")
+Source("temporal_adder.cc")
 
 DebugFlag("BaseMemoryEngine")
 DebugFlag("CenteralController")
@@ -56,6 +58,7 @@ DebugFlag("MSDebug")
 DebugFlag("WLEngine")
 DebugFlag("AcclRouter")
 DebugFlag("EncoderDecoder")
+DebugFlag("TemporalAdder")
 
 CompoundFlag("MPU", ["CoalesceEngine", "PushEngine",
                     "WLEngine", "BaseMemoryEngine"])

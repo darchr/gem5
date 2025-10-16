@@ -29,26 +29,38 @@ from m5.params import *
 from m5.proxy import *
 from m5.objects.BaseMemoryEngine import BaseMemoryEngine
 
-class PushEngine(BaseMemoryEngine):
-    type = 'PushEngine'
-    cxx_header = "accl/graph/sega/push_engine.hh"
-    cxx_class = 'gem5::PushEngine'
 
-    push_req_queue_size = Param.Int("Size of the queue to "
-                                    "queue push requests.")
+class PushEngine(BaseMemoryEngine):
+    type = "PushEngine"
+    cxx_header = "accl/graph/sega/push_engine.hh"
+    cxx_class = "gem5::PushEngine"
+
+    push_req_queue_size = Param.Int(
+        "Size of the queue to " "queue push requests."
+    )
     # resp_queue_size should probably be
     # significantly bigger than push_req_queue_size
-    resp_queue_size = Param.Int("Size of the response queue in the "
-                                    "push engine where it stores the "
-                                    "edges read from memory.")
+    resp_queue_size = Param.Int(
+        "Size of the response queue in the "
+        "push engine where it stores the "
+        "edges read from memory."
+    )
 
-    examine_window = Param.Int("Number of edges at the front of the edge queue"
-                                " to examine in order to propagate.")
+    examine_window = Param.Int(
+        "Number of edges at the front of the edge queue"
+        " to examine in order to propagate."
+    )
 
-    max_propagates_per_cycle = Param.Int("Maximum number of propagates "
-                                                        "done per cycle.")
+    max_propagates_per_cycle = Param.Int(
+        "Maximum number of propagates " "done per cycle."
+    )
 
-    update_queue_size = Param.Int("Maximum number of entries "
-                                    "for each update queue.")
+    update_queue_size = Param.Int(
+        "Maximum number of entries " "for each update queue."
+    )
 
     out_ports = VectorRequestPort("Outgoing ports to all MPUs")
+
+    temporal_adder = Param.TemporalAdder(
+        NULL, "Temporal adder unit for BFS operations"
+    )

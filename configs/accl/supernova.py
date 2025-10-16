@@ -69,6 +69,14 @@ class EncoderDecoderPower(PyEnum):
     DEC6_DUAL_ACTIVE = 941.0  # 0.941 µW = 941 nW
 
 
+class TemporalAdderPower(PyEnum):
+    # Static power (µW)
+    STATIC = 360.5
+
+    # Dynamic/Active power (µW) - already in µW, not nW
+    DYNAMIC = 2.4
+
+
 class ComponentJJ(PyEnum):
     # Number of Josephson Junctions (JJs)
     SPLITTER = 3
@@ -145,6 +153,43 @@ def get_encoder_decoder_energy(
     }
 
 
+def get_temporal_adder_power():
+    """
+    Returns power dict with Watts for the Temporal Adder.
+    - static_uW -> W via *1e-6
+    - dynamic_uW -> W via *1e-6
+    """
+    static_uW = TemporalAdderPower.STATIC.value
+    dynamic_uW = TemporalAdderPower.DYNAMIC.value
+
+    static_W = static_uW * 1e-6
+    dynamic_W = dynamic_uW * 1e-6
+    total_W = static_W + dynamic_W
+
+    return {
+        "static_power": static_W,
+        "dynamic_power": dynamic_W,
+        "total_power": total_W,
+    }
+
+
+def get_temporal_adder_energy(time_ticks: int):
+    """
+    Energy = Power * time; assumes 1 tick = 1 ps.
+    """
+    p = get_temporal_adder_power()
+    # Convert ticks (ps) to seconds via 1e-12
+    static_E = p["static_power"] * time_ticks * 1e-12
+    dynamic_E = p["dynamic_power"] * time_ticks * 1e-12
+    total_E = static_E + dynamic_E
+
+    return {
+        "static_energy": static_E,
+        "dynamic_energy": dynamic_E,
+        "total_energy": total_E,
+    }
+
+
 def interleave_addresses(plain_range, num_channels, cache_line_size):
     intlv_low_bit = log(cache_line_size, 2)
     intlv_bits = log(num_channels, 2)
@@ -175,6 +220,18 @@ class GPT(SubSystem):
         self.decoder = EncoderDecoder(
             bit_width=3, is_encoder=False, dual_output=True
         )
+
+        # Add Temporal Adder for BFS propagate operations
+        # Clock: 625 MHz (1600 ps period), Latency: 3 cycles = 4.8 ns total
+        # Parallelism: 8 concurrent operations
+        self.temporal_adder = TemporalAdder(
+            mod_value=8,  # Modulo 8 for BFS distance
+            latency_cycles=3,  # 3 clock cycles latency
+            num_parallel_units=8,  # 8 parallel addition units
+        )
+        self.temporal_adder.clk_domain = SrcClockDomain()
+        self.temporal_adder.clk_domain.clock = "625MHz"  # 1600 ps period
+        self.temporal_adder.clk_domain.voltage_domain = VoltageDomain()
 
         self.wl_engine = WLEngine(
             update_queue_size=64,
@@ -223,6 +280,7 @@ class GPT(SubSystem):
             push_engine=self.push_engine,
             encoder=self.encoder,
             decoder=self.decoder,
+            temporal_adder=self.temporal_adder,
         )
 
     def getRespPort(self):
@@ -284,6 +342,20 @@ class GPT(SubSystem):
         e = get_encoder_decoder_energy(bw, False, time_ticks, dual)
         print(
             f"[Decoder] Energy for {time_ticks} ticks: total {e['total_energy']:.15f} J"
+        )
+        return e["total_energy"]
+
+    def getTemporalAdderPowerAndArea(self):
+        p = get_temporal_adder_power()
+        print(f"[TemporalAdder] Dynamic power: {p['dynamic_power']:.15f} W")
+        print(f"[TemporalAdder] Static power:  {p['static_power']:.15f} W")
+        print(f"[TemporalAdder] Total power:   {p['total_power']:.15f} W")
+        return p
+
+    def getTemporalAdderEnergy(self, time_ticks: int):
+        e = get_temporal_adder_energy(time_ticks)
+        print(
+            f"[TemporalAdder] Energy for {time_ticks} ticks: total {e['total_energy']:.15f} J"
         )
         return e["total_energy"]
 

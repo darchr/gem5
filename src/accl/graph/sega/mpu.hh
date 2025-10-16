@@ -38,6 +38,7 @@
 #include "accl/graph/sega/encoder_decoder.hh"
 #include "accl/graph/sega/enums.hh"
 #include "accl/graph/sega/push_engine.hh"
+#include "accl/graph/sega/temporal_adder.hh"
 #include "accl/graph/sega/wl_engine.hh"
 #include "base/addr_range.hh"
 #include "mem/packet.hh"
@@ -64,6 +65,8 @@ class MPU : public SimObject
     EncoderDecoder* encoder;
     EncoderDecoder* decoder;
 
+    TemporalAdder* temporalAdder;
+
   public:
     PARAMS(MPU);
     MPU(const Params& params);
@@ -73,6 +76,7 @@ class MPU : public SimObject
 
     EncoderDecoder* getEncoder() const { return encoder; }
     EncoderDecoder* getDecoder() const { return decoder; }
+    TemporalAdder* getTemporalAdder() const { return temporalAdder; }
 
     void setProcessingMode(ProcessingMode mode) { coalesceEngine->setProcessingMode(mode); }
     void createAsyncPopCountDirectory(int atoms_per_block) { coalesceEngine->createAsyncPopCountDirectory(atoms_per_block); }
