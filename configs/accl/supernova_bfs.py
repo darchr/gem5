@@ -159,7 +159,8 @@ if __name__ == "__m5_main__":
             if exit_event.getCause() == "no update left to process.":
                 break
     if verify:
-        system.router.getEnergy(end_time)
+        router_energy = system.router.getEnergy(end_time)
+        router_power = system.router.getPowerAndArea()["total_power"]
         total_enc_power = 0.0
         total_dec_power = 0.0
         total_enc_energy = 0.0
@@ -179,9 +180,9 @@ if __name__ == "__m5_main__":
             total_dec_energy += g.getDecoderEnergy(end_time)
             total_ta_energy += g.getTemporalAdderEnergy(end_time)
 
-        print(f"[ENC] Aggregate total power:  {total_enc_power:.15f} W")
-        print(f"[DEC] Aggregate total power:  {total_dec_power:.15f} W")
-        print(f"[TA]  Aggregate total power:  {total_ta_power:.15f} W")
+        print(f"[ENC] Aggregate total power:  {total_enc_power * 1e6:.3f} uW")
+        print(f"[DEC] Aggregate total power:  {total_dec_power * 1e6:.3f} uW")
+        print(f"[TA]  Aggregate total power:  {total_ta_power * 1e6:.3f} uW")
         print(
             f"[ENC] Aggregate energy @ {end_time} ticks: {total_enc_energy:.15f} J"
         )
@@ -191,4 +192,33 @@ if __name__ == "__m5_main__":
         print(
             f"[TA]  Aggregate energy @ {end_time} ticks: {total_ta_energy:.15f} J"
         )
+
+        # Aggregate total energy
+        total_energy = (
+            router_energy
+            + total_enc_energy
+            + total_dec_energy
+            + total_ta_energy
+        )
+        print(
+            f"[TOTAL] Aggregate energy @ {end_time} ticks: {total_energy:.15f} J"
+        )
+
+        # Aggregate total power
+        total_power = (
+            router_power + total_enc_power + total_dec_power + total_ta_power
+        )
+        print(f"[TOTAL] Aggregate total power: {total_power * 1e6:.3f} uW")
+
+        # Calculate and print percentages
+        if total_energy > 0:
+            router_pct = (router_energy / total_energy) * 100
+            enc_pct = (total_enc_energy / total_energy) * 100
+            dec_pct = (total_dec_energy / total_energy) * 100
+            ta_pct = (total_ta_energy / total_energy) * 100
+            print(f"[ROUTER] Energy percentage: {router_pct:.2f}%")
+            print(f"[ENC] Energy percentage: {enc_pct:.2f}%")
+            print(f"[DEC] Energy percentage: {dec_pct:.2f}%")
+            print(f"[TA] Energy percentage: {ta_pct:.2f}%")
+
         system.print_answer()
