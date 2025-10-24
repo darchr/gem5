@@ -29,8 +29,8 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef __NEW_CLOCKED_PERMISSION_HH__
-#define __NEW_CLOCKED_PERMISSION_HH__
+#ifndef __PERMISSIONS_CLOCKED_PERMISSION_TABLE_HH__
+#define __PERMISSIONS_CLOCKED_PERMISSION_TABLE_HH__
 
 #include <cmath>
 #include <queue>
@@ -40,7 +40,8 @@
 #include "base/statistics.hh"
 #include "base/trace.hh"
 #include "mem/port.hh"
-#include "params/ClockedPermission.hh"
+
+#include "params/ClockedPermissionTable.hh"
 
 #include "sim/clocked_object.hh"
 #include "sim/sim_object.hh"
@@ -81,14 +82,6 @@ namespace gem5
  * creation latency is ignored but the lookup latency is added to every memory
  * request.
  */
-
-// make sure to keep a ENUM for the right model
-enum model {
-    MONDRIAN,
-    FLAT_TABLE,
-    DEACT,
-    SPACE_CONTROL
-};
 
 
 // FIXME:
@@ -296,7 +289,7 @@ public:
 };
 
 
-class ClockedPermission : public ClockedObject
+class ClockedPermissionTable : public ClockedObject
 {
     // Using boiler-plate code for the initialization part.
     /**
@@ -304,12 +297,12 @@ class ClockedPermission : public ClockedObject
      * Mostly just forwards requests to the owner.
      * Part of a vector of ports. One for each CPU port (e.g., data, inst)
      */
-    private:
+    public:
         class CPUSidePort : public ResponsePort
         {
             private:
                 // need a pointer to the owner
-                ClockedPermission &owner;
+                ClockedPermissionTable &owner;
                 // Need to maintain the packet_id to keep a track of where
                 // to respond back for a packet.
                 uint64_t packet_id;
@@ -317,7 +310,7 @@ class ClockedPermission : public ClockedObject
             public:
                 CPUSidePort(const std::string& name_,
                             PortID id_,
-                            ClockedPermission &owner_,
+                            ClockedPermissionTable &owner_,
                             uint64_t packet_id_) : ResponsePort(name_, id_),
                                                     owner(owner_),
                                                     packet_id(packet_id_)
@@ -349,10 +342,10 @@ class ClockedPermission : public ClockedObject
              * Mostly just forwards requests to the owner
              */
             private:
-                ClockedPermission &owner;
+                ClockedPermissionTable &owner;
             public:
                 MemSidePort(const std::string& name_,
-                            ClockedPermission &owner_) : RequestPort(name_),
+                            ClockedPermissionTable &owner_) : RequestPort(name_),
                                                         owner(owner_)
                 { }
 
@@ -369,17 +362,12 @@ class ClockedPermission : public ClockedObject
                     owner.recvRangeChange();
                 }
         };
-    private:
+    public:
 
         // Instantiation of the memory port
         MemSidePort memSidePort;
         // Instantiation of the cpu side ports.
         std::vector<CPUSidePort> cpuSidePorts;
-
-        // the permission model to simulate
-        std::string modelName;
-        // just need to maintain the state.
-        int model_state; 
 
         // To enable or disable permission checks. If this is not set, this
         // SimObject is a simple packet forwarder.
@@ -420,8 +408,6 @@ class ClockedPermission : public ClockedObject
         int segmentSize;
         std::string cachePolicy;
 
-        unsigned int mshrCount;
-        unsigned int mshrs_occupied;
 
         // We need a couple of more variables to keep a track of
         // total_cached_entries and the maximum number of cached entiers possi
@@ -508,18 +494,15 @@ class ClockedPermission : public ClockedObject
         // SimpleQueue<uint64_t> retry_queue;
         OriginalQueue<uint64_t> retry_queue;
 
+        uint64_t good_responses;
+        uint64_t bad_responses;
+
         // For the response port
         AddrRangeList getAddrRanges() const;
         Tick recvAtomic(PacketPtr pkt);
         void recvFunctional(PacketPtr pkt);
         bool recvTimingReq(PacketPtr pkt, uint64_t port_id);
         void recvRespRetry(const PortID id);
-
-        // for the individual implementations
-        bool recvTimingReqMondrian(PacketPtr pkt, uint64_t packet_id);
-        bool recvTimingReqDeACT(PacketPtr pkt, uint64_t packet_id);
-        bool recvTimingReqSpaceControl(PacketPtr pkt, uint64_t packet_id);
-        bool recvTimingReqFlatTables(PacketPtr pkt, uint64_t packet_id);
 
         // For the request port
         bool recvTimingResp(PacketPtr pkt);
@@ -529,21 +512,18 @@ class ClockedPermission : public ClockedObject
         bool waitingForMemRetry = false;
 
         // gem5::EventWrapper delayEvent;
-        // The permission table needs to schedule events
+        // The permission table needs to schedule events. this should be
+        // populated by the child class.
         void processEvent();
-        void processEvent(int attempt);
 
         void scheduleNewEvent();
         // This event is responsible for queueing the permission lookup and
         // creation latency
-        // EventWrapper<ClockedPermission, &ClockedPermission::processEvent> event;
         EventFunctionWrapper event;
 
 
         // Do we owe the CPU a retry right now?
         bool waitingForCpuRetry = false;
-
-        Addr getFlatTableAddress(Addr addr);
 
         // Event to notify the CPU to retry later
         // EventFunctionWrapper cpuRetryEvent;
@@ -551,12 +531,15 @@ class ClockedPermission : public ClockedObject
         // Helper to schedule cpuSidePort.sendRetryReq()
         // void scheduleCpuRetry();
 
+        // ------------------------ utility functions ---------------------- //
         inline bool isInPermissionRange(gem5::Addr addr) {
-            return (addr >= baseAddrPermissionTable && addr < baseAddrPermissionTable + 0x40000000) ? true : false;
+            return ((addr >= baseAddrPermissionTable) && 
+                    (addr < baseAddrPermissionTable + 0x40000000)) ? true : false;
         }
 
         inline bool isInRemoteRange(gem5::Addr addr) {
-            return (addr >= 0x100000000 && addr < totalMemorySize + 0x100000000) ? true : false;
+            return ((addr >= 0x100000000) &&
+                            (addr < totalMemorySize + 0x100000000)) ? true : false;
         }
 
 
@@ -572,6 +555,8 @@ class ClockedPermission : public ClockedObject
             Tick latency;
 
         };
+
+        // irrespective of the policy, the caching remains largely the same.
         struct permission_handler isCachedRequest(gem5::Addr addr);
         struct permission_handler simpleLRU(gem5::Addr addr);
         struct permission_handler simpleMRU(gem5::Addr addr);
@@ -626,12 +611,12 @@ class ClockedPermission : public ClockedObject
 
     public:
         // class constructor
-        ClockedPermission(const ClockedPermissionParams &params);
+        ClockedPermissionTable(const ClockedPermissionTableParams &params);
         void startup() override;
         // void init() override;
         Port& getPort(const std::string &if_name, PortID idx) override;
 
-};      // class ClockedPermission
+};      // class ClockedPermissionTable
 
 }       // namespace gem5
 

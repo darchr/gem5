@@ -41,7 +41,7 @@ from m5.SimObject import (
 # putting lipstick to add more features.
 
 
-class ClockedPermission(ClockedObject):
+class FlatTables(ClockedObject):
     """
     This is a simple SimObject that sits between the LLC and the memory
     controller that is responsible for performing checks with physical
@@ -75,19 +75,18 @@ class ClockedPermission(ClockedObject):
     traffic_side_port: The traffic port that receives requests.
     """
 
-    type = "ClockedPermission"
-    cxx_header = "new/clocked_permission.hh"
-    cxx_class = "gem5::ClockedPermission"
+    type = "FlatTables"
+    cxx_header = "permissions/flat_tables.hh"
+    cxx_class = "gem5::FlatTables"
 
     # Receives request
     cpu_side_ports = VectorResponsePort("Response side port, sends requests")
     mem_side_port = RequestPort("Reqeust side port, receives requests")
 
     # We need to define a name for the exact permissions to simulate
-    model_name = Param.String("space-control", "The user needs to provide"
-                    " the name of the model they want to simulate: mondrian,"
-                    " flat-tables, deact (larger flat table entries),"
-                    "space-control")
+    model_name = Param.String("flat-table", "The user needs to provide"
+                    " the name of the model they want to simulate: "
+                    " flat-tables, deact (larger flat table entries),")
 
     # TODO: Marked for deletion
     
@@ -128,7 +127,7 @@ class ClockedPermission(ClockedObject):
     # To perform binary lookup or linear lookup, we need to know the number
     # of entries if the permission are not maintained per segment.
     number_of_entries = Param.Unsigned(
-        100,
+        0,
         "Total number of variable permission table entries.",
     )
 

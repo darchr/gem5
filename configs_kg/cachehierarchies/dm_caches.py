@@ -29,10 +29,15 @@ from cachehierarchies.private_l1_private_l2_shared_l3_cache_hierarchy import (
 )
 
 from m5.objects import (  # DualPort,; SimpleBlockingPort,; SimplePort,
-    ClockedPermission,
+    # ClockedPermission,
+    # Mondrian,
+    FlatTables,
     L2XBar,
     PortTerminator,
+    
 )
+
+# from hardware.mondrain import Mondrian
 
 from gem5.components.boards.abstract_board import AbstractBoard
 from gem5.components.cachehierarchies.classic.caches.l1dcache import L1DCache
@@ -66,11 +71,12 @@ class ClassicPrivateL1PrivateL2SharedL3CacheHierarchyWChecks(
         )
         # Make sure to add the permission table object here
         # self.permission_table = SimplePort()
-        self.permission_table = ClockedPermission()
+        # self.permission_table = ClockedPermission()
         # self.permission_table = SimpleBlockingPort()
+        self.permission_table = FlatTables()
 
     # We need new APIs to get the permission_atble
-    def get_permission_table(self) -> ClockedPermission:
+    def get_permission_table(self):
         return self.permission_table
 
     @overrides(PrivateL1PrivateL2SharedL3CacheHierarchy)
@@ -163,6 +169,97 @@ class ClassicPrivateL1PrivateL2SharedL3CacheHierarchyWChecks(
         # self.l3cache.mem_side = self.membus.cpu_side_ports
 
 
+class ClassicSharedLLCMondrian(
+                    ClassicPrivateL1PrivateL2SharedL3CacheHierarchyWChecks):
+    def __init__(
+        self,
+        l1d_size: str,
+        l1i_size: str,
+        l2_size: str,
+        l3_size: str,
+        l3_assoc: int = 16,
+    ):
+        super().__init__(
+            l1d_size=l1d_size,
+            l1i_size=l1i_size,
+            l2_size=l2_size,
+            l3_size=l3_size,
+            l3_assoc=l3_assoc,
+        )
+        self.permission_table = FlatTables()
+        self.permission_table.model_name = "mondrain"
+        self.permission_table.number_of_entries = 0
+
+class ClassicSharedLLCSpaceControl(
+    ClassicPrivateL1PrivateL2SharedL3CacheHierarchyWChecks
+):
+    def __init__(
+        self,
+        l1d_size: str,
+        l1i_size: str,
+        l2_size: str,
+        l3_size: str,
+        l3_assoc: int = 16,
+    ):
+        super().__init__(
+            l1d_size=l1d_size,
+            l1i_size=l1i_size,
+            l2_size=l2_size,
+            l3_size=l3_size,
+            l3_assoc=l3_assoc,
+        )
+        # Make sure to add the permission table object here
+        self.permission_table = FlatTables()
+        self.permission_table.model_name = "space-control"
+        self.permission_table.number_of_entries = 0
+
+class ClassicSharedLLCDeACT(
+    ClassicPrivateL1PrivateL2SharedL3CacheHierarchyWChecks
+):
+    def __init__(
+        self,
+        l1d_size: str,
+        l1i_size: str,
+        l2_size: str,
+        l3_size: str,
+        l3_assoc: int = 16,
+    ):
+        super().__init__(
+            l1d_size=l1d_size,
+            l1i_size=l1i_size,
+            l2_size=l2_size,
+            l3_size=l3_size,
+            l3_assoc=l3_assoc,
+        )
+        # Make sure to add the permission table object here
+        self.permission_table = FlatTables()
+        self.permission_table.model_name = "deact"
+        self.permission_table.number_of_entries = 0
+
+class ClassicSharedLLCFlatTables(
+    ClassicPrivateL1PrivateL2SharedL3CacheHierarchyWChecks
+):
+    def __init__(
+        self,
+        l1d_size: str,
+        l1i_size: str,
+        l2_size: str,
+        l3_size: str,
+        l3_assoc: int = 16,
+    ):
+        super().__init__(
+            l1d_size=l1d_size,
+            l1i_size=l1i_size,
+            l2_size=l2_size,
+            l3_size=l3_size,
+            l3_assoc=l3_assoc,
+        )
+        # Make sure to add the permission table object here
+        # self.permission_table = SimplePort()
+        self.permission_table = FlatTables()
+        self.permission_table.model_name = "flat-table"
+        self.permission_table.number_of_entries = 0
+        # self.permission_table = SimpleBlockingPort()
 
 class ClassicPrivateL1PrivateL2SharedL3CacheHierarchyWOChecks(
     PrivateL1PrivateL2SharedL3CacheHierarchy
@@ -184,7 +281,7 @@ class ClassicPrivateL1PrivateL2SharedL3CacheHierarchyWOChecks(
         )
 
     # We need new APIs to get the permission_atble
-    def get_permission_table(self) -> ClockedPermission:
+    def get_permission_table(self):
         raise(AttributeError, "This class does not have a permission table.")
 
     @overrides(PrivateL1PrivateL2SharedL3CacheHierarchy)
@@ -304,7 +401,7 @@ class ClassicPrivateL1PrivateL2DMCache(PrivateL1PrivateL2CacheHierarchy):
         # self.permission_table.mem_side_port = self.killer.resp_ports
 
     # We need new APIs to get the permission_atble
-    def get_permission_table(self) -> ClockedPermission:
+    def get_permission_table(self):
         return self.permission_table
 
     @overrides(PrivateL1PrivateL2CacheHierarchy)

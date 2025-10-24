@@ -45,11 +45,10 @@ Here are the steps that happen.
 6. do 1B ticks and report CPI or IPC.
 7. Baseline:
     a. Pure CXL
-    b. Mondrian -- What is the difference? The memory request sizes are different.
+    b. Mondrian -- What is the difference? -> Lookup latency
     c. DeACT    -> Create an additional memory request for every memory request
 
 """
-
 import argparse
 import os
 import sys
@@ -60,11 +59,6 @@ sys.path.append(
     os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir))
 )
 from boards.x86_space_control_board import X86SpaceControlBoard
-
-from cachehierarchies.private_l1_private_l2_shared_l3_cache_hierarchy import (
-    PrivateL1PrivateL2SharedL3CacheHierarchy,
-)
-
 
 import m5
 from m5.objects import (
@@ -102,7 +96,6 @@ parser.add_argument(
     choices=["bc", "bfs", "cc", "cc_sv", "pr", "tc"],
     help="Input the benchmark program to execute.",
 )
-
 args = parser.parse_args()
 
 
@@ -116,24 +109,34 @@ from cachehierarchies.dm_caches import *  # ClassicPrivateL1PrivateL2SharedL3Cac
 #     l1i_size = "32KiB",
 #     l2_size = "512 KiB",)
 
-cache_hierarchy = ClassicPrivateL1PrivateL2SharedL3CacheHierarchyWOChecks(
+cache_hierarchy = ClassicSharedLLCFlatTables(
     l1d_size="32KiB",
     l1i_size="32KiB",
     l2_size="512 KiB",
     l3_size="8MiB",
 )
 
-# configure the permission table for space control
-# cache_hierarchy.get_permission_table().enable_permission_check = True
-# cache_hierarchy.get_permission_table().use_dedicated_caching = False
-# # make sure that the permission parameters are setup correctly.
-# cache_hierarchy.get_permission_table().permission_base_addr = 0x140000000
-# cache_hierarchy.get_permission_table().number_of_entries = 1
-# cache_hierarchy.get_permission_table().binary_search = True
-# # using parameters from the driver.
-# cache_hierarchy.get_permission_table().permission_entry_size = 655408
+# flat tables consume a lot of storage. this needs to be modeled correctly.
+# The host is needed to be specified to figure our where is the repeated entry
+cache_hierarchy.get_permission_table().host_id = 0
 
-# cache_hierarchy.get_permission_table().total_memory_size = 0x20000000
+# configure the permission table for flat tables control
+cache_hierarchy.get_permission_table().enable_permission_check = True
+
+# We'll get to this later.
+cache_hierarchy.get_permission_table().use_dedicated_caching = False
+# make sure that the permission parameters are setup correctly.
+cache_hierarchy.get_permission_table().permission_base_addr = 0x7C0000000 # 0x140000000
+
+# Number of entries is used to override the class contructor.
+# cache_hierarchy.get_permission_table().number_of_entries = (0x800000000 / (2 ** 12))
+
+cache_hierarchy.get_permission_table().binary_search = True
+# using parameters from the driver. After the cacheline version is finished,
+# this latency is drastically reduced!
+cache_hierarchy.get_permission_table().permission_entry_size = 64
+
+cache_hierarchy.get_permission_table().total_memory_size = 0x800000000
 
 # Memory: Dual Channel DDR4 2400 DRAM device.
 # The X86 board only supports 3 GiB of main memory.
@@ -191,7 +194,7 @@ cmd = [
     "echo '12345' | sudo /home/gem5/shared-gapbs/allocator -S 1 -x 0 -g 22;",
     # This program can simply exit now.
     "m5 exit;",
-    "echo '12345' | sudo /home/gem5/shared-gapbs/" + args.benchmark + " -S 1 -x 1 -g 22;",
+    "echo '12345' | sudo /home/gem5/shared-gapbs/" + args.benchmark + " -S 1 -x 1 -g 22;"
 ]
 workload = CustomWorkload(
     function="set_kernel_disk_workload",
@@ -266,6 +269,7 @@ simulator.run()
 
 # Let's put everything to the test! 1B ticks to compare
 simulator.run(1_000_000_000_000)
+
 # simulator.run()
 # simulator.run()
 end_tick = m5.curTick()

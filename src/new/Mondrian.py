@@ -1,0 +1,170 @@
+# Copyright (c) 2017 Jason Lowe-Power
+# All rights reserved.
+#
+# Copyright (c) 2025 Regents of the University of California
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are
+# met: redistributions of source code must retain the above copyright
+# notice, this list of conditions and the following disclaimer;
+# redistributions in binary form must reproduce the above copyright
+# notice, this list of conditions and the following disclaimer in the
+# documentation and/or other materials provided with the distribution;
+# neither the name of the copyright holders nor the names of its
+# contributors may be used to endorse or promote products derived from
+# this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+# A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+# OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+# LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+# DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+# THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+import os
+
+from m5.params import *
+from m5.proxy import *
+from m5.SimObject import (
+    PyBindMethod,
+    SimObject,
+)
+from m5.objects import ClockedPermission
+
+# It might be better to extend this class to implement space-control instead of
+# putting lipstick to add more features.
+
+
+class Mondrian(ClockedPermission):
+    """
+    This is a simple SimObject that sits between the LLC and the memory
+    controller that is responsible for performing checks with physical
+    addressess. In this version of the SimObject, it can be used to estimate
+    the performance overhead of Mondrian memory protection.
+
+    With certain extensions, this can also be used as a reverse mapping table
+    for permission checks.
+
+    TODO:
+    We need a traffic generator if we don't want the operating system to manage
+    the stuff this SimObject does. Also that is a better design without the OS
+    getting involved for security reasons.
+
+    @params
+    :: basic connections ::
+    cpu_side_port: The CPU side port that receives requests
+    mem_side_port: The mem side port that sends requests downstream
+
+    :: timing :: (pretty much for MMP)
+    hit_latency:
+    miss_latency:
+
+    cache_size: size of the MMP cache. The table is small so a small cache
+                should not be a problem
+    cache_policy: There are some basic caching policies implemented in this
+                version.
+
+    addr_range: TO enable the traffic generator to send requests to the same
+                memory device with a dedicated memory range.
+    traffic_side_port: The traffic port that receives requests.
+    """
+
+    def __init__(self):
+
+        # set the name. the rest of the parameters will be automatically set.
+        model_name = "mondrian"
+
+        # We need a toggle function to enable or disable MMP checks
+        enable_permission_check = True
+
+        # A final boolean is required to enable or disable dedicated permission
+        # caching. Make sure to set this range as uncacheable in the config script.
+        use_dedicated_caching = False
+
+        # To make sure that the table actually exists in the memory, a base address
+        # is needed. Let the user define this address at the config script.
+        permission_base_addr = 0x0
+
+        # To perform binary lookup or linear lookup, we need to know the number
+        # of entries if the permission are not maintained per segment. this will
+        # be ignored for flat tables.
+        number_of_entries = 0
+
+        binary_search = Param.Bool(
+            True,
+            "Assume that the permission table is sorted.",
+        )
+
+        # FIXME
+        permission_entry_size = 16
+
+        # TODO
+        # Need to add a port to connect this Object to the traffic generator with
+        # Non-overlapping region with the operating system but muist be backed by
+        # the same memory controller to understand the memory scheduling overhead.
+        # traffic_side_port = ResponsePort("CPU side port for permission check")
+
+        # FIXME
+        # So the check will happen with this latency before letting this address
+        # go to the main memory.
+        creation_latency = Param.Tick(
+            25,
+            "latency to create a new entry in the \
+                                            permission table.",
+        )
+        hit_latency = Param.Tick(10, "Latency to forward packets")
+        miss_latency = Param.Tick(50, "This must be a variable latency.")
+
+        # For the MMP cache, there needs to be a size and the caching policy.
+        # FIXME
+        cache_size = Param.Int(1024, "Size of the MMP cache")
+        cache_policy = Param.String(
+            "lru",
+            "caching policy of the MMP cache. \
+                                Must be lru, mru random.",
+        )
+
+        # need to define the size of the memory
+        total_memory_size = 0x0
+
+        # Need to define a segment size for which default permissions are defined
+        segment_size = 0x0
+
+        # Should we add a bandwidth to this simobject? Ideally no, this should be
+        # an infinite bandwidth connection where the checks happen very fast
+        # without queuing or buffering.
+
+        # Adding more parameters to enable disaggregated memory info.
+        host_id = -1
+
+        # Adding params for enabling interrupts. If there is a write to this addr,
+        # the OS should trap that as an interrupt. Ideally we want an mwait
+        # instruction to have the minimal overhead.
+        interrupt_addr = Param.Addr(
+            0xC0000000,
+            "Default interrupt address for \
+                            X86 systems. The OS needs to monitor this address \
+                            as well",
+        )
+
+        # We need to write the permission table as a JSON entry for the SimObject
+        # to be able to cache these entries. Permission packet and the actual
+        # memory packets are not blocking, meaning that a permission packet is
+        # generated for a given memory request and the permission packet is
+        # scheduled first, and, then the actual memory packet is sent to the memory
+        # before the permission packet response is received from the memory for
+        # performance purposes. The actual check is assumed to be done at the
+        # recvTimingResp. But for the timing model to work correctly, a lazy
+        # implementation follows where the permission entries are also entered as a
+        # input JSON file for the permission cache to work. Flat table papers don't
+        # have this problem.
+        # host_permission_table_json = Param.String(os.path.join(os.getcwd(), ""),
+        #                                     "Path to the permission table JSON")
+
+        # What else do we need?

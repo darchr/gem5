@@ -365,6 +365,10 @@ class Packet : public Printable, public Extensible<Packet>
 
     Flags flags;
 
+    // to enable privileged accesses, add a new boolean that is private to the
+    // packet. this is similar to the c-bit in a way.
+    // bool isPrivileged;
+
   public:
     typedef MemCmd::Command Command;
 

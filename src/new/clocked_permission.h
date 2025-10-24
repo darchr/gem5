@@ -82,14 +82,6 @@ namespace gem5
  * request.
  */
 
-// make sure to keep a ENUM for the right model
-enum model {
-    MONDRIAN,
-    FLAT_TABLE,
-    DEACT,
-    SPACE_CONTROL
-};
-
 
 // FIXME:
 // We need a template for a queue and a set. There can be multiple entries in
@@ -102,160 +94,10 @@ class CustomQueue
         std::queue<T> q;
         // There needs to be set or a map.
         std::unordered_set<T> s;
-
-        // another map to keep track of binary search packts. When permission
-        // number of packets are sent for that address, we remove this entry
-        // from the f map. 
-        std::unordered_map<uint64_t, unsigned int> f;
-        std::unordered_map<uint64_t, bool> is_sent;
-        // for popping entries make sure that a flag is set/unset
-        // bool flag;
     public:
         void push(T val) {
             // Need to create two entries: one in the queue and the other in
             // the set.
-            // regardless of the set, we'll always queue the queue.
-            if (s.find(val) == s.end()) {
-                q.push(val);
-                s.insert(val);
-            }
-            if (auto search = f.find(val); search != f.end()) {
-                search->second++;
-            }
-            else {
-                // increment the count of seeing this packet by 1
-                f.insert({val, 1});
-            }
-        }
-        void set(T val) {
-            is_sent[val] = true;
-        }
-
-        bool is_set(T val) {
-            if (is_sent.find(val) != is_sent.end()) {
-                return is_sent[val];
-            }
-            return false;
-        }
-
-        void unset(T val) {
-            is_sent[val] = false;
-        }
-        void explicit_pop(T val) {
-            // The response is made back in gem5.
-            // we need to make sure that the entry is in the front of the queue
-            if (q.front() != val) {
-                std::cout << "Expected " << q.front() << " got " << val
-                            << std::endl;
-                assert(false && "This packet is not in the front of the queue\n");
-            }
-            // if it is in the front of the queue, we can pop it.
-            // The packet can be removed from the tracker.
-            s.erase(val);
-            f.erase(val);
-            q.pop();
-        }
-        T pop() {
-            // The response is made back in gem5.
-            T val = q.front();
-            // pop the queue.
-            // if (flag) {
-            //     q.pop();
-            //     // remove the entry from the set.
-            //     // FIXME: The same port might get queued more than once.
-                
-            //     s.erase(val);
-            // }
-            // so, the logic is until N number of retries required for the 
-            // permission packets are sent, we do not remove this retry request
-            
-            if (is_sent[val] == true){
-                s.erase(val);
-                f.erase(val);
-                q.pop();
-                // make this val ready to be sent again.
-                unset(val);
-            }
-
-            return val;
-        }
-
-        T front() {
-            // get the front of the queue.
-            return q.front();
-        }
-
-        bool empty() {
-            // is the queue empty>
-            return q.empty();
-        }
-        size_t size() {
-            // return the size of the queue
-            return q.size();
-        }
-};
-
-template<typename T>
-class SimpleQueue
-{
-    private:
-        // There needs to be a queue
-        std::queue<T> q;
-
-        // another map to keep track of binary search packts
-        // std::unordered_set<T, Addr> f;
-        // for popping entries make sure that a flag is set/unset
-        bool flag;
-    public:
-        void push(T val) {
-            // Need to create two entries: one in the queue and the other in
-            // the set.
-            q.push(val);
-        }
-
-        T pop() {
-            // The response is made back in gem5.
-            T val = q.front();
-            // pop the queue.
-            // if (flag) {
-                q.pop();
-            //     // remove the entry from the set.
-            //     // FIXME: The same port might get queued more than once.
-                
-            //     s.erase(val);
-            // }
-            return val;
-        }
-
-        T front() {
-            // get the front of the queue.
-            return q.front();
-        }
-
-        bool empty() {
-            // is the queue empty>
-            return q.empty();
-        }
-        size_t size() {
-            // return the size of the queue
-            return q.size();
-        }
-};
-
-template<typename T>
-class OriginalQueue
-{
-    private:
-        // There needs to be a queue
-        std::queue<T> q;
-
-        // another map to keep track of binary search packts
-        std::unordered_set<T> s;
-    public:
-        void push(T val) {
-            // Need to create two entries: one in the queue and the other in
-            // the set.
-            // regardless of the set, we'll always queue the queue.
             if (s.find(val) == s.end()) {
                 q.push(val);
                 s.insert(val);
@@ -265,7 +107,9 @@ class OriginalQueue
         T pop() {
             // The response is made back in gem5.
             T val = q.front();
+            // pop the queue.
             q.pop();
+            // remove the entry from the set.
             s.erase(val);
             return val;
         }
@@ -279,22 +123,7 @@ class OriginalQueue
             // is the queue empty>
             return q.empty();
         }
-        size_t size() {
-            // return the size of the queue
-            return q.size();
-        }
 };
-
-// a class to keep track of the original packet's address
-class PermissionSenderState : public Packet::SenderState {
-public:
-    // PacketPtr originalPkt;
-    Addr originalAddr;
-
-    PermissionSenderState(PacketPtr pkt)
-        : originalAddr(pkt->getAddr()) {}
-};
-
 
 class ClockedPermission : public ClockedObject
 {
@@ -376,11 +205,6 @@ class ClockedPermission : public ClockedObject
         // Instantiation of the cpu side ports.
         std::vector<CPUSidePort> cpuSidePorts;
 
-        // the permission model to simulate
-        std::string modelName;
-        // just need to maintain the state.
-        int model_state; 
-
         // To enable or disable permission checks. If this is not set, this
         // SimObject is a simple packet forwarder.
         bool enablePermissionCheck;
@@ -420,8 +244,6 @@ class ClockedPermission : public ClockedObject
         int segmentSize;
         std::string cachePolicy;
 
-        unsigned int mshrCount;
-        unsigned int mshrs_occupied;
 
         // We need a couple of more variables to keep a track of
         // total_cached_entries and the maximum number of cached entiers possi
@@ -441,9 +263,6 @@ class ClockedPermission : public ClockedObject
 
         // We need a  variable for the total number of enteies
         uint64_t total_entries;
-
-        // for lookup numberof packets
-        int max_search_attempts;
 
         // PLb specific values are here.
         int permission_block_size;
@@ -480,33 +299,16 @@ class ClockedPermission : public ClockedObject
 
         // keep a permissions checker to ensure that permissions aren't sent
         // more than once for the same address.
-        // std::unordered_map<gem5::Addr, int> permission_checker;
-
-        // std::unordered_map<gem5::Addr, bool> permission_packet_tracker;
-
+        std::unordered_map<gem5::Addr, int> permission_checker;
+        std::unordered_map<gem5::Addr, bool> retry_tracker;
 
         // we need a class variable for the additional latency until we find a
         // way to pass method parameters
         Tick class_latency;
 
-        // an infinite queue that stores all the incoming packets and it's
-        // corresponding permission packets.
-        std::queue<gem5::PacketPtr> permission_packets;
-        std::queue<gem5::PacketPtr> response_packets;
-        std::queue<gem5::PacketPtr> failedPermissionPackets;
-        // std::unordered_map<gem5::Addr, int> permission_packet_tracker;
-        std::unordered_map<gem5::Addr, bool> have_i_seen_this; 
-
-        // for every address, we need to keep a track of whether we have sent
-        // all the permission packets or not.
-        std::unordered_map<gem5::Addr, int> permission_request_tracker;
-        std::unordered_map<gem5::Addr, int> permission_response_tracker;
-
         // For the ports to work correctly
         std::unordered_map<PacketId, uint64_t> portMap;
-        // CustomQueue<uint64_t> retry_queue;
-        // SimpleQueue<uint64_t> retry_queue;
-        OriginalQueue<uint64_t> retry_queue;
+        CustomQueue<uint64_t> retry_queue;
 
         // For the response port
         AddrRangeList getAddrRanges() const;
@@ -515,50 +317,10 @@ class ClockedPermission : public ClockedObject
         bool recvTimingReq(PacketPtr pkt, uint64_t port_id);
         void recvRespRetry(const PortID id);
 
-        // for the individual implementations
-        bool recvTimingReqMondrian(PacketPtr pkt, uint64_t packet_id);
-        bool recvTimingReqDeACT(PacketPtr pkt, uint64_t packet_id);
-        bool recvTimingReqSpaceControl(PacketPtr pkt, uint64_t packet_id);
-        bool recvTimingReqFlatTables(PacketPtr pkt, uint64_t packet_id);
-
         // For the request port
         bool recvTimingResp(PacketPtr pkt);
         void recvReqRetry();
         void recvRangeChange();
-
-        bool waitingForMemRetry = false;
-
-        // gem5::EventWrapper delayEvent;
-        // The permission table needs to schedule events
-        void processEvent();
-        void processEvent(int attempt);
-
-        void scheduleNewEvent();
-        // This event is responsible for queueing the permission lookup and
-        // creation latency
-        // EventWrapper<ClockedPermission, &ClockedPermission::processEvent> event;
-        EventFunctionWrapper event;
-
-
-        // Do we owe the CPU a retry right now?
-        bool waitingForCpuRetry = false;
-
-        Addr getFlatTableAddress(Addr addr);
-
-        // Event to notify the CPU to retry later
-        // EventFunctionWrapper cpuRetryEvent;
-
-        // Helper to schedule cpuSidePort.sendRetryReq()
-        // void scheduleCpuRetry();
-
-        inline bool isInPermissionRange(gem5::Addr addr) {
-            return (addr >= baseAddrPermissionTable && addr < baseAddrPermissionTable + 0x40000000) ? true : false;
-        }
-
-        inline bool isInRemoteRange(gem5::Addr addr) {
-            return (addr >= 0x100000000 && addr < totalMemorySize + 0x100000000) ? true : false;
-        }
-
 
     public:
         // For the permission checks. These methods need to return two things:

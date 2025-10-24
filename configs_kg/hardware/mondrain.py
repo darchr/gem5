@@ -29,19 +29,19 @@
 
 import os
 
-from m5.objects.ClockedObject import ClockedObject
 from m5.params import *
 from m5.proxy import *
 from m5.SimObject import (
     PyBindMethod,
     SimObject,
 )
+from m5.objects import ClockedPermission
 
 # It might be better to extend this class to implement space-control instead of
 # putting lipstick to add more features.
 
 
-class ClockedPermission(ClockedObject):
+class Mondrian(ClockedPermission):
     """
     This is a simple SimObject that sits between the LLC and the memory
     controller that is responsible for performing checks with physical
@@ -75,72 +75,32 @@ class ClockedPermission(ClockedObject):
     traffic_side_port: The traffic port that receives requests.
     """
 
-    type = "ClockedPermission"
-    cxx_header = "new/clocked_permission.hh"
-    cxx_class = "gem5::ClockedPermission"
-
-    # Receives request
-    cpu_side_ports = VectorResponsePort("Response side port, sends requests")
-    mem_side_port = RequestPort("Reqeust side port, receives requests")
-
-    # We need to define a name for the exact permissions to simulate
-    model_name = Param.String("space-control", "The user needs to provide"
-                    " the name of the model they want to simulate: mondrian,"
-                    " flat-tables, deact (larger flat table entries),"
-                    "space-control")
-
-    # TODO: Marked for deletion
-    
-    # We need to define a range on where the permission tables are stored in
-    # the main memory. By default, the first 1 GiB after 4 GiB is fixed for the
-    # permission table. The table is indexed by a binary search on the address
-    # and the table can grow. Each entry has a start address (64 bits), size
-    # (64 bits) and permissions (2 bits). The maximum size of the table if
-    # each 4 KiB page on a 1 GiB system can be 32.5 MiB
-    addr_range = Param.AddrRange(
-        AddrRange(0x100000000, 0x140000000), "MMP table location"
-    )
+    # set the name. the rest of the parameters will be automatically set.
+    model_name = "mondrain"
 
     # We need a toggle function to enable or disable MMP checks
-    enable_permission_check = Param.Bool(
-        True,
-        "To enable or disable permission checks.",
-    )
-
-    # Even if there is an OS driver that sets up the permissions, there will be
-    # a need in the hardware to redirect all memory requests to a permission
-    # region.
+    enable_permission_check = True
 
     # A final boolean is required to enable or disable dedicated permission
     # caching. Make sure to set this range as uncacheable in the config script.
-    use_dedicated_caching = Param.Bool(
-        True,
-        "To enable dedicated permission caching.",
-    )
+    use_dedicated_caching = False
 
     # To make sure that the table actually exists in the memory, a base address
-    # is needed. The default address is hardcoded into X86's IO range.
-    permission_base_addr = Param.Addr(
-        0xC0000000,
-        "Base of the permission table.",
-    )
+    # is needed. Let the user define this address at the config script.
+    permission_base_addr = 0x0
 
     # To perform binary lookup or linear lookup, we need to know the number
-    # of entries if the permission are not maintained per segment.
-    number_of_entries = Param.Unsigned(
-        100,
-        "Total number of variable permission table entries.",
-    )
+    # of entries if the permission are not maintained per segment. this will
+    # be ignored for flat tables.
+    number_of_entries = 0
 
     binary_search = Param.Bool(
         True,
         "Assume that the permission table is sorted.",
     )
 
-    permission_entry_size = Param.Unsigned(
-        32,
-        "Size of a permission table entry.",
-    )
+    # FIXME
+    permission_entry_size = 16
 
     # TODO
     # Need to add a port to connect this Object to the traffic generator with
@@ -148,6 +108,7 @@ class ClockedPermission(ClockedObject):
     # the same memory controller to understand the memory scheduling overhead.
     # traffic_side_port = ResponsePort("CPU side port for permission check")
 
+    # FIXME
     # So the check will happen with this latency before letting this address
     # go to the main memory.
     creation_latency = Param.Tick(
@@ -168,17 +129,17 @@ class ClockedPermission(ClockedObject):
     )
 
     # need to define the size of the memory
-    total_memory_size = Param.UInt64(0x0, "Size of the memory")
+    total_memory_size = 0x0
 
     # Need to define a segment size for which default permissions are defined
-    segment_size = Param.UInt64(4096, "By default, the segment is of 4 KiB")
+    segment_size = 0x0
 
     # Should we add a bandwidth to this simobject? Ideally no, this should be
     # an infinite bandwidth connection where the checks happen very fast
     # without queuing or buffering.
 
     # Adding more parameters to enable disaggregated memory info.
-    host_id = Param.Int(-1, "Host ID, if simulating CXL-like system")
+    host_id = -1
 
     # Adding params for enabling interrupts. If there is a write to this addr,
     # the OS should trap that as an interrupt. Ideally we want an mwait
@@ -205,5 +166,3 @@ class ClockedPermission(ClockedObject):
     #                                     "Path to the permission table JSON")
 
     # What else do we need?
-    mshr_count = Param.Unsigned(512, "Number of MSHR registers to keep a track \
-                                of all the outgoing packets.")

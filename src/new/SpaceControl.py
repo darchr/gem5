@@ -78,3 +78,21 @@ class SpaceControl(ClockedPermission):
     type = "ClockedPermission"
     cxx_header = "new/clocked_permission.hh"
     cxx_class = "gem5::ClockedPermission"
+
+    # When we don't have a flat-table for permissions lookup and need to
+    # implement a multi-level page table, the permission cache needs to know
+    # what to cache.
+    permission_table_json = Param.String(
+        "configs_kg/configs/space_control/permission_table.json",
+        "The permission table in JSON format",
+    )
+
+    # the correct permission model to use. space-control, mondrian, deact
+    # space-control is similar to mondrain but only checks for remote memory
+    # range and the permission lookups are tiny.
+    # Mondrain creates a 64 bit lookup for the start and end address. For host
+    # and process isolation, the rest of the entry is 
+    permission_model = Param.String(
+        "space-control",
+        "The permission model to use. Options are space-control, mondrian, deact"
+    )

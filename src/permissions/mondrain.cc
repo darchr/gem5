@@ -7,7 +7,6 @@
 #include "debug/ClockedPermissionDebug.hh"
 #include "debug/PermissionPackets.hh"
 #include "debug/RemoteAddress.hh"
-#include "debug/PermissionResponses.hh"
 
 namespace gem5 {
 
@@ -15,7 +14,6 @@ ClockedPermission::ClockedPermission(const ClockedPermissionParams &params) :
     ClockedObject(params),
     memSidePort(params.name + ".mem_side_port", *this),
     // cpuSidePort(params.name + ".cpu_side_port", this),
-    modelName(params.model_name),
     enablePermissionCheck(params.enable_permission_check),
     useDedicatedCaching(params.use_dedicated_caching),
     baseAddrPermissionTable(params.permission_base_addr),
@@ -29,7 +27,6 @@ ClockedPermission::ClockedPermission(const ClockedPermissionParams &params) :
     cacheSize(params.cache_size),
     segmentSize(params.segment_size),
     cachePolicy(params.cache_policy),
-    mshrCount(params.mshr_count),
     // event([this] {
     //       // We’re about to notify the CPU master to retry.
     //       waitingForCpuRetry = false;
@@ -43,102 +40,20 @@ ClockedPermission::ClockedPermission(const ClockedPermissionParams &params) :
         cpuSidePorts.emplace_back(
             name() + csprintf(".cpu_side_ports[%d]", i), i, *this, i
         );
-
-    // start by processing the name of the model first.
-    if (modelName == "mondrain")
-        model_state = gem5::model::MONDRIAN;
-    else if (modelName == "flat-table")
-        model_state = gem5::model::FLAT_TABLE;
-    else if (modelName == "deact")
-        model_state = gem5::model::DEACT;
-    else if (modelName == "space-control")
-        model_state = gem5::model::SPACE_CONTROL;
-    else {
-        // this check must happen at the python side.
-        fatal("Model %s is not supported. Valid options are: mondrian, "
-            "flat-table, deact, space-control\n", modelName);
-    }
-
-    // specific parameters are setup based on the model that the user wants to
-    // set up.
-
-    // make sure that the user has defined the totla memory size. This is
-    // required to setup the tables if needed.
+    // make sure that the user has defined the totla memory size
     panic_if(totalMemorySize == 0,
-        "The ClockedPermmission needs to know the size of the memory!\n");
-    
-    // if the user wants mondi, they need to define the segment size
-    if (model_state == gem5::model::MONDRIAN)
-        panic_if(segmentSize == 0, "Cannot simulate mondrian with segment"
-                            " size set to 0\n");
-
-    
-    // extending the PLB model, we need to implement the number of lookups
-    // needed to fetch an entry from the permission table via binary
-    // search
-
-    panic_if(permissionEntrySize == 0, "Permission entry cannot be zero!");
-
-    // this becomes relevant if simulating flat tables or worst cases for
-    // mondrain or space-control.
-    total_entries = totalMemorySize / segmentSize;
-
-    // the user can override the max attempts providing a number_of_entries.
-    if (numberOfEntries != 0) {
-        warn("number_of_entries is not 0!, overriding the number of entries!");
-        total_entries = numberOfEntries;
-        fatal_if(model_state == gem5::model::FLAT_TABLE || 
-                            model_state == gem5::model::DEACT,
-                "cannot have number of entries specified for flat tables\n");
-    }
-
-    DPRINTF(PermissionTable, "MMP table has %lu entries\n", total_entries);
-
-    // All plb packets will be of size 64 bytes. This will always be 64.
-    permission_block_size = 64;
-
-    // FIXME:
-    // All plb packets will be of READ type.
-    permission_cmd = MemCmd::ReadReq;
-
-    // warn the user that this will be ignored for flat tables
-    if (model_state == gem5::model::FLAT_TABLE) {
-        max_search_attempts = 1;
-    }
-    else if (model_state == gem5::model::DEACT) {
-        // each memory request cannot be more than 64 bytes.
-        max_search_attempts = permissionEntrySize / permission_block_size;
-    }
-    else {
-        // see if binry search is set.
-        if (binarySearch) {
-            // it must never be zero. The ceil takes care of the total number
-            // of entries.
-            max_search_attempts = 
-                ceil(log2(total_entries)) > 0 ? ceil(log2(total_entries)) : 1;
-        }
-        else {
-            // this is a linear search
-            max_search_attempts = total_entries;
-        }
-    }
-
-    // inform the user.
-    DPRINTF(PermissionTable,
-                    "Lookups will take %d attempts\n", max_search_attempts);
-
-    // make sure to 
-
-    // if the user wants to simulate flat tables, the number of entries will be
-    // fixed.
-    
-
+        "The MMP needs to know the size of the memory!\n");
     // Calculate the total size of the memory's permission table. Each MMP
     // entry is addr + size + permission (64 + 64 + 2 = 130 bits). We're doing
     // a bit of cheating and making sure that the maximum size can be 2^62
     // instead of total 64 bits (never going to happen anyway). Converting
     // this to bytes, we have: 128 / 8 = 16 Bytes.
 
+    // We'll conside the worst case MMP. There are permissions per 4 KiB of
+    // memory. There can be totalMemorySize / 2^12 number of MMP entries.
+    // Each entry is of 2^4 Bytes.
+    total_entries = totalMemorySize / segmentSize;
+    DPRINTF(PermissionTable, "MMP table has %lu entries\n", total_entries);
 
     // create a mask for the the segment size. Each cached entry will be 64 B
     // and each segment table size will be segmentSize.
@@ -168,11 +83,28 @@ ClockedPermission::ClockedPermission(const ClockedPermissionParams &params) :
 
     DPRINTF(PermissionTable, "MMP cache has %lu entries\n",
                                                         max_cached_entries);
-    
-    // mshrs
-    mshrs_occupied = 0;
+    // All plb packets will be of size 64 bytes.
+    permission_block_size = 64;
 
+    // FIXME:
+    // All plb packets will be of READ type.
+    permission_cmd = MemCmd::ReadReq;
 
+    // extending the PLB model, we need to implement the number of lookups 
+    // needed to fetch an entry from the permission table via binary
+    // search
+    if (binarySearch) {
+        // it must never be zero
+        max_search_attempts = ceil(log2(total_entries)) + 1;
+        DPRINTF(PermissionTable, "MMP binary search will take %d attempts\n",
+                                                max_search_attempts);
+        assert(max_search_attempts == ceil(log2(numberOfEntries) + 1));
+    }
+    else {
+        // this is a linear search
+        assert(numberOfEntries <= 0);
+        max_search_attempts = numberOfEntries;
+    }
 }
 
 AddrRangeList
@@ -218,18 +150,6 @@ ClockedPermission::recvFunctional(PacketPtr pkt)
 // make sure the event is correctly set for this simobject
 void
 ClockedPermission::processEvent() {
-    if (model_state == gem5::model::SPACE_CONTROL) {
-    }
-    else if (model_state == gem5::model::MONDRIAN) {
-
-    }
-    else if (model_state == gem5::model::DEACT) {
-
-    }
-    else if (model_state == gem5::model::FLAT_TABLE) {
-        // the simplest implementation
-        return;
-    }
     // This is only called if the user wants to add permission checks
     // make sure that this address is scheduled with some additional latency.
     // DPRINTF(PermissionTable, "Scheduling addr %#x with %lu latency\n",
@@ -243,51 +163,11 @@ ClockedPermission::processEvent() {
     // if i have packets to send, I'll send them.
     if (!permission_packets.empty() && !waitingForMemRetry) {
         PacketPtr pkt = permission_packets.front();
-        
-        bool isPermissionAddr = false;
-        if (pkt->getAddr() >= baseAddrPermissionTable && 
-                pkt->getAddr() < baseAddrPermissionTable + 0x40000000)
-            isPermissionAddr = true;
-        else
-            isPermissionAddr = false;
-
         if (memSidePort.sendTimingReq(pkt)) {// }, portMap[pkt->id])) {
             // Increment the count of permission packets sent for this address.
-
-            // this is only true for the artificial permission packets
-            if (isPermissionAddr) {
-                // get the original address
-                // make sure that we have all the permission packets sent for this address
-                gem5::Addr originalAddr = 0x0;
-                if (pkt->senderState != nullptr) {
-                    auto *state = dynamic_cast<PermissionSenderState*>(pkt->senderState);
-                    if (state) {
-                        // PacketPtr originalPkt = state->originalPkt;
-                        originalAddr = state->originalAddr;
-
-                        // Now you know which memory request this permission response belongs to
-                        // You can update your permission tracker accordingly
-                    }
-                }
-               
-                assert(originalAddr != 0x0 && "Original address should not be zero!\n");
-
-                permission_request_tracker[originalAddr]++;
-
-                
-                if (permission_request_tracker[originalAddr] > max_search_attempts) {
-                    permission_request_tracker[originalAddr] = 0;
-                }
-            
-                DPRINTF(PermissionPackets, "Sent permission pkt %#x for %#x on port %lu!\n",
-                                            pkt->getAddr(), originalAddr, portMap[pkt->id]);
-            }
-            else {
-                DPRINTF(PermissionPackets, "Sent real pkt %#x on port %lu permission count %d!\n",
-                                        pkt->getAddr(), portMap[pkt->id], permission_request_tracker[pkt->getAddr()]);
-
-            }
-
+            permission_request_tracker[pkt->getAddr()]++;
+            DPRINTF(PermissionPackets, "Sent permission pkt %#x on port %lu!\n",
+                                            pkt->getAddr(), portMap[pkt->id]);
             // see if i need another event for the next packet? or did i sche
             // dule another event when i received the packet?
             if (!permission_packets.empty() && !event.scheduled()) {
@@ -314,394 +194,106 @@ ClockedPermission::processEvent() {
         }
         permission_packets.pop();
     }
-
-    // if (permission_packets.empty())
-    //     if (!event.scheduled())
-    //         schedule(event, clockEdge(Cycles(1)));
-
-    // check if i have incoming response packets!
-    // if (!response_packets.empty()) {
-    //     PacketPtr pkt = response_packets.front();
-    //     if (permission_response_tracker[pkt->getAddr()] < max_search_attempts)
-    //         // do nothing but schedule another event
-    //         if (!event.scheduled())
-    //             schedule(event, clockEdge(Cycles(1)));
-    //     else {
-    //         // start processing
-    //         DPRINTF(PermissionResponses, "Can send response packet!\n");
-
-    //         PacketId id = pkt->id;
-    //         cpuSidePorts[portMap[id]].sendTimingResp(pkt);
-    //     }
-    //     response_packets.pop();
-    // }
-}
-
-Addr
-ClockedPermission::getFlatTableAddress(Addr addr) {
-    // the flat table structure keeps the copy of the table multiple times
-    
-}
-
-bool
-ClockedPermission::recvTimingReqMondrian(PacketPtr pkt, uint64_t packet_id) {
-    return false;
-}
-bool
-ClockedPermission::recvTimingReqDeACT(PacketPtr pkt, uint64_t packet_id) {
-    return false;
-}
-bool
-ClockedPermission::recvTimingReqSpaceControl(PacketPtr pkt, uint64_t packet_id) {
-    return false;
-}
-bool
-ClockedPermission::recvTimingReqFlatTables(PacketPtr pkt, uint64_t packet_id) {
-    // 64 byte lookup for remote addresses only
-
-    bool is_remote = isInRemoteRange(pkt->getAddr());
-
-    if (enablePermissionCheck) {
-        // checking for permissions. assume that every 4 KiB page has access bits
-        // per host.
-        Addr permission_addr = getFlatTableAddress(pkt->getAddr());
-        if (useDedicatedCaching) {
-            // cache the packet
-            assert(false && "Not implemented error!");
-        }
-        // Request::Flags flags;
-        RequestPtr req = std::make_shared<Request>(permission_addr,
-                                                    1,
-                                                    pkt->req->getFlags(),
-                                                    pkt->requestorId());
-        // cannot send a higher memory packet than the cache-line size
-        // TODO in the class contructor
-        PacketPtr permission_pkt = new Packet(req, permission_cmd,
-                                                    permissionEntrySize);
-        // TODO:
-        // make sure that the SenderState is correctly set.
-        // req->setFlags(Request::VALID_SIZE);
-        // permission_pkt->setSize(permissionEntrySize);
-
-        // system caches should not be used for permission packets.
-        // permission_pkt->req->setFlags(Request::UNCACHEABLE);
-
-        permission_pkt->allocate();
-        // what is the sender state?
-        permission_pkt->senderState = new PermissionSenderState(pkt);
-
-        // this is the additonal latency required for the packet creation.
-        schedule(new EventFunctionWrapper([this, permission_pkt]{ },
-            name() + ".accessEvent", true),
-            clockEdge(static_cast<Cycles>(creationLatency)));
-
-        // DPRINTF(PermissionPackets, "addr: %#x and permission pkt addr %#x "
-        //                                "and og senderstate addr %#x\n",
-        //                                 pkt->getAddr(),
-        //                                 permission_pkt->getAddr(),
-        //                                 permission_pkt->senderState->originalAddr);
-        if (memSidePort.sendTimingReq(permission_pkt)) {
-            // sending successful.
-            mshrs_occupied++;
-
-            // make sure that we're within our budget
-            panic_if(mshrs_occupied > mshrCount, "Ran out of MSHR budget!");
-            DPRINTF(PermissionPackets, "Sent permission packet with addr %#x"
-                                        " for addr %#x on port %lu!\n",
-                                            permission_pkt->getAddr(),
-                                            pkt->getAddr(), port_id);
-            permission_request_tracker[pkt->getAddr()] = 1;
-            // did_permission_failed = 0x2;
-        }
-        else {
-            // packet sending failed
-            DPRINTF(PermissionPackets, "Failed to send permission packet!\n");
-            delete permission_pkt;
-        }
-        // now send the real packet.
-        // business as usual. if the permission packet is not sent, then this part
-        // of the code will never reach.
-
-        if (memSidePort.sendTimingReq(pkt)) {
-            // Send successful, keep the packet_id for later.s
-            portMap[pkt->id] = packet_id;
-            return true;
-        }
-        // the actual packet was unsuccessful
-        retry_queue.push(packet_id);
-        return false;
-    }
-    else {
-        assert(false && "Remove this option\n");
-        return false;
-    }
-    // unreachable code.
 }
 
 bool
 ClockedPermission::recvTimingReq(PacketPtr pkt, uint64_t port_id) {
+    if (!enablePermissionCheck) {
+        // if the permission check is not enabled, just forward the packet.
+        if (memSidePort.sendTimingReq(pkt)) {
+            DPRINTF(PermissionPackets, "Sent %#x on port %lu!\n",
+                                                pkt->getAddr(), port_id);
+            portMap[pkt->id] = port_id;
+            return true;
+        }
+        else {
+            DPRINTF(PermissionPackets, "Failed to sent %#x on port %lu!\n",
+                                                pkt->getAddr(), port_id);
+            // the memsideport will call recvRespRetry when it is ready.
 
-    // TODO
-    // We want different helper functions for different techqniues.
-    if (model_state == gem5::model::SPACE_CONTROL) {
-    }
-    else if (model_state == gem5::model::MONDRIAN) {
-
-    }
-    else if (model_state == gem5::model::DEACT) {
-
-    }
-    else if (model_state == gem5::model::FLAT_TABLE) {
-        // the simplest implementation
-        return recvTimingReqFlatTables(pkt, port_id);
+            retry_queue.push(port_id);
+            return false;
+        }
     }
     else {
-        fatal("unsupported model");
+        // new logic: always queue all the incoming packets and send them using
+        // a different function
+
+        // for each packet, we need to create a permission packet
+        for (int i = 0 ; i < max_search_attempts ; i++) {
+            Addr permission_addr = baseAddrPermissionTable;
+            // Request::Flags flags;
+            RequestPtr req = std::make_shared<Request>(
+                                permission_addr,
+                                1,
+                                pkt->req->getFlags(),
+                                pkt->requestorId());
+            PacketPtr permission_pkt = new Packet(req,
+                                            permission_cmd,
+                                            permissionEntrySize);
+            // TODO:
+            // make sure that the SenderState is correctly set.
+            // req->setFlags(Request::VALID_SIZE);
+            // permission_pkt->setSize(permissionEntrySize);
+
+            // system caches should not be used for permission packets.
+            // permission_pkt->req->setFlags(Request::UNCACHEABLE);
+
+            permission_pkt->allocate();
+            permission_packets.push(permission_pkt);
+        }
+        // queue the real packet now
+        portMap[pkt->id] = port_id;
+        permission_packets.push(pkt);
+
+        if (!event.scheduled())
+            // start processing the queue!
+            schedule(event, clockEdge(Cycles(1)));
+        
+        return true;
     }
-    // have_i_seen_this[pkt->getAddr()] = true;
-    // if (!enablePermissionCheck) {
-    //     // if the permission check is not enabled, just forward the packet.
-    //     if (memSidePort.sendTimingReq(pkt)) {
-    //         DPRINTF(PermissionPackets, "Sent %#x on port %lu!\n",
-    //                                             pkt->getAddr(), port_id);
-    //         portMap[pkt->id] = port_id;
-    //         return true;
-    //     }
-    //     else {
-    //         DPRINTF(PermissionPackets, "Failed to sent %#x on port %lu!\n",
-    //                                             pkt->getAddr(), port_id);
-    //         // the memsideport will call recvRespRetry when it is ready.
-
-    //         retry_queue.push(port_id);
-    //         return false;
-    //     }
-    // }
-    // else {
-    //     // new logic: always queue all the incoming packets and send them using
-    //     // a different function
-
-    //     // we only care about remote memory addresses
-    //     bool isRemote = isInRemoteRange(pkt->getAddr());
-
-    //     if (isRemote) {
-    //         // for each packet, we need to create a permission packet
-    //         for (int i = 0 ; i < max_search_attempts ; i++) {
-    //             Addr permission_addr = baseAddrPermissionTable;
-    //             // Request::Flags flags;
-    //             RequestPtr req = std::make_shared<Request>(
-    //                                 permission_addr,
-    //                                 1,
-    //                                 pkt->req->getFlags(),
-    //                                 pkt->requestorId());
-    //             PacketPtr permission_pkt = new Packet(req,
-    //                                             permission_cmd,
-    //                                             permissionEntrySize);
-    //             // TODO:
-    //             // make sure that the SenderState is correctly set.
-    //             // req->setFlags(Request::VALID_SIZE);
-    //             // permission_pkt->setSize(permissionEntrySize);
-
-    //             // system caches should not be used for permission packets.
-    //             // permission_pkt->req->setFlags(Request::UNCACHEABLE);
-
-    //             permission_pkt->allocate();
-    //             // what is the sender state?
-    //             permission_pkt->senderState = new PermissionSenderState(pkt);
-
-    //             // DPRINTF(PermissionPackets, "addr: %#x and permission pkt addr %#x and og senderstate addr %#x\n",
-    //             //                                 pkt->getAddr(),
-    //             //                                 permission_pkt->getAddr(),
-    //             //                                 permission_pkt->senderState->originalAddr);
-
-
-    //             permission_packets.push(permission_pkt);
-    //         }
-    //         // i'll always accept remote memory packets
-
-    //         // all other packets are always in the queue!
-    //         // queue the real packet now
-    //         // portMap[pkt->id] = port_id;
-
-    //         // let the real gem5 logic deal with sending this packet
-    //         // FIXME: this might cause out of order packets. Need to model
-    //         // back pressure at the response side to make sure that packets
-    //         // are sent in order.
-    //         // permission_packets.push(pkt);
-    //         if (!event.scheduled())
-    //             // start processing the queue!
-    //             schedule(event, clockEdge(Cycles(1)));
-            
-    //         // start processing the packet that we just got immediately!
-    //         if (memSidePort.sendTimingReq(pkt)) {
-    //             DPRINTF(PermissionPackets, "Sent real pkt %#x on port %lu!\n",
-    //                                             pkt->getAddr(), port_id);
-    //             portMap[pkt->id] = port_id;
-    //             return true;
-    //         }
-    //         else {
-    //             DPRINTF(PermissionPackets, "Failed to sent real pkt %#x on port %lu!\n",
-    //                                             pkt->getAddr(), port_id);
-    //             // the memsideport will call recvRespRetry when it is ready.
-
-    //             retry_queue.push(port_id);
-    //             return false;
-    //         }
-            
-    //         return true;
-    //     }
-    //     else {
-    //         // process this packet normally
-    //         // if the permission check is not enabled, just forward the packet.
-    //         if (!waitingForMemRetry) {
-    //             if (memSidePort.sendTimingReq(pkt)) {
-    //                 DPRINTF(PermissionPackets, "Sent %#x on port %lu!\n",
-    //                                                 pkt->getAddr(), port_id);
-    //                 portMap[pkt->id] = port_id;
-    //                 return true;
-    //             }
-    //             else {
-    //                 // couldn't send. maybe this is not required?
-    //                 // waitingForMemRetry = true;
-
-    //                 DPRINTF(PermissionPackets, "Failed to sent %#x on port %lu!\n",
-    //                                                 pkt->getAddr(), port_id);
-    //                 // the memsideport will call recvRespRetry when it is ready.
-
-    //                 retry_queue.push(port_id);
-    //                 return false;
-    //             }
-    //         }
-    //         else {
-    //             retry_queue.push(port_id);
-    //             return false;
-    //         }
-
-    //     }
-    // }
 }
 
 
 void
 ClockedPermission::recvReqRetry() {
-
-    /// this needs to be modular
-    if (model_state == gem5::model::SPACE_CONTROL) {
-
-    }
-    else if (model_state == gem5::model::MONDRIAN) {
-
-    }
-    else if (model_state == gem5::model::DEACT) {
-
-    }
-    else if (model_state == gem5::model::FLAT_TABLE) {
-        // regular stuff!
-        while (!retry_queue.empty()) {
-
-            uint64_t id = retry_queue.front();
-            cpuSidePorts[id].sendRetryReq();
-            retry_queue.pop();
-            // retry_queue.unset(id);
-            DPRINTF(ClockedPermissionDebug, "Found the retry Issue! Port %lu\n",
-                                                                            id);
-            // DPRINTF(PermissionPackets, "There is content inside is called  %lu\n",
-            //                                                                 id);
-        }
-        return;
-
-    }
-    else {
-        fatal("unsupported model");
-    }
-
-
-    /*
     // see if i have to queue events from the past.
     waitingForMemRetry = false;
-
-
-    // if (permission_packets.empty())
-    //     if (!event.scheduled())
-    //         schedule(event, clockEdge(Cycles(1)));
-    // cpuSidePorts[0].sendRetryReq();
-
-    // regular stuff!
-    while (!retry_queue.empty()) {
-
-        uint64_t id = retry_queue.front();
-        cpuSidePorts[id].sendRetryReq();
-        retry_queue.pop();
-        // retry_queue.unset(id);
-        DPRINTF(ClockedPermissionDebug, "Found the retry Issue! Port %lu\n",
-                                                                        id);
-        // DPRINTF(PermissionPackets, "There is content inside is called  %lu\n",
-        //                                                                 id);
-    }
-
-    // start processing permission packets!
-
     DPRINTF(PermissionPackets, "recvReqRetry is called with size %lu\n", permission_packets.size());
     // do i have failed permission packets?
     while (!permission_packets.empty()) {
         PacketPtr pkt = permission_packets.front();
-        bool isPermissionAddr = isInPermissionRange(pkt->getAddr());
 
         if (memSidePort.sendTimingReq(pkt)) { // }, portMap[pkt->id])) {
             // Increment the count of permission packets sent for this address.
             // permission_request_tracker[pkt->getAddr()]++;
-
-            // this is only true for the artificial permission packets
-            if (isPermissionAddr) {
-                // get the original address
-                // make sure that we have all the permission packets sent for this address
-                gem5::Addr originalAddr = 0x0;
-                if (pkt->senderState != nullptr) {
-                    auto *state = dynamic_cast<PermissionSenderState*>(pkt->senderState);
-                    if (state) {
-                        // PacketPtr originalPkt = state->originalPkt;
-                        originalAddr = state->originalAddr;
-
-                        // Now you know which memory request this permission response belongs to
-                        // You can update your permission tracker accordingly
-                    }
-                }
-               
-                assert(originalAddr != 0x0 && "Original address should not be zero!\n");
-
-                permission_request_tracker[originalAddr]++;
-
-                
-                if (permission_request_tracker[originalAddr] >= max_search_attempts) {
-                    permission_request_tracker[originalAddr] = 0;
-                }
-            
-                DPRINTF(PermissionPackets, "Sent permission pkt %#x for %#x on port %lu!\n",
-                                            pkt->getAddr(), originalAddr, portMap[pkt->id]);
+            if (pkt->getAddr() < baseAddrPermissionTable ||
+                pkt->getAddr() >= baseAddrPermissionTable + 0x40000000) {
+                // this is a real packet
+                // portMap[pkt->id] = port_id;
+                DPRINTF(PermissionPackets, "Sent real pkt %#x on port %lu!\n",
+                                            pkt->getAddr(), portMap[pkt->id]);
+                // this is a permission packet
+                permission_request_tracker[pkt->getAddr()]++;
             }
             else {
-                DPRINTF(PermissionPackets, "Sent real pkt %#x on port %lu permission count %d!\n",
-                                        pkt->getAddr(), portMap[pkt->id], permission_request_tracker[pkt->getAddr()]);
-
+                DPRINTF(PermissionPackets, "Sent permission pkt %#x on port %lu!\n",
+                                            pkt->getAddr(), portMap[pkt->id]);
+                // this is a failed permission packet
             }
 
             permission_packets.pop();
         }
         else {
-            DPRINTF(PermissionPackets, "Failed to sent pkt %#x on port %lu!\n",
+            DPRINTF(PermissionPackets, "Failed to sent permission pkt %#x on port %lu!\n",
                                             pkt->getAddr(), portMap[pkt->id]);
-
             waitingForMemRetry = true;
             if (!event.scheduled())
                 schedule(event, clockEdge(Cycles(1)));
             break;
         }
     }
-
-
-    // if (permission_packets.empty())
-    //     if (!event.scheduled())
-    //         schedule(event, clockEdge(Cycles(1)));
-    // cpuSidePorts[0].sendRetryReq();
+    
     // while (!retry_queue.empty()) {
 
     //     uint64_t id = retry_queue.front();
@@ -713,7 +305,6 @@ ClockedPermission::recvReqRetry() {
     //     // DPRINTF(PermissionPackets, "There is content inside is called  %lu\n",
     //     //                                                                 id);
     // }
-    */
 }
 
 void
@@ -763,104 +354,17 @@ ClockedPermission::recvRespRetry(const PortID id) {
 
 bool
 ClockedPermission::recvTimingResp(PacketPtr pkt) {
-    /// this needs to be modular
-    if (model_state == gem5::model::SPACE_CONTROL) {
-
-    }
-    else if (model_state == gem5::model::MONDRIAN) {
-
-    }
-    else if (model_state == gem5::model::DEACT) {
-
-    }
-    else if (model_state == gem5::model::FLAT_TABLE) {
-        // check if this is a permission packet
-        if (isInPermissionRange(pkt->getAddr())) {
-            
-            gem5::Addr originalAddr = 0x0;
-            if (pkt->senderState != nullptr) {
-                auto *state = dynamic_cast<PermissionSenderState*>(pkt->senderState);
-                if (state) {
-                    // PacketPtr originalPkt = state->originalPkt;
-                    originalAddr = state->originalAddr;
-
-                    // Now you know which memory request this permission response belongs to
-                    // You can update your permission tracker accordingly
-                }
-                else
-                    fatal("Sender state cannot be null\n");
-            }
-
-            // there are outstanding packets that were sent by the requestor
-            if (permission_request_tracker[originalAddr] > 0) {
-                // keep a track that the response for this packet is received.
-                permission_response_tracker[originalAddr]++;
-                // FIXME:
-                // For caching, this matters a lot
-
-                // make the request packet 0 or decrease by 1
-                fatal_if(permission_request_tracker[originalAddr]-- == 0,
-                            "There cannot be more responses than requeusts!");
-                // Release the MSHR
-                fatal_if(mshrs_occupied-- == 0, "Cannot have -ve MSHRs!");
-            }
-            else {
-                // received a response for a request never made?
-                fatal("You should not see permission responses for requests "
-                        "never made!");
-            }
-            // We don't really do anything else with the permission response!
-            delete pkt;
-            return true;
-        }
-        else {
-            // do we have it's corresponding permission packet?
-            if (permission_response_tracker[pkt->getAddr()] > 0) {
-                // at least one response has been received!
-                // ++num
-            }
-            else {
-                // ++error_margin
-            }
-            // business as usual
-            PacketId id = pkt->id;
-            return cpuSidePorts[portMap[id]].sendTimingResp(pkt);
-        }
-    }
     // TODO
     // Let's create the full solution. here is the plan
 
     // TODO: delete the packet if this is a permission packet
-    if (isInPermissionRange(pkt->getAddr())) {
-
+    if (pkt->getAddr() >= baseAddrPermissionTable && pkt->getAddr() < baseAddrPermissionTable + 0x40000000) {
+            DPRINTF(PermissionPackets, "Got response for permission pkt %#x and size %d\n",
+                                                            pkt->getAddr(), pkt->getSize());
 
         // this is the additonal latency required compare the permission address
         // address to the actual memory packet address.
         // TODO: Add a new parameter for comparison purposes.
-
-        // make sure that we have all the permission packets sent for this address
-        gem5::Addr originalAddr = 0x0;
-        if (pkt->senderState != nullptr) {
-            auto *state = dynamic_cast<PermissionSenderState*>(pkt->senderState);
-            if (state) {
-                // PacketPtr originalPkt = state->originalPkt;
-                originalAddr = state->originalAddr;
-
-                // Now you know which memory request this permission response belongs to
-                // You can update your permission tracker accordingly
-            }
-        }
-        DPRINTF(PermissionResponses, "Got response for pkt %#x and permission pkt %#x and count %d\n",
-                                                       originalAddr, pkt->getAddr(), permission_response_tracker[originalAddr]);
-        assert(originalAddr != 0x0 && "Original address should not be zero!\n");
-
-        // init
-        if (permission_response_tracker[originalAddr] == 0)
-            permission_response_tracker[originalAddr] = 1;
-        else
-            permission_response_tracker[originalAddr]++;
-        
-
         Tick comparison_latency = 1;
         schedule(new EventFunctionWrapper([this, pkt]{ },
             name() + ".accessEvent", true),
@@ -868,42 +372,11 @@ ClockedPermission::recvTimingResp(PacketPtr pkt) {
         
         // do not send this packet to the CPU side ports as the job of the
         // SimObject is over. if you do, then popSenderState will fail!
-
-        // experiment with the sender state here.
-
         // if (permission_request_tracker[pkt->getAddr()] < 23)
         //     warn("Permission table response received before all permission packets were sent for addr %#x!\n", pkt->getAddr());
         delete pkt;
         return true;
     }
-
-    // make sure that we have all the permission packets sent for this address
-    if (permission_response_tracker[pkt->getAddr()] < max_search_attempts) {
-        DPRINTF(PermissionResponses, "Response received before all permission packets were sent "
-            "for addr %#x with count %d! -- req count %lu\n", pkt->getAddr(),
-                                permission_response_tracker[pkt->getAddr()],
-                                permission_request_tracker[pkt->getAddr()]);
-        // // do i have this packet in the requests queue?
-        if (permission_response_tracker[pkt->getAddr()] == 0 && permission_request_tracker[pkt->getAddr()] == 24) {
-            // simple logic
-            // have i seen this packet in request queue?
-            if (have_i_seen_this[pkt->getAddr()] == false)
-                warn("i didn't see this packet before! cannot go any further!\n");
-        }
-        // need to block this packet :(
-        // response_packets.push(pkt);
-        // if (!event.scheduled())
-        //     // tell the simobject to try the response side to try again
-        //     schedule(event, clockEdge(Cycles(1)));
-        // return true;
-    }
-    else {
-        DPRINTF(PermissionResponses, "all good!\n");        
-    }
-    // else
-    //     // reset the count
-    //     permission_response_tracker[pkt->getAddr()] = 0;
-
     PacketId id = pkt->id;
     return cpuSidePorts[portMap[id]].sendTimingResp(pkt);
 }

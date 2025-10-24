@@ -82,14 +82,6 @@ namespace gem5
  * request.
  */
 
-// make sure to keep a ENUM for the right model
-enum model {
-    MONDRIAN,
-    FLAT_TABLE,
-    DEACT,
-    SPACE_CONTROL
-};
-
 
 // FIXME:
 // We need a template for a queue and a set. There can be multiple entries in
@@ -285,17 +277,6 @@ class OriginalQueue
         }
 };
 
-// a class to keep track of the original packet's address
-class PermissionSenderState : public Packet::SenderState {
-public:
-    // PacketPtr originalPkt;
-    Addr originalAddr;
-
-    PermissionSenderState(PacketPtr pkt)
-        : originalAddr(pkt->getAddr()) {}
-};
-
-
 class ClockedPermission : public ClockedObject
 {
     // Using boiler-plate code for the initialization part.
@@ -376,11 +357,6 @@ class ClockedPermission : public ClockedObject
         // Instantiation of the cpu side ports.
         std::vector<CPUSidePort> cpuSidePorts;
 
-        // the permission model to simulate
-        std::string modelName;
-        // just need to maintain the state.
-        int model_state; 
-
         // To enable or disable permission checks. If this is not set, this
         // SimObject is a simple packet forwarder.
         bool enablePermissionCheck;
@@ -420,8 +396,6 @@ class ClockedPermission : public ClockedObject
         int segmentSize;
         std::string cachePolicy;
 
-        unsigned int mshrCount;
-        unsigned int mshrs_occupied;
 
         // We need a couple of more variables to keep a track of
         // total_cached_entries and the maximum number of cached entiers possi
@@ -492,7 +466,6 @@ class ClockedPermission : public ClockedObject
         // an infinite queue that stores all the incoming packets and it's
         // corresponding permission packets.
         std::queue<gem5::PacketPtr> permission_packets;
-        std::queue<gem5::PacketPtr> response_packets;
         std::queue<gem5::PacketPtr> failedPermissionPackets;
         // std::unordered_map<gem5::Addr, int> permission_packet_tracker;
         std::unordered_map<gem5::Addr, bool> have_i_seen_this; 
@@ -515,12 +488,6 @@ class ClockedPermission : public ClockedObject
         bool recvTimingReq(PacketPtr pkt, uint64_t port_id);
         void recvRespRetry(const PortID id);
 
-        // for the individual implementations
-        bool recvTimingReqMondrian(PacketPtr pkt, uint64_t packet_id);
-        bool recvTimingReqDeACT(PacketPtr pkt, uint64_t packet_id);
-        bool recvTimingReqSpaceControl(PacketPtr pkt, uint64_t packet_id);
-        bool recvTimingReqFlatTables(PacketPtr pkt, uint64_t packet_id);
-
         // For the request port
         bool recvTimingResp(PacketPtr pkt);
         void recvReqRetry();
@@ -530,34 +497,24 @@ class ClockedPermission : public ClockedObject
 
         // gem5::EventWrapper delayEvent;
         // The permission table needs to schedule events
-        void processEvent();
-        void processEvent(int attempt);
+    void processEvent();
+    void processEvent(int attempt);
 
-        void scheduleNewEvent();
-        // This event is responsible for queueing the permission lookup and
-        // creation latency
-        // EventWrapper<ClockedPermission, &ClockedPermission::processEvent> event;
-        EventFunctionWrapper event;
+    void scheduleNewEvent();
+    // This event is responsible for queueing the permission lookup and
+    // creation latency
+    // EventWrapper<ClockedPermission, &ClockedPermission::processEvent> event;
+    EventFunctionWrapper event;
 
 
-        // Do we owe the CPU a retry right now?
-        bool waitingForCpuRetry = false;
+    // Do we owe the CPU a retry right now?
+    bool waitingForCpuRetry = false;
 
-        Addr getFlatTableAddress(Addr addr);
+    // Event to notify the CPU to retry later
+    // EventFunctionWrapper cpuRetryEvent;
 
-        // Event to notify the CPU to retry later
-        // EventFunctionWrapper cpuRetryEvent;
-
-        // Helper to schedule cpuSidePort.sendRetryReq()
-        // void scheduleCpuRetry();
-
-        inline bool isInPermissionRange(gem5::Addr addr) {
-            return (addr >= baseAddrPermissionTable && addr < baseAddrPermissionTable + 0x40000000) ? true : false;
-        }
-
-        inline bool isInRemoteRange(gem5::Addr addr) {
-            return (addr >= 0x100000000 && addr < totalMemorySize + 0x100000000) ? true : false;
-        }
+    // Helper to schedule cpuSidePort.sendRetryReq()
+    // void scheduleCpuRetry();
 
 
     public:
