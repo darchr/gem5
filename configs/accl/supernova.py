@@ -544,6 +544,7 @@ class SuperNOVA(System):
         num_gpts,
         cache_size,
         graph_path,
+        router_clock="33MHz",
     ):
         super(SuperNOVA, self).__init__()
         assert num_gpts != 0
@@ -567,7 +568,7 @@ class SuperNOVA(System):
             hold_time=NetworkDelays.CROSSPOINT_HOLD_TIME.value,
         )
         self.router.clk_domain = SrcClockDomain()
-        self.router.clk_domain.clock = "33MHz"
+        self.router.clk_domain.clock = router_clock
         self.router.clk_domain.voltage_domain = VoltageDomain()
 
         self.ctrl = SEGAController("256GiB/s")

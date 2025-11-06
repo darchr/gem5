@@ -44,6 +44,7 @@ class AcclRouter : public ClockedObject
     statistics::Histogram valueLatency;
 
     size_t activeIndex = 0;
+    std::vector<Tick> lastSendTime;
     void rotateActiveOutPort();
     EventFunctionWrapper rotateActiveOutPortEvent;
 

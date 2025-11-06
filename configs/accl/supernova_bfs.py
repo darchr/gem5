@@ -79,6 +79,14 @@ def get_inputs():
         default=False,
         help="Print final answer",
     )
+    argparser.add_argument(
+        "--optimized-srnoc",
+        dest="optimized_srnoc",
+        action="store_const",
+        const=True,
+        default=False,
+        help="Use optimized SRNOC mode with static delay and multiplied energies",
+    )
 
     args = argparser.parse_args()
 
@@ -93,6 +101,7 @@ def get_inputs():
         args.visited,
         args.sample,
         args.verify,
+        args.optimized_srnoc,
     )
 
 
@@ -108,9 +117,12 @@ if __name__ == "__m5_main__":
         visited,
         sample,
         verify,
+        optimized_srnoc,
     ) = get_inputs()
 
-    system = SuperNOVA(num_gpts, cache_size, graph)
+    system = SuperNOVA(
+        num_gpts, cache_size, graph, "847MHz" if optimized_srnoc else "33MHz"
+    )
     if tile:
         system.set_aux_images(f"{graph}/mirrors", f"{graph}/mirrors_map")
 
@@ -126,7 +138,10 @@ if __name__ == "__m5_main__":
     else:
         system.set_async_mode()
 
-    system.set_router_srnoc_delay_mode()
+    if optimized_srnoc:
+        system.set_router_static_delay_mode()
+    else:
+        system.set_router_srnoc_delay_mode()
     system.create_pop_count_directory(32)
     if visited:
         system.create_bfs_visited_workload(init_addr, init_value)
@@ -179,6 +194,11 @@ if __name__ == "__m5_main__":
             total_enc_energy += g.getEncoderEnergy(end_time)
             total_dec_energy += g.getDecoderEnergy(end_time)
             total_ta_energy += g.getTemporalAdderEnergy(end_time)
+
+        if optimized_srnoc:
+            total_enc_energy *= 3
+            total_dec_energy *= 3
+            router_energy *= 3
 
         print(f"[ENC] Aggregate total power:  {total_enc_power * 1e6:.3f} uW")
         print(f"[DEC] Aggregate total power:  {total_dec_power * 1e6:.3f} uW")

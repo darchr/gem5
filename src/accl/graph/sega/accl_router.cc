@@ -58,6 +58,8 @@ AcclRouter::AcclRouter(const AcclRouterParams &params) :
         outPortToMPU.push_back(mpu);
     }
 
+    lastSendTime.resize(outPorts.size(), 0);
+
     DPRINTF(AcclRouter, "Ports created\n");
 
     // Set radix based on the number of in and out ports
@@ -398,18 +400,36 @@ AcclRouter::AcclRouterResponsePort::recvTimingReq(PacketPtr pkt)
     }
 
     if (owner->mode == RouterMode::STATIC_DELAY) {
+        DPRINTF(AcclRouter, "Entering STATIC_DELAY mode in recvTimingReq\n");
         // Send the packet after a fixed delay
-        Tick delay = 10 * owner->clockPeriod();
+        int value = 10;
+        DPRINTF(AcclRouter, "Value: %d, rlTimeSlots: %lu\n",
+            value, owner->rlTimeSlots);
+        if (value < 0 || value >= owner->rlTimeSlots) {
+            DPRINTF(AcclRouter,
+                "Error: Value %d out of range for time slots %lu\n",
+                value, owner->rlTimeSlots);
+            fatal("Value %d out of range for time slots %lu\n",
+                value, owner->rlTimeSlots);
+            return false;
+        }
+        DPRINTF(AcclRouter, "Value check passed, proceeding with delay\n");
+        Tick delay = value * owner->timeSlot;
+        Tick sendTime = curTick() + delay;
+        if (sendTime <= owner->lastSendTime[outPortIndex]) {
+            sendTime = owner->lastSendTime[outPortIndex] + 1;
+        }
+        owner->lastSendTime[outPortIndex] = sendTime;
         owner->schedule(
             new EventFunctionWrapper(
                 [this, pkt, outPortIndex]() {
                     owner->outPorts[outPortIndex].sendPacket(pkt);
                 },
                 owner->name() + ".forward", true),
-            curTick() + delay
+            sendTime
         );
         owner->valueLatency.sample(
-            delay
+            sendTime - curTick()
         );
         return true;
     } else if (owner->mode == RouterMode::SRNOC) {
@@ -432,33 +452,29 @@ AcclRouter::AcclRouterResponsePort::recvTimingReq(PacketPtr pkt)
         Tick value_delay = value * owner->timeSlot;
         Tick port_delay = owner->ticksUntilPortActive(this->id(),
                         outPortIndex);
+        Tick delay = value_delay + port_delay;
+        Tick sendTime = curTick() + delay;
+        if (sendTime <= owner->lastSendTime[outPortIndex]) {
+            sendTime = owner->lastSendTime[outPortIndex] + 1;
+        }
+        owner->lastSendTime[outPortIndex] = sendTime;
         owner->schedule(
             new EventFunctionWrapper(
                 [this, pkt, outPortIndex]() {
                     owner->outPorts[outPortIndex].sendPacket(pkt);
                 },
                 owner->name() + ".forward", true),
-            curTick() + value_delay + port_delay
+            sendTime
         );
         owner->valueLatency.sample(
-            value_delay + port_delay
+            sendTime - curTick()
         );
         DPRINTF(AcclRouter, "Calculated delay: %llu\n",
-            value_delay + port_delay);
+            sendTime - curTick());
         // Return true to indicate the packet was sent successfully
         return true;
     }
-    // Tick delay = 10 * owner->clockPeriod();
-    // owner->schedule(
-    //     new EventFunctionWrapper(
-    //         [this, pkt, outPortIndex]() {
-    //             owner->outPorts[outPortIndex].sendPacket(pkt);
-    //         },
-    //         owner->name() + ".forward", true),
-    //     curTick() + delay
-    // );
-
-    // return true;
+    return false;
 }
 
 Tick
@@ -480,7 +496,20 @@ AcclRouter::AcclRouterResponsePort::recvAtomic(PacketPtr pkt)
     Tick delay = 0;
 
     if (owner->mode == RouterMode::STATIC_DELAY) {
-        delay = 10 * owner->clockPeriod();
+        DPRINTF(AcclRouter, "Entering STATIC_DELAY mode in recvAtomic\n");
+        int value = 10;
+        DPRINTF(AcclRouter, "Value: %d, rlTimeSlots: %lu\n",
+            value, owner->rlTimeSlots);
+        if (value < 0 || value >= owner->rlTimeSlots) {
+            DPRINTF(AcclRouter,
+                "Error: Value %d out of range for time slots %lu\n",
+                value, owner->rlTimeSlots);
+            fatal("Value %d out of range for time slots %lu\n",
+                value, owner->rlTimeSlots);
+            return 0;
+        }
+        DPRINTF(AcclRouter, "Value check passed, proceeding with delay\n");
+        delay = value * owner->timeSlot;
     } else if (owner->mode == RouterMode::SRNOC) {
         // For SRNoC mode, we use a longer delay
         int value = 0;
@@ -494,16 +523,23 @@ AcclRouter::AcclRouterResponsePort::recvAtomic(PacketPtr pkt)
             DPRINTF(AcclRouter,
                 "Error: Value %d out of range for time slots %lu\n",
                 value, owner->rlTimeSlots);
-            return false;
+            fatal("Value %d out of range for time slots %lu\n",
+                value, owner->rlTimeSlots);
+            return 0;
         }
         // delay is value times rlTimeSlots
         delay = value * owner->timeSlot +
                 owner->ticksUntilPortActive(this->id(), outPortIndex);
         DPRINTF(AcclRouter, "Calculated delay: %llu\n", delay);
     }
+    Tick effective_delay = delay;
+    if (curTick() + effective_delay <= owner->lastSendTime[outPortIndex]) {
+        effective_delay = owner->lastSendTime[outPortIndex] - curTick() + 1;
+    }
+    owner->lastSendTime[outPortIndex] = curTick() + effective_delay;
     owner->outPorts[outPortIndex].sendAtomic(pkt);
-    owner->valueLatency.sample(delay);
-    return delay;
+    owner->valueLatency.sample(effective_delay);
+    return effective_delay;
 }
 
 void
