@@ -207,6 +207,8 @@ class FlatTables : public ClockedObject
         // Here are some of the other variables that we need the user to define
 
         // We may need the total memory size as well :(
+        gem5::Addr remoteMemoryStart;
+        // total memory size is INCLUSIVE of the permission table
         uint64_t totalMemorySize;
         // Size of the cache. The table is calculated as the total size of the
         // memory
@@ -254,6 +256,9 @@ class FlatTables : public ClockedObject
         std::unordered_map<gem5::Addr, int> permission_checker;
 
         std::unordered_map<gem5::PacketPtr, gem5::Tick> outstanding_packets;
+
+        // keep a track of stall time
+        std::unordered_map<gem5::PacketPtr, gem5::Tick> stall_time;
 
         // std::unordered_map<gem5::Addr, bool> permission_packet_tracker;
 
@@ -338,13 +343,16 @@ class FlatTables : public ClockedObject
         // void printErrorStats();
 
         inline bool isInPermissionRange(gem5::Addr addr) {
+            // the permission table is always fixed and is configurable.
             return (addr >= baseAddrPermissionTable &&
                 addr < baseAddrPermissionTable + 0x40000000) ? true : false;
         }
 
         inline bool isInRemoteRange(gem5::Addr addr) {
-            return (addr >= 0x100000000 &&
-                        addr < totalMemorySize + 0x100000000) ? true : false;
+            // THIS IS REALLY BAD. TOOK ME 2 DAYS TO DEBUG. Do not hardcode
+            // values again
+            return (addr >= remoteMemoryStart &&
+                        addr < remoteMemoryStart + totalMemorySize) ? true : false;
         }
 
         inline bool isInMemoryRange(gem5::Addr addr) {
@@ -400,6 +408,9 @@ class FlatTables : public ClockedObject
             // we need to keep a track of max number of responses that are
             // stored in the checker.
             statistics::Histogram maxStoredResponses;
+
+            // keep a track to total time spent on stalling the response packet
+            statistics::Histogram stallTime;
 
             // /** Count the number of incoming read packets */
             // statistics::Scalar numReadIncomingPackets;

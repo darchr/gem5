@@ -166,6 +166,9 @@ class FlatTables(ClockedObject):
                             Must be lru, mru random.",
     )
 
+    # need to specify the start of the remote memory
+    remote_memory_start = Param.UInt64(0x0, "remote memory start address")
+
     # need to define the size of the memory
     total_memory_size = Param.UInt64(0x0, "Size of the memory")
 

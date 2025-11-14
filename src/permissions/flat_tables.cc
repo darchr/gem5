@@ -24,6 +24,7 @@ FlatTables::FlatTables(const FlatTablesParams &params) :
     creationLatency(params.creation_latency),
     hitLatency(params.hit_latency),
     missLatency(params.miss_latency),
+    remoteMemoryStart(params.remote_memory_start),
     totalMemorySize(params.total_memory_size),
     cacheSize(params.cache_size),
     segmentSize(params.segment_size),
@@ -62,6 +63,9 @@ FlatTables::FlatTables(const FlatTablesParams &params) :
     panic_if(totalMemorySize == 0,
         "The ClockedPermmission needs to know the size of the memory!\n");
     
+    // make sure the start of the memory range is no longer hardcoded
+    panic_if(remoteMemoryStart == 0,
+        "define the start of the remote memory in the permission object!\n");
     // if the user wants mondi, they need to define the segment size
     if (model_state == gem5::model::MONDRIAN)
         panic_if(segmentSize == 0, "Cannot simulate mondrian with segment"
@@ -172,7 +176,7 @@ FlatTables::FlatTables(const FlatTablesParams &params) :
     // table isze 
     if (model_state == gem5::model::FLAT_TABLE) {
         // each entry is of 2 bits. An entry is created per 4 KiB
-        table_size = (totalMemorySize) / (4096) / 4;   // in bytes!
+        table_size = ((totalMemorySize) / (4096) ) * 2 / 8;   // in bytes!
     }
     else if (model_state == gem5::model::DEACT) {
         // It's 1 Byte. the table doesn't repeat per host but per process.
@@ -386,8 +390,14 @@ FlatTables::getFlatTableAddress(Addr addr) {
     // While the permission address will remain percise, the address
     // should align with 64 Bytes The last
     // 8 bits of the address should be zero no?
-    return baseAddrPermissionTable + (hostID * table_size) + 
-                                                    (addr - 0x100000000) / 4;
+    // make sure that the address within the permission table range
+    //
+    // permissions are per PPN. Each pernmission is of 2 bits
+    Addr permission_addr = baseAddrPermissionTable + (hostID * table_size) +
+                                                (addr / 0xFFF);
+    // I don't want any unforseen consequences
+    assert(isInPermissionRange(permission_addr));
+    return permission_addr;
     // We assume that N * 512 MiB is reserved fo
 
     // each flat table is of some size
@@ -1230,6 +1240,10 @@ FlatTables::recvTimingRespFT(PacketPtr pkt) {
 
             // do we need to reset the permission_response_tracker?
 
+            // so sample the buffering time for stats.
+            stats.stallTime.sample(gem5::curTick() - stall_time[pkt]);
+            stall_time.erase(pkt);
+
             // make the request packet 0 or decrease by 1
             fatal_if(permission_request_tracker[originalAddr]-- == 0,
                         "There cannot be more responses than requeusts!");
@@ -1298,6 +1312,8 @@ FlatTables::recvTimingRespFT(PacketPtr pkt) {
 
             // keep the packet but do not send it upstream
             response_packets.push(pkt);
+            // keep the current time to track how long the packet was buffered
+            stall_time[pkt] = gem5::curTick();
             // we need to sample the response packet queue. we only store real
             // responses
             stats.maxStoredResponses.sample(response_packets.size());
@@ -1404,7 +1420,9 @@ FlatTables::StatGroup::StatGroup(statistics::Group *parent)
     ADD_STAT(maxPermissionMSHROcuppied, statistics::units::Count::get(),
             "Histogram of the occupied MSHRs for permissions."),
     ADD_STAT(packetLatency, statistics::units::Count::get(),
-            "Histogram of the latency incurred for permission lookups")
+            "Histogram of the latency incurred for permission lookups"),
+    ADD_STAT(stallTime, statistics::units::Count::get(),
+            "Histogram of stalling latency.")
 {
     using namespace statistics;
     // Initialize any histogram stats here
@@ -1415,6 +1433,9 @@ FlatTables::StatGroup::StatGroup(statistics::Group *parent)
         .init(2)
         .flags(pdf);
     maxStoredResponses
+        .init(2)
+        .flags(pdf);
+    stallTime
         .init(2)
         .flags(pdf);
 }
