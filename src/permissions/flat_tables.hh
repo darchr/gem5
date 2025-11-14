@@ -251,6 +251,10 @@ class FlatTables : public ClockedObject
         int permission_block_size;
         int permission_cmd;
 
+        // keep a track if we are simulating the worst case lookups for us and
+        // mondi
+        bool worst_case;
+
         // keep a permissions checker to ensure that permissions aren't sent
         // more than once for the same address.
         std::unordered_map<gem5::Addr, int> permission_checker;
@@ -331,8 +335,12 @@ class FlatTables : public ClockedObject
         bool waitingForCpuRetry = false;
 
         Addr getFlatTableAddress(Addr addr);
-        Addr getDeACTAddress(Addr addr);
+        Addr getDeACTAddress(Addr addr, bool shared);
+
+        // Since Mondrian is fine-grained, the user must specify the total
+        // number of entries in the system.
         Addr getMondrianAddress(Addr addr);
+        Addr getSpaceControlAddress(Addr addr);
 
         // Event to notify the CPU to retry later
         // EventFunctionWrapper cpuRetryEvent;

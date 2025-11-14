@@ -79,12 +79,20 @@ FlatTables::FlatTables(const FlatTablesParams &params) :
     panic_if(permissionEntrySize == 0, "Permission entry cannot be zero!");
 
     // this becomes relevant if simulating flat tables or worst cases for
-    // mondrain or space-control.
+    // mondrain or space-control. it is expected that the user will simulate
+    // segmentSize as PPN
+    warn_if((model_state == gem5::model::FLAT_TABLE || 
+                            model_state == gem5::model::DEACT) &&
+                            (segmentSize != 4096), "Flat tables are expected "
+                            " to be the same as PPN 4096!\n");
     total_entries = totalMemorySize / segmentSize;
 
     // the user can override the max attempts providing a number_of_entries.
     if (numberOfEntries != 0) {
         warn("number_of_entries is not 0!, overriding the number of entries!");
+        // the user can set the total entries foe each PPN. this is the WC for
+        // mondi and us
+        worst_case = (totalMemorySize / 4096 == numberOfEntries) ? true: false;
         total_entries = numberOfEntries;
         fatal_if(model_state == gem5::model::FLAT_TABLE || 
                             model_state == gem5::model::DEACT,
@@ -384,7 +392,6 @@ FlatTables::getFlatTableAddress(Addr addr) {
 
     // for simulations, there will only be one table per host.
     // Each host's memory map is TOTAL_MEMORY_SIZE / 4 KiB Pages * 2 bits
-    
 
     // each entry is of 2 bits (00 - > no, 01 -> read, 10 -> write).
     // While the permission address will remain percise, the address
@@ -393,28 +400,105 @@ FlatTables::getFlatTableAddress(Addr addr) {
     // make sure that the address within the permission table range
     //
     // permissions are per PPN. Each pernmission is of 2 bits
-    Addr permission_addr = baseAddrPermissionTable + (hostID * table_size) +
-                                                (addr / 0xFFF);
+    Addr base = baseAddrPermissionTable + (hostID * table_size) +
+                                                (addr / 0x1000);
+    // Each cache line has 256 PPN's permissions.
+    Addr offset = (addr / 0x1000) % 256;
     // I don't want any unforseen consequences
-    assert(isInPermissionRange(permission_addr));
-    return permission_addr;
-    // We assume that N * 512 MiB is reserved fo
-
-    // each flat table is of some size
-    // return baseAddrPermissionTable + hostID * (processID * tableSize));
-    // return baseAddrPermissionTable;
-    
+    assert(isInPermissionRange(base + offset));
+    return base + offset;
 }
 
 Addr
-FlatTables::getDeACTAddress(Addr addr) {
-    assert(false && "not impleemnted error");
-    return baseAddrPermissionTable;
+FlatTables::getDeACTAddress(Addr addr, bool shared) {
+    // DeACT needs two reads: one per PPN to see if the host has access (ACM)
+    // The second is the shared memory bitmap. The PPN table is replicated for
+    // each host.
+
+    if (!shared) {
+        // ACM table. Each entry is indexed by the PPN (same as a flat-table)
+        // permissions are per PPN. Each pernmission is of 2 bits.
+        // Each entry has lg(256) = 8 bits -> 1 byte for the host id and
+        // 2 more bits for read write access permission (10 bits per entry)
+        // Round that off to 1B
+        // base is the cache_line base
+        Addr base = baseAddrPermissionTable +
+                                     (hostID * table_size) +
+                                     (addr / 0x1000);
+        // Consequtive 64 PPNs will have the same base address.
+        Addr offset = (addr / 0x1000) % 64;
+        // I don't want any unforseen consequences
+        assert(isInPermissionRange(base + offset));
+
+        // if we implement cache, then just return the base
+        return base + offset;
+    }
+    else {
+        // the user wants the bitmap address. the bitmap is hardcoded to
+        // 500 MiB. Each entry is 256 bits (each ppn has a bitmap)
+        Addr base = baseAddrPermissionTable + 0x20000000 + (addr / 0x1000);
+        // Consequtive 8 PPNs will have the same base address.
+        Addr offset = (addr / 0x1000) % 64;
+        // I don't want any unforseen consequences
+        assert(isInPermissionRange(base + offset));
+        // if we implement cache, then just return the base
+        return base + offset;
+    }
 }
 
 Addr
 FlatTables::getMondrianAddress(Addr addr) {
-    return baseAddrPermissionTable;
+    // each entry is 128 bits (round off from 130 bits (start, end, permission)
+    // ) and the table is repeated for each host. (16B)
+
+    // entries could be the total number of processes, or each PPN has a
+    // different set of permissions. Each 64B cache line has 4 entries.
+
+    // this needs to a bit hand waved. there is either single entry or all ppn
+    // entries
+    if (!worst_case) {
+        // there is just one 16B entry in the entire table
+        return baseAddrPermissionTable + (hostID * 16);
+    }
+    else {
+        // make sure that the permission table is always stored in the remote
+        // memory. for local addresses, just return the base address
+        if (!isInRemoteRange(addr))
+            return baseAddrPermissionTable + (hostID * 16);
+        Addr base = baseAddrPermissionTable + (hostID * (total_entries / 16))
+                                                         + (addr / 0x1000);
+        Addr offset = (addr / 0x1000) % 4;
+        // I don't want any unforseen consequences
+        assert(isInPermissionRange(base + offset));
+        return base + offset;
+    }
+    // the number of entries is only relevant to model lookup time as a binary
+    // search.
+}
+
+
+Addr
+FlatTables::getSpaceControlAddress(Addr addr) {
+    // each entry is 128 bits (round off from 130 bits (start, end, permission)
+    // ) and the table is repeated for each host. (16B)
+
+    // entries could be the total number of processes, or each PPN has a
+    // different set of permissions. Each 64B cache line has 4 entries.
+
+    // this needs to a bit hand waved. there is either single entry or all ppn
+    // entries
+    if (!worst_case) {
+        return baseAddrPermissionTable;
+    }
+    else {
+        Addr base = baseAddrPermissionTable + (addr / 0x1000);
+        Addr offset = (addr / 0x1000);
+        // I don't want any unforseen consequences
+        assert(isInPermissionRange(base + offset));
+        return base + offset;
+    }
+    // the number of entries is only relevant to model lookup time as a binary
+    // search.
 }
 
 bool
@@ -898,6 +982,7 @@ Addr
 FlatTables::getPLBAddr(Addr addr) {
     // return the base of the permission table address + the entry.
     // XXX: This is unimplemented with the ID
+    assert(false && "call getMondrianAddress()");
     return baseAddrPermissionTable;
 }
 
