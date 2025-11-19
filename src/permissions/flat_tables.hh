@@ -48,7 +48,7 @@
 #include "sim/stats.hh"
 #include "sim/sim_exit.hh"
 
-#include "permissions/permission_cache.hh"
+// #include "permissions/permission_cache.hh"
 #include "permissions/meta.hh"
 
 namespace gem5
@@ -201,18 +201,25 @@ class FlatTables : public ClockedObject
         // packet that accesses this memory.
         Tick missLatency;
 
-        // TODO:
-        // In the future, we need to have packet creator here.
-
         // Here are some of the other variables that we need the user to define
+        // XXX: To model the permission cache correctly, the user needs to
+        // define the cache lookup time. Its a CAM memory.
+        Tick cacheLookupLatency;
+        // In case, a new entry is added, the additional time also needs to be
+        // modeled correctly.
+        Tick cacheEntryCreationLatency; 
 
         // We may need the total memory size as well :(
         gem5::Addr remoteMemoryStart;
+
         // total memory size is INCLUSIVE of the permission table
-        uint64_t totalMemorySize;
+        uint64_t totalMemorySize;   // this only refers to the remote memory!
+        // For mondrain, we need the start and end of the local memory as well
+        gem5::Addr localMemoryStart;
+        gem5::Addr localMemoryEnd;
         // Size of the cache. The table is calculated as the total size of the
         // memory
-        int cacheSize;
+        uint64_t cacheSize;
         // The segment size is defined by the user. We simulate everyrhing with
         // a fixed segment.
         int segmentSize;
@@ -234,11 +241,11 @@ class FlatTables : public ClockedObject
         uint64_t max_cached_entries;
         // We need to know the max cached entries so that the variable for a
         // single lookup is correctly implemented as a log2(N).
-        uint64_t permission_table_entries;
+        // uint64_t permission_table_entries;
 
         // We need a couple of masks to lookup the cache and permissions
         // efficiently
-        uint64_t segment_mask;
+        // uint64_t segment_mask;
         // uint64_t cache_mask;
 
         // We need a  variable for the total number of enteies
@@ -360,15 +367,18 @@ class FlatTables : public ClockedObject
             // THIS IS REALLY BAD. TOOK ME 2 DAYS TO DEBUG. Do not hardcode
             // values again
             return (addr >= remoteMemoryStart &&
-                        addr < remoteMemoryStart + totalMemorySize) ? true : false;
+                    addr < remoteMemoryStart + totalMemorySize) ? true : false;
         }
 
         inline bool isInMemoryRange(gem5::Addr addr) {
             // a method that is needed to for mondrian. this is true for the
             // system memory ranges.
-            return ((addr >= 0x0 && addr < 0xC0000000) || 
+            return ((addr >= localMemoryStart && addr < localMemoryEnd) || 
                                         isInRemoteRange(addr)) ? true : false;
         }
+
+
+
 
     public:
 
@@ -379,6 +389,79 @@ class FlatTables : public ClockedObject
         Addr getPLBAddr(Addr addr);
         // To implement binary lookup i nthe worst case scenario.
         Addr getBinarySearchPermissionTableAddr(int attempt);
+        // ---------------------- cache ------------------------------------ //
+        // there needs to be total number of entries and then the total number
+        // of occupied entries. Each entry is of 64 Bytes in our paper.
+        unsigned int number_of_entries;
+        // the cache is fully associative (same as mondrian).
+        // unsigned int number_of_occupied_entries;
+
+        // Each entry in the MMP permission will have these values. There are
+        // implementational details.
+        struct cache_entry_vector {
+            // first we need to figure out the domain of this entry. Who sets
+            // up the domain entries? The operating system but not even the
+            // authors implemented this in the evaluation. This is done in the
+            // followup paper.
+            // XXX: Keeping the domain_id as a field for future usage.
+            int domain_id;
+            // There needs to be a monotonic ID incrementor that gives the
+            // location of this address' permission. Ideally this shouldn't be
+            // monotonic as the OS will periodically clear permissions but in
+            // our research we only see results for a single program.
+            // TODO: This will be left unimplemented!
+            uint64_t id;
+            // is_cached will be true if any packet within 64 Bytes is true.
+            bool is_cached;
+            // We need to maintain the size as a variable. This is the segment
+            // size. The lookup will be longer but it is critical to implement
+            // this.
+            size_t size;
+            // These are needed for LRU and MRU policies.
+            Tick last_accessed;
+            int access_count;
+        };
+
+        // keep a cache map
+        std::unordered_map<gem5::Addr, cache_entry_vector> cache_map;
+
+        std::string cache_policy;
+
+        uint64_t cache_mask;
+
+        inline gem5::Addr maskAddr(gem5::Addr addr) {
+            // understand the difference here. each ppn is the key.
+            // there are 4096 consecutive addresses mapping to the same
+            // permission entry. Each entry is of cache_line size!
+            return (addr & !PPN_MASK);
+        }
+
+        inline bool doesCacheHaveSpace() {
+            // Cache size is in Bytes.
+            return (total_cached_entries < max_cached_entries) ? true : false; 
+        }
+
+        inline void addCacheEntry(gem5::Addr masked_addr) {
+            // add a new cache entry. masked_addr is cache_masked applied i.e
+            // 64 bytes alligned. make sure that the entry does not exist.
+            cache_entry_vector cve;
+            cve.access_count = 1;
+            cve.last_accessed = gem5::curTick();
+            cache_map[masked_addr] = cve;
+            total_cached_entries++;
+        }
+
+        // we need a very simple method to 
+        bool isCached(gem5::Addr masked_addr);
+
+        inline void incrementCounts(gem5::Addr masked_addr) {
+            // this this is a cache hit, update the parameters
+            cache_map[masked_addr].access_count++;
+            cache_map[masked_addr].last_accessed = gem5::curTick();
+        }
+
+        // finally write a minimal replacement logic
+        bool replaceEntry(gem5::Addr masked_addr);
 
         // We need dual port stats for verification and results.
         struct StatGroup : public statistics::Group
@@ -417,8 +500,6 @@ class FlatTables : public ClockedObject
             // stored in the checker.
             statistics::Histogram maxStoredResponses;
 
-            // keep a track to total time spent on stalling the response packet
-            statistics::Histogram stallTime;
 
             // /** Count the number of incoming read packets */
             // statistics::Scalar numReadIncomingPackets;
@@ -429,6 +510,9 @@ class FlatTables : public ClockedObject
             // /** Create a histogram of the latencies of packets sent via this
             // port*/
             statistics::Histogram packetLatency;
+
+            // keep a track to total time spent on stalling the response packet
+            statistics::Histogram stallTime;
 
             // /** Create a histogram of the total outstanding packets */
             // statistics::Histogram outstandingPackets;

@@ -1,0 +1,738 @@
+{
+    "0": {
+        "metadata": {
+            "comment": "This is a simple host that runs STREAM remotely and record the time.",
+            "experiment": "stream-remote-16-nodes-pe",
+            "checkpoint": "",
+            "maxinsts": "",
+            "parallel-eff": "true"
+        },
+        "cpu": {
+            "ff-core": "kvm",
+            "roi-core": "o3",
+            "isa": "arm",
+            "count": "8"
+        },
+        "cache": {
+            "type": "l1l2l3",
+            "l1i-size": "32KiB",
+            "l1d-size": "32KiB",
+            "l2-size": "512KiB",
+            "l3-size": "8MiB",
+            "l3-assoc": "16"
+        },
+        "local-memory": {
+            "type": "ddr4",
+            "size": "2GiB"
+        },
+        "remote-memory": {
+            "size": "",
+            "shared": "false",
+            "latency": "250ns",
+            "start": "0x100000000",
+            "end": "0x180000000"
+        },
+        "workitem": {
+            "cmd": ["mount -t proc - /proc;",
+                    "mount -t sysfs - /sys;",
+                    "echo \"exp: starting STREAM remotely!\"\n",
+                    "numastat;",
+                    "numactl --membind=1 -- /home/ubuntu/simple-vectorizable-benchmarks/stream/stream.hw.m5 8388608;",
+                    "numastat;",
+                    "m5 --addr=0x10010000 exit;"],
+            "disk": "/home/kaustavg/disk-images/arm/arm64-hpc-2204-numa-kvm.img-20240304",
+            "kernel": "/home/kaustavg/vmlinux-5.4.49-NUMA.arm64",
+            "bootloader": "/home/kaustavg/kernel/arm/bootloader/arm64-bootloader"
+        }
+    },
+    "1": {
+        "metadata": {
+            "comment": "This is a simple host that runs STREAM remotely and record the time.",
+            "experiment": "stream-remote-16-nodes-pe",
+            "checkpoint": "",
+            "maxinsts": "",
+            "parallel-eff": "true"
+        },
+        "cpu": {
+            "ff-core": "kvm",
+            "roi-core": "o3",
+            "isa": "arm",
+            "count": "8"
+        },
+        "cache": {
+            "type": "l1l2l3",
+            "l1i-size": "32KiB",
+            "l1d-size": "32KiB",
+            "l2-size": "512KiB",
+            "l3-size": "8MiB",
+            "l3-assoc": "16"
+        },
+        "local-memory": {
+            "type": "ddr4",
+            "size": "2GiB"
+        },
+        "remote-memory": {
+            "size": "",
+            "shared": "false",
+            "latency": "250ns",
+            "start": "0x100000000",
+            "end": "0x180000000"
+        },
+        "workitem": {
+            "cmd": ["mount -t proc - /proc;",
+                    "mount -t sysfs - /sys;",
+                    "echo \"exp: starting STREAM remotely!\"\n",
+                    "numastat;",
+                    "numactl --membind=1 -- /home/ubuntu/simple-vectorizable-benchmarks/stream/stream.hw.m5 8388608;",
+                    "numastat;",
+                    "m5 --addr=0x10010000 exit;"],
+            "disk": "/home/kaustavg/disk-images/arm/arm64-hpc-2204-numa-kvm.img-20240304",
+            "kernel": "/home/kaustavg/vmlinux-5.4.49-NUMA.arm64",
+            "bootloader": "/home/kaustavg/kernel/arm/bootloader/arm64-bootloader"
+        }
+    },
+    "2": {
+        "metadata": {
+            "comment": "This is a simple host that runs STREAM remotely and record the time.",
+            "experiment": "stream-remote-16-nodes-pe",
+            "checkpoint": "",
+            "maxinsts": "",
+            "parallel-eff": "true"
+        },
+        "cpu": {
+            "ff-core": "kvm",
+            "roi-core": "o3",
+            "isa": "arm",
+            "count": "8"
+        },
+        "cache": {
+            "type": "l1l2l3",
+            "l1i-size": "32KiB",
+            "l1d-size": "32KiB",
+            "l2-size": "512KiB",
+            "l3-size": "8MiB",
+            "l3-assoc": "16"
+        },
+        "local-memory": {
+            "type": "ddr4",
+            "size": "2GiB"
+        },
+        "remote-memory": {
+            "size": "",
+            "shared": "false",
+            "latency": "250ns",
+            "start": "0x100000000",
+            "end": "0x180000000"
+        },
+        "workitem": {
+            "cmd": ["mount -t proc - /proc;",
+                    "mount -t sysfs - /sys;",
+                    "echo \"exp: starting STREAM remotely!\"\n",
+                    "numastat;",
+                    "numactl --membind=1 -- /home/ubuntu/simple-vectorizable-benchmarks/stream/stream.hw.m5 8388608;",
+                    "numastat;",
+                    "m5 --addr=0x10010000 exit;"],
+            "disk": "/home/kaustavg/disk-images/arm/arm64-hpc-2204-numa-kvm.img-20240304",
+            "kernel": "/home/kaustavg/vmlinux-5.4.49-NUMA.arm64",
+            "bootloader": "/home/kaustavg/kernel/arm/bootloader/arm64-bootloader"
+        }
+    },
+    "3": {
+        "metadata": {
+            "comment": "This is a simple host that runs STREAM remotely and record the time.",
+            "experiment": "stream-remote-16-nodes-pe",
+            "checkpoint": "",
+            "maxinsts": "",
+            "parallel-eff": "true"
+        },
+        "cpu": {
+            "ff-core": "kvm",
+            "roi-core": "o3",
+            "isa": "arm",
+            "count": "8"
+        },
+        "cache": {
+            "type": "l1l2l3",
+            "l1i-size": "32KiB",
+            "l1d-size": "32KiB",
+            "l2-size": "512KiB",
+            "l3-size": "8MiB",
+            "l3-assoc": "16"
+        },
+        "local-memory": {
+            "type": "ddr4",
+            "size": "2GiB"
+        },
+        "remote-memory": {
+            "size": "",
+            "shared": "false",
+            "latency": "250ns",
+            "start": "0x100000000",
+            "end": "0x180000000"
+        },
+        "workitem": {
+            "cmd": ["mount -t proc - /proc;",
+                    "mount -t sysfs - /sys;",
+                    "echo \"exp: starting STREAM remotely!\"\n",
+                    "numastat;",
+                    "numactl --membind=1 -- /home/ubuntu/simple-vectorizable-benchmarks/stream/stream.hw.m5 8388608;",
+                    "numastat;",
+                    "m5 --addr=0x10010000 exit;"],
+            "disk": "/home/kaustavg/disk-images/arm/arm64-hpc-2204-numa-kvm.img-20240304",
+            "kernel": "/home/kaustavg/vmlinux-5.4.49-NUMA.arm64",
+            "bootloader": "/home/kaustavg/kernel/arm/bootloader/arm64-bootloader"
+        }
+    },
+    "4": {
+        "metadata": {
+            "comment": "This is a simple host that runs STREAM remotely and record the time.",
+            "experiment": "stream-remote-16-nodes-pe",
+            "checkpoint": "",
+            "maxinsts": "",
+            "parallel-eff": "true"
+        },
+        "cpu": {
+            "ff-core": "kvm",
+            "roi-core": "o3",
+            "isa": "arm",
+            "count": "8"
+        },
+        "cache": {
+            "type": "l1l2l3",
+            "l1i-size": "32KiB",
+            "l1d-size": "32KiB",
+            "l2-size": "512KiB",
+            "l3-size": "8MiB",
+            "l3-assoc": "16"
+        },
+        "local-memory": {
+            "type": "ddr4",
+            "size": "2GiB"
+        },
+        "remote-memory": {
+            "size": "",
+            "shared": "false",
+            "latency": "250ns",
+            "start": "0x100000000",
+            "end": "0x180000000"
+        },
+        "workitem": {
+            "cmd": ["mount -t proc - /proc;",
+                    "mount -t sysfs - /sys;",
+                    "echo \"exp: starting STREAM remotely!\"\n",
+                    "numastat;",
+                    "numactl --membind=1 -- /home/ubuntu/simple-vectorizable-benchmarks/stream/stream.hw.m5 8388608;",
+                    "numastat;",
+                    "m5 --addr=0x10010000 exit;"],
+            "disk": "/home/kaustavg/disk-images/arm/arm64-hpc-2204-numa-kvm.img-20240304",
+            "kernel": "/home/kaustavg/vmlinux-5.4.49-NUMA.arm64",
+            "bootloader": "/home/kaustavg/kernel/arm/bootloader/arm64-bootloader"
+        }
+    },
+    "5": {
+        "metadata": {
+            "comment": "This is a simple host that runs STREAM remotely and record the time.",
+            "experiment": "stream-remote-16-nodes-pe",
+            "checkpoint": "",
+            "maxinsts": "",
+            "parallel-eff": "true"
+        },
+        "cpu": {
+            "ff-core": "kvm",
+            "roi-core": "o3",
+            "isa": "arm",
+            "count": "8"
+        },
+        "cache": {
+            "type": "l1l2l3",
+            "l1i-size": "32KiB",
+            "l1d-size": "32KiB",
+            "l2-size": "512KiB",
+            "l3-size": "8MiB",
+            "l3-assoc": "16"
+        },
+        "local-memory": {
+            "type": "ddr4",
+            "size": "2GiB"
+        },
+        "remote-memory": {
+            "size": "",
+            "shared": "false",
+            "latency": "250ns",
+            "start": "0x100000000",
+            "end": "0x180000000"
+        },
+        "workitem": {
+            "cmd": ["mount -t proc - /proc;",
+                    "mount -t sysfs - /sys;",
+                    "echo \"exp: starting STREAM remotely!\"\n",
+                    "numastat;",
+                    "numactl --membind=1 -- /home/ubuntu/simple-vectorizable-benchmarks/stream/stream.hw.m5 8388608;",
+                    "numastat;",
+                    "m5 --addr=0x10010000 exit;"],
+            "disk": "/home/kaustavg/disk-images/arm/arm64-hpc-2204-numa-kvm.img-20240304",
+            "kernel": "/home/kaustavg/vmlinux-5.4.49-NUMA.arm64",
+            "bootloader": "/home/kaustavg/kernel/arm/bootloader/arm64-bootloader"
+        }
+    },
+    "6": {
+        "metadata": {
+            "comment": "This is a simple host that runs STREAM remotely and record the time.",
+            "experiment": "stream-remote-16-nodes-pe",
+            "checkpoint": "",
+            "maxinsts": "",
+            "parallel-eff": "true"
+        },
+        "cpu": {
+            "ff-core": "kvm",
+            "roi-core": "o3",
+            "isa": "arm",
+            "count": "8"
+        },
+        "cache": {
+            "type": "l1l2l3",
+            "l1i-size": "32KiB",
+            "l1d-size": "32KiB",
+            "l2-size": "512KiB",
+            "l3-size": "8MiB",
+            "l3-assoc": "16"
+        },
+        "local-memory": {
+            "type": "ddr4",
+            "size": "2GiB"
+        },
+        "remote-memory": {
+            "size": "",
+            "shared": "false",
+            "latency": "250ns",
+            "start": "0x100000000",
+            "end": "0x180000000"
+        },
+        "workitem": {
+            "cmd": ["mount -t proc - /proc;",
+                    "mount -t sysfs - /sys;",
+                    "echo \"exp: starting STREAM remotely!\"\n",
+                    "numastat;",
+                    "numactl --membind=1 -- /home/ubuntu/simple-vectorizable-benchmarks/stream/stream.hw.m5 8388608;",
+                    "numastat;",
+                    "m5 --addr=0x10010000 exit;"],
+            "disk": "/home/kaustavg/disk-images/arm/arm64-hpc-2204-numa-kvm.img-20240304",
+            "kernel": "/home/kaustavg/vmlinux-5.4.49-NUMA.arm64",
+            "bootloader": "/home/kaustavg/kernel/arm/bootloader/arm64-bootloader"
+        }
+    },
+    "7": {
+        "metadata": {
+            "comment": "This is a simple host that runs STREAM remotely and record the time.",
+            "experiment": "stream-remote-16-nodes-pe",
+            "checkpoint": "",
+            "maxinsts": "",
+            "parallel-eff": "true"
+        },
+        "cpu": {
+            "ff-core": "kvm",
+            "roi-core": "o3",
+            "isa": "arm",
+            "count": "8"
+        },
+        "cache": {
+            "type": "l1l2l3",
+            "l1i-size": "32KiB",
+            "l1d-size": "32KiB",
+            "l2-size": "512KiB",
+            "l3-size": "8MiB",
+            "l3-assoc": "16"
+        },
+        "local-memory": {
+            "type": "ddr4",
+            "size": "2GiB"
+        },
+        "remote-memory": {
+            "size": "",
+            "shared": "false",
+            "latency": "250ns",
+            "start": "0x100000000",
+            "end": "0x180000000"
+        },
+        "workitem": {
+            "cmd": ["mount -t proc - /proc;",
+                    "mount -t sysfs - /sys;",
+                    "echo \"exp: starting STREAM remotely!\"\n",
+                    "numastat;",
+                    "numactl --membind=1 -- /home/ubuntu/simple-vectorizable-benchmarks/stream/stream.hw.m5 8388608;",
+                    "numastat;",
+                    "m5 --addr=0x10010000 exit;"],
+            "disk": "/home/kaustavg/disk-images/arm/arm64-hpc-2204-numa-kvm.img-20240304",
+            "kernel": "/home/kaustavg/vmlinux-5.4.49-NUMA.arm64",
+            "bootloader": "/home/kaustavg/kernel/arm/bootloader/arm64-bootloader"
+        }
+    },
+    "8": {
+        "metadata": {
+            "comment": "This is a simple host that runs STREAM remotely and record the time.",
+            "experiment": "stream-remote-16-nodes-pe",
+            "checkpoint": "",
+            "maxinsts": "",
+            "parallel-eff": "true"
+        },
+        "cpu": {
+            "ff-core": "kvm",
+            "roi-core": "o3",
+            "isa": "arm",
+            "count": "8"
+        },
+        "cache": {
+            "type": "l1l2l3",
+            "l1i-size": "32KiB",
+            "l1d-size": "32KiB",
+            "l2-size": "512KiB",
+            "l3-size": "8MiB",
+            "l3-assoc": "16"
+        },
+        "local-memory": {
+            "type": "ddr4",
+            "size": "2GiB"
+        },
+        "remote-memory": {
+            "size": "",
+            "shared": "false",
+            "latency": "250ns",
+            "start": "0x100000000",
+            "end": "0x180000000"
+        },
+        "workitem": {
+            "cmd": ["mount -t proc - /proc;",
+                    "mount -t sysfs - /sys;",
+                    "echo \"exp: starting STREAM remotely!\"\n",
+                    "numastat;",
+                    "numactl --membind=1 -- /home/ubuntu/simple-vectorizable-benchmarks/stream/stream.hw.m5 8388608;",
+                    "numastat;",
+                    "m5 --addr=0x10010000 exit;"],
+            "disk": "/home/kaustavg/disk-images/arm/arm64-hpc-2204-numa-kvm.img-20240304",
+            "kernel": "/home/kaustavg/vmlinux-5.4.49-NUMA.arm64",
+            "bootloader": "/home/kaustavg/kernel/arm/bootloader/arm64-bootloader"
+        }
+    },
+    "9": {
+        "metadata": {
+            "comment": "This is a simple host that runs STREAM remotely and record the time.",
+            "experiment": "stream-remote-16-nodes-pe",
+            "checkpoint": "",
+            "maxinsts": "",
+            "parallel-eff": "true"
+        },
+        "cpu": {
+            "ff-core": "kvm",
+            "roi-core": "o3",
+            "isa": "arm",
+            "count": "8"
+        },
+        "cache": {
+            "type": "l1l2l3",
+            "l1i-size": "32KiB",
+            "l1d-size": "32KiB",
+            "l2-size": "512KiB",
+            "l3-size": "8MiB",
+            "l3-assoc": "16"
+        },
+        "local-memory": {
+            "type": "ddr4",
+            "size": "2GiB"
+        },
+        "remote-memory": {
+            "size": "",
+            "shared": "false",
+            "latency": "250ns",
+            "start": "0x100000000",
+            "end": "0x180000000"
+        },
+        "workitem": {
+            "cmd": ["mount -t proc - /proc;",
+                    "mount -t sysfs - /sys;",
+                    "echo \"exp: starting STREAM remotely!\"\n",
+                    "numastat;",
+                    "numactl --membind=1 -- /home/ubuntu/simple-vectorizable-benchmarks/stream/stream.hw.m5 8388608;",
+                    "numastat;",
+                    "m5 --addr=0x10010000 exit;"],
+            "disk": "/home/kaustavg/disk-images/arm/arm64-hpc-2204-numa-kvm.img-20240304",
+            "kernel": "/home/kaustavg/vmlinux-5.4.49-NUMA.arm64",
+            "bootloader": "/home/kaustavg/kernel/arm/bootloader/arm64-bootloader"
+        }
+    },
+    "10": {
+        "metadata": {
+            "comment": "This is a simple host that runs STREAM remotely and record the time.",
+            "experiment": "stream-remote-16-nodes-pe",
+            "checkpoint": "",
+            "maxinsts": "",
+            "parallel-eff": "true"
+        },
+        "cpu": {
+            "ff-core": "kvm",
+            "roi-core": "o3",
+            "isa": "arm",
+            "count": "8"
+        },
+        "cache": {
+            "type": "l1l2l3",
+            "l1i-size": "32KiB",
+            "l1d-size": "32KiB",
+            "l2-size": "512KiB",
+            "l3-size": "8MiB",
+            "l3-assoc": "16"
+        },
+        "local-memory": {
+            "type": "ddr4",
+            "size": "2GiB"
+        },
+        "remote-memory": {
+            "size": "",
+            "shared": "false",
+            "latency": "250ns",
+            "start": "0x100000000",
+            "end": "0x180000000"
+        },
+        "workitem": {
+            "cmd": ["mount -t proc - /proc;",
+                    "mount -t sysfs - /sys;",
+                    "echo \"exp: starting STREAM remotely!\"\n",
+                    "numastat;",
+                    "numactl --membind=1 -- /home/ubuntu/simple-vectorizable-benchmarks/stream/stream.hw.m5 8388608;",
+                    "numastat;",
+                    "m5 --addr=0x10010000 exit;"],
+            "disk": "/home/kaustavg/disk-images/arm/arm64-hpc-2204-numa-kvm.img-20240304",
+            "kernel": "/home/kaustavg/vmlinux-5.4.49-NUMA.arm64",
+            "bootloader": "/home/kaustavg/kernel/arm/bootloader/arm64-bootloader"
+        }
+    },
+    "11": {
+        "metadata": {
+            "comment": "This is a simple host that runs STREAM remotely and record the time.",
+            "experiment": "stream-remote-16-nodes-pe",
+            "checkpoint": "",
+            "maxinsts": "",
+            "parallel-eff": "true"
+        },
+        "cpu": {
+            "ff-core": "kvm",
+            "roi-core": "o3",
+            "isa": "arm",
+            "count": "8"
+        },
+        "cache": {
+            "type": "l1l2l3",
+            "l1i-size": "32KiB",
+            "l1d-size": "32KiB",
+            "l2-size": "512KiB",
+            "l3-size": "8MiB",
+            "l3-assoc": "16"
+        },
+        "local-memory": {
+            "type": "ddr4",
+            "size": "2GiB"
+        },
+        "remote-memory": {
+            "size": "",
+            "shared": "false",
+            "latency": "250ns",
+            "start": "0x100000000",
+            "end": "0x180000000"
+        },
+        "workitem": {
+            "cmd": ["mount -t proc - /proc;",
+                    "mount -t sysfs - /sys;",
+                    "echo \"exp: starting STREAM remotely!\"\n",
+                    "numastat;",
+                    "numactl --membind=1 -- /home/ubuntu/simple-vectorizable-benchmarks/stream/stream.hw.m5 8388608;",
+                    "numastat;",
+                    "m5 --addr=0x10010000 exit;"],
+            "disk": "/home/kaustavg/disk-images/arm/arm64-hpc-2204-numa-kvm.img-20240304",
+            "kernel": "/home/kaustavg/vmlinux-5.4.49-NUMA.arm64",
+            "bootloader": "/home/kaustavg/kernel/arm/bootloader/arm64-bootloader"
+        }
+    },
+    "12": {
+        "metadata": {
+            "comment": "This is a simple host that runs STREAM remotely and record the time.",
+            "experiment": "stream-remote-16-nodes-pe",
+            "checkpoint": "",
+            "maxinsts": "",
+            "parallel-eff": "true"
+        },
+        "cpu": {
+            "ff-core": "kvm",
+            "roi-core": "o3",
+            "isa": "arm",
+            "count": "8"
+        },
+        "cache": {
+            "type": "l1l2l3",
+            "l1i-size": "32KiB",
+            "l1d-size": "32KiB",
+            "l2-size": "512KiB",
+            "l3-size": "8MiB",
+            "l3-assoc": "16"
+        },
+        "local-memory": {
+            "type": "ddr4",
+            "size": "2GiB"
+        },
+        "remote-memory": {
+            "size": "",
+            "shared": "false",
+            "latency": "250ns",
+            "start": "0x100000000",
+            "end": "0x180000000"
+        },
+        "workitem": {
+            "cmd": ["mount -t proc - /proc;",
+                    "mount -t sysfs - /sys;",
+                    "echo \"exp: starting STREAM remotely!\"\n",
+                    "numastat;",
+                    "numactl --membind=1 -- /home/ubuntu/simple-vectorizable-benchmarks/stream/stream.hw.m5 8388608;",
+                    "numastat;",
+                    "m5 --addr=0x10010000 exit;"],
+            "disk": "/home/kaustavg/disk-images/arm/arm64-hpc-2204-numa-kvm.img-20240304",
+            "kernel": "/home/kaustavg/vmlinux-5.4.49-NUMA.arm64",
+            "bootloader": "/home/kaustavg/kernel/arm/bootloader/arm64-bootloader"
+        }
+    },
+    "13": {
+        "metadata": {
+            "comment": "This is a simple host that runs STREAM remotely and record the time.",
+            "experiment": "stream-remote-16-nodes-pe",
+            "checkpoint": "",
+            "maxinsts": "",
+            "parallel-eff": "true"
+        },
+        "cpu": {
+            "ff-core": "kvm",
+            "roi-core": "o3",
+            "isa": "arm",
+            "count": "8"
+        },
+        "cache": {
+            "type": "l1l2l3",
+            "l1i-size": "32KiB",
+            "l1d-size": "32KiB",
+            "l2-size": "512KiB",
+            "l3-size": "8MiB",
+            "l3-assoc": "16"
+        },
+        "local-memory": {
+            "type": "ddr4",
+            "size": "2GiB"
+        },
+        "remote-memory": {
+            "size": "",
+            "shared": "false",
+            "latency": "250ns",
+            "start": "0x100000000",
+            "end": "0x180000000"
+        },
+        "workitem": {
+            "cmd": ["mount -t proc - /proc;",
+                    "mount -t sysfs - /sys;",
+                    "echo \"exp: starting STREAM remotely!\"\n",
+                    "numastat;",
+                    "numactl --membind=1 -- /home/ubuntu/simple-vectorizable-benchmarks/stream/stream.hw.m5 8388608;",
+                    "numastat;",
+                    "m5 --addr=0x10010000 exit;"],
+            "disk": "/home/kaustavg/disk-images/arm/arm64-hpc-2204-numa-kvm.img-20240304",
+            "kernel": "/home/kaustavg/vmlinux-5.4.49-NUMA.arm64",
+            "bootloader": "/home/kaustavg/kernel/arm/bootloader/arm64-bootloader"
+        }
+    },
+    "14": {
+        "metadata": {
+            "comment": "This is a simple host that runs STREAM remotely and record the time.",
+            "experiment": "stream-remote-16-nodes-pe",
+            "checkpoint": "",
+            "maxinsts": "",
+            "parallel-eff": "true"
+        },
+        "cpu": {
+            "ff-core": "kvm",
+            "roi-core": "o3",
+            "isa": "arm",
+            "count": "8"
+        },
+        "cache": {
+            "type": "l1l2l3",
+            "l1i-size": "32KiB",
+            "l1d-size": "32KiB",
+            "l2-size": "512KiB",
+            "l3-size": "8MiB",
+            "l3-assoc": "16"
+        },
+        "local-memory": {
+            "type": "ddr4",
+            "size": "2GiB"
+        },
+        "remote-memory": {
+            "size": "",
+            "shared": "false",
+            "latency": "250ns",
+            "start": "0x100000000",
+            "end": "0x180000000"
+        },
+        "workitem": {
+            "cmd": ["mount -t proc - /proc;",
+                    "mount -t sysfs - /sys;",
+                    "echo \"exp: starting STREAM remotely!\"\n",
+                    "numastat;",
+                    "numactl --membind=1 -- /home/ubuntu/simple-vectorizable-benchmarks/stream/stream.hw.m5 8388608;",
+                    "numastat;",
+                    "m5 --addr=0x10010000 exit;"],
+            "disk": "/home/kaustavg/disk-images/arm/arm64-hpc-2204-numa-kvm.img-20240304",
+            "kernel": "/home/kaustavg/vmlinux-5.4.49-NUMA.arm64",
+            "bootloader": "/home/kaustavg/kernel/arm/bootloader/arm64-bootloader"
+        }
+    },
+    "15": {
+        "metadata": {
+            "comment": "This is a simple host that runs STREAM remotely and record the time.",
+            "experiment": "stream-remote-16-nodes-pe",
+            "checkpoint": "",
+            "maxinsts": "",
+            "parallel-eff": "true"
+        },
+        "cpu": {
+            "ff-core": "kvm",
+            "roi-core": "o3",
+            "isa": "arm",
+            "count": "8"
+        },
+        "cache": {
+            "type": "l1l2l3",
+            "l1i-size": "32KiB",
+            "l1d-size": "32KiB",
+            "l2-size": "512KiB",
+            "l3-size": "8MiB",
+            "l3-assoc": "16"
+        },
+        "local-memory": {
+            "type": "ddr4",
+            "size": "2GiB"
+        },
+        "remote-memory": {
+            "size": "",
+            "shared": "false",
+            "latency": "250ns",
+            "start": "0x100000000",
+            "end": "0x180000000"
+        },
+        "workitem": {
+            "cmd": ["mount -t proc - /proc;",
+                    "mount -t sysfs - /sys;",
+                    "echo \"exp: starting STREAM remotely!\"\n",
+                    "numastat;",
+                    "numactl --membind=1 -- /home/ubuntu/simple-vectorizable-benchmarks/stream/stream.hw.m5 8388608;",
+                    "numastat;",
+                    "m5 --addr=0x10010000 exit;"],
+            "disk": "/home/kaustavg/disk-images/arm/arm64-hpc-2204-numa-kvm.img-20240304",
+            "kernel": "/home/kaustavg/vmlinux-5.4.49-NUMA.arm64",
+            "bootloader": "/home/kaustavg/kernel/arm/bootloader/arm64-bootloader"
+        }
+    }
+}

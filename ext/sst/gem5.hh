@@ -105,6 +105,13 @@ class gem5Component: public SST::Component
     int execPythonCommands(const std::vector<std::string>& commands);
 
   private:
+    bool flag;
+    // A variable is needed to store the starting time of the checkpoint.
+    uint64_t base_time;
+    // We need to know who ended the simulation. If SST ends the simulation
+    // using --end-at, then we must make sure that the stats are dumped by SST
+    // for each of the gem5 instance.
+    bool did_gem5_end;
     SST::Output output;
     uint64_t clocksProcessed;
     SST::TimeConverter* timeConverter;

@@ -1,0 +1,174 @@
+{
+    "0": {
+        "metadata": {
+            "comment": "This is a simple host that runs STREAM locally. The node uses kvm to ff the simulation w/ systemd.",
+            "experiment": "stream-local-4-nodes",
+            "checkpoint": "",
+            "maxinsts": ""
+        },
+        "cpu": {
+            "ff-core": "kvm",
+            "roi-core": "o3",
+            "isa": "arm",
+            "count": "8"
+        },
+        "cache": {
+            "type": "l1l2l3",
+            "l1i-size": "32KiB",
+            "l1d-size": "32KiB",
+            "l2-size": "512KiB",
+            "l3-size": "8MiB",
+            "l3-assoc": "16"
+        },
+        "local-memory": {
+            "type": "ddr4",
+            "size": "2GiB"
+        },
+        "remote-memory": {
+            "size": "",
+            "shared": "false",
+            "latency": "250ns",
+            "start": "0x100000000",
+            "end": "0x180000000"
+        },
+        "workitem": {
+            "cmd": ["echo \"exp: starting STREAM locally!\"\n",
+                    "numastat;",
+                    "numactl --membind=0 -- /home/ubuntu/simple-vectorizable-benchmarks/stream/stream.hw.m5 8388608;",
+                    "numastat;",
+                    "m5 --addr=0x10010000 exit;"],
+            "disk": "/home/kaustavg/disk-images/arm/arm64-hpc-2204-numa-kvm.img-20240304",
+            "kernel": "/home/kaustavg/vmlinux-5.4.49-NUMA.arm64",
+            "bootloader": "/home/kaustavg/kernel/arm/bootloader/arm64-bootloader"
+        }
+    },
+    "1": {
+        "metadata": {
+            "comment": "This is a simple host that runs STREAM locally. The node uses kvm to ff the simulation w/ systemd.",
+            "experiment": "stream-local-4-nodes",
+            "checkpoint": "",
+            "maxinsts": ""
+        },
+        "cpu": {
+            "ff-core": "kvm",
+            "roi-core": "o3",
+            "isa": "arm",
+            "count": "8"
+        },
+        "cache": {
+            "type": "l1l2l3",
+            "l1i-size": "32KiB",
+            "l1d-size": "32KiB",
+            "l2-size": "512KiB",
+            "l3-size": "8MiB",
+            "l3-assoc": "16"
+        },
+        "local-memory": {
+            "type": "ddr4",
+            "size": "2GiB"
+        },
+        "remote-memory": {
+            "size": "",
+            "shared": "false",
+            "latency": "250ns",
+            "start": "0x180000000",
+            "end": "0x200000000"
+        },
+        "workitem": {
+            "cmd": ["echo \"exp: starting STREAM locally!\"\n",
+                    "numastat;",
+                    "numactl --membind=0 -- /home/ubuntu/simple-vectorizable-benchmarks/stream/stream.hw.m5 8388608;",
+                    "numastat;",
+                    "m5 --addr=0x10010000 exit;"],
+            "disk": "/home/kaustavg/disk-images/arm/arm64-hpc-2204-numa-kvm.img-20240304",
+            "kernel": "/home/kaustavg/vmlinux-5.4.49-NUMA.arm64",
+            "bootloader": "/home/kaustavg/kernel/arm/bootloader/arm64-bootloader"
+        }
+    },
+    "2": {
+        "metadata": {
+            "comment": "This is a simple host that runs STREAM locally. The node uses kvm to ff the simulation w/ systemd.",
+            "experiment": "stream-local-4-nodes",
+            "checkpoint": "",
+            "maxinsts": ""
+        },
+        "cpu": {
+            "ff-core": "kvm",
+            "roi-core": "o3",
+            "isa": "arm",
+            "count": "8"
+        },
+        "cache": {
+            "type": "l1l2l3",
+            "l1i-size": "32KiB",
+            "l1d-size": "32KiB",
+            "l2-size": "512KiB",
+            "l3-size": "8MiB",
+            "l3-assoc": "16"
+        },
+        "local-memory": {
+            "type": "ddr4",
+            "size": "2GiB"
+        },
+        "remote-memory": {
+            "size": "",
+            "shared": "false",
+            "latency": "250ns",
+            "start": "0x200000000",
+            "end": "0x280000000"
+        },
+        "workitem": {
+            "cmd": ["echo \"exp: starting STREAM locally!\"\n",
+                    "numastat;",
+                    "numactl --membind=0 -- /home/ubuntu/simple-vectorizable-benchmarks/stream/stream.hw.m5 8388608;",
+                    "numastat;",
+                    "m5 --addr=0x10010000 exit;"],
+            "disk": "/home/kaustavg/disk-images/arm/arm64-hpc-2204-numa-kvm.img-20240304",
+            "kernel": "/home/kaustavg/vmlinux-5.4.49-NUMA.arm64",
+            "bootloader": "/home/kaustavg/kernel/arm/bootloader/arm64-bootloader"
+        }
+    },
+    "3": {
+        "metadata": {
+            "comment": "This is a simple host that runs STREAM locally. The node uses kvm to ff the simulation w/ systemd.",
+            "experiment": "stream-local-4-nodes",
+            "checkpoint": "",
+            "maxinsts": ""
+        },
+        "cpu": {
+            "ff-core": "kvm",
+            "roi-core": "o3",
+            "isa": "arm",
+            "count": "8"
+        },
+        "cache": {
+            "type": "l1l2l3",
+            "l1i-size": "32KiB",
+            "l1d-size": "32KiB",
+            "l2-size": "512KiB",
+            "l3-size": "8MiB",
+            "l3-assoc": "16"
+        },
+        "local-memory": {
+            "type": "ddr4",
+            "size": "2GiB"
+        },
+        "remote-memory": {
+            "size": "",
+            "shared": "false",
+            "latency": "250ns",
+            "start": "0x280000000",
+            "end": "0x300000000"
+        },
+        "workitem": {
+            "cmd": ["echo \"exp: starting STREAM locally!\"\n",
+                    "numastat;",
+                    "numactl --membind=0 -- /home/ubuntu/simple-vectorizable-benchmarks/stream/stream.hw.m5 8388608;",
+                    "numastat;",
+                    "m5 --addr=0x10010000 exit;"],
+            "disk": "/home/kaustavg/disk-images/arm/arm64-hpc-2204-numa-kvm.img-20240304",
+            "kernel": "/home/kaustavg/vmlinux-5.4.49-NUMA.arm64",
+            "bootloader": "/home/kaustavg/kernel/arm/bootloader/arm64-bootloader"
+        }
+    }
+}

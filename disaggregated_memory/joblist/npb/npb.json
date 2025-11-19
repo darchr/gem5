@@ -1,0 +1,316 @@
+{
+    "0": {
+        "metadata": {
+            "comment": "This is a simple host that runs NPB bt.D remotely (11GiB).",
+            "experiment": "npb-7-nodes-1s",
+            "checkpoint": "",
+            "max-time": "1s",
+            "parallel-eff": ""
+        },
+        "cpu": {
+            "ff-core": "kvm",
+            "roi-core": "o3",
+            "isa": "arm",
+            "count": "8"
+        },
+        "cache": {
+            "type": "l1l2l3",
+            "l1i-size": "32KiB",
+            "l1d-size": "32KiB",
+            "l2-size": "512KiB",
+            "l3-size": "8MiB",
+            "l3-assoc": "16"
+        },
+        "local-memory": {
+            "type": "ddr4",
+            "size": "8GiB"
+        },
+        "remote-memory": {
+            "size": "",
+            "shared": "false",
+            "latency": "250ns",
+            "start": "0x280000000",
+            "end": "0x540000000"
+        },
+        "workitem": {
+            "cmd": ["echo \"exp: starting bt.D remotely!\"\n",
+                    "numastat;",
+                    "numactl --preferred=0 -- /home/ubuntu/NPB/NPB3.4-OMP/bin/bt.D.x;",
+                    "numastat;",
+                    "m5 --addr=0x10010000 exit;"],
+            "disk": "/home/kaustavg/disk-images/arm/arm64-hpc-2204-numa-kvm.img-20240304",
+            "kernel": "/home/kaustavg/vmlinux-5.4.49-NUMA.arm64",
+            "bootloader": "/home/kaustavg/kernel/arm/bootloader/arm64-bootloader"
+        }
+    },
+    "1": {
+        "metadata": {
+            "comment": "This is a simple host that runs NPB cg.D remotely (17GiB).",
+            "experiment": "npb-7-nodes-1s",
+            "checkpoint": "",
+            "maxinsts": "",
+            "max-time": "1s",
+            "parallel-eff": ""
+        },
+        "cpu": {
+            "ff-core": "kvm",
+            "roi-core": "o3",
+            "isa": "arm",
+            "count": "8"
+        },
+        "cache": {
+            "type": "l1l2l3",
+            "l1i-size": "32KiB",
+            "l1d-size": "32KiB",
+            "l2-size": "512KiB",
+            "l3-size": "8MiB",
+            "l3-assoc": "16"
+        },
+        "local-memory": {
+            "type": "ddr4",
+            "size": "8GiB"
+        },
+        "remote-memory": {
+            "size": "",
+            "shared": "false",
+            "latency": "250ns",
+            "start": "0x540000000",
+            "end": "0x980000000"
+        },
+        "workitem": {
+            "cmd": ["echo \"exp: starting cg.D remotely!\"\n",
+                    "numastat;",
+                    "numactl --preferred=0 -- /home/ubuntu/NPB/NPB3.4-OMP/bin/cg.D.x;",
+                    "numastat;",
+                    "m5 --addr=0x10010000 exit;"],
+            "disk": "/home/kaustavg/disk-images/arm/arm64-hpc-2204-numa-kvm.img-20240304",
+            "kernel": "/home/kaustavg/vmlinux-5.4.49-NUMA.arm64",
+            "bootloader": "/home/kaustavg/kernel/arm/bootloader/arm64-bootloader"
+        }
+    },
+    "2": {
+        "metadata": {
+            "comment": "This is a simple host that runs NPB ep.D remotely (1GiB).",
+            "experiment": "npb-7-nodes-1s",
+            "checkpoint": "",
+            "maxinsts": "",
+            "max-time": "1s",
+            "parallel-eff": ""
+        },
+        "cpu": {
+            "ff-core": "kvm",
+            "roi-core": "o3",
+            "isa": "arm",
+            "count": "8"
+        },
+        "cache": {
+            "type": "l1l2l3",
+            "l1i-size": "32KiB",
+            "l1d-size": "32KiB",
+            "l2-size": "512KiB",
+            "l3-size": "8MiB",
+            "l3-assoc": "16"
+        },
+        "local-memory": {
+            "type": "ddr4",
+            "size": "8GiB"
+        },
+        "remote-memory": {
+            "size": "",
+            "shared": "false",
+            "latency": "250ns",
+            "start": "0x980000000",
+            "end": "0x9C0000000"
+        },
+        "workitem": {
+            "cmd": ["echo \"exp: starting ep.D remotely!\"\n",
+                    "numastat;",
+                    "numactl --preferred=0 -- /home/ubuntu/NPB/NPB3.4-OMP/bin/ep.D.x;",
+                    "numastat;",
+                    "m5 --addr=0x10010000 exit;"],
+            "disk": "/home/kaustavg/disk-images/arm/arm64-hpc-2204-numa-kvm.img-20240304",
+            "kernel": "/home/kaustavg/vmlinux-5.4.49-NUMA.arm64",
+            "bootloader": "/home/kaustavg/kernel/arm/bootloader/arm64-bootloader"
+        }
+    },
+    "3": {
+        "metadata": {
+            "comment": "This is a simple host that runs NPB ft.D remotely (85GiB).",
+            "experiment": "npb-7-nodes-1s",
+            "checkpoint": "",
+            "maxinsts": "",
+            "max-time": "1s",
+            "parallel-eff": ""
+        },
+        "cpu": {
+            "ff-core": "kvm",
+            "roi-core": "o3",
+            "isa": "arm",
+            "count": "8"
+        },
+        "cache": {
+            "type": "l1l2l3",
+            "l1i-size": "32KiB",
+            "l1d-size": "32KiB",
+            "l2-size": "512KiB",
+            "l3-size": "8MiB",
+            "l3-assoc": "16"
+        },
+        "local-memory": {
+            "type": "ddr4",
+            "size": "8GiB"
+        },
+        "remote-memory": {
+            "size": "",
+            "shared": "false",
+            "latency": "250ns",
+            "start": "0x9C0000000",
+            "end": "0x1F00000000"
+        },
+        "workitem": {
+            "cmd": ["echo \"exp: starting ft.D remotely!\"\n",
+                    "numastat;",
+                    "numactl --preferred=0 -- /home/ubuntu/NPB/NPB3.4-OMP/bin/ft.D.x;",
+                    "numastat;",
+                    "m5 --addr=0x10010000 exit;"],
+            "disk": "/home/kaustavg/disk-images/arm/arm64-hpc-2204-numa-kvm.img-20240304",
+            "kernel": "/home/kaustavg/vmlinux-5.4.49-NUMA.arm64",
+            "bootloader": "/home/kaustavg/kernel/arm/bootloader/arm64-bootloader"
+        }
+    },
+    "4": {
+        "metadata": {
+            "comment": "This is a simple host that runs NPB mg.D remotely (27GiB).",
+            "experiment": "npb-7-nodes-1s",
+            "checkpoint": "",
+            "maxinsts": "",
+            "max-time": "1s",
+            "parallel-eff": ""
+        },
+        "cpu": {
+            "ff-core": "kvm",
+            "roi-core": "o3",
+            "isa": "arm",
+            "count": "8"
+        },
+        "cache": {
+            "type": "l1l2l3",
+            "l1i-size": "32KiB",
+            "l1d-size": "32KiB",
+            "l2-size": "512KiB",
+            "l3-size": "8MiB",
+            "l3-assoc": "16"
+        },
+        "local-memory": {
+            "type": "ddr4",
+            "size": "8GiB"
+        },
+        "remote-memory": {
+            "size": "",
+            "shared": "false",
+            "latency": "250ns",
+            "start": "0x1F00000000",
+            "end": "0x25C0000000"
+        },
+        "workitem": {
+            "cmd": ["echo \"exp: starting mg.D remotely!\"\n",
+                    "numastat;",
+                    "numactl --preferred=0 -- /home/ubuntu/NPB/NPB3.4-OMP/bin/mg.D.x;",
+                    "numastat;",
+                    "m5 --addr=0x10010000 exit;"],
+            "disk": "/home/kaustavg/disk-images/arm/arm64-hpc-2204-numa-kvm.img-20240304",
+            "kernel": "/home/kaustavg/vmlinux-5.4.49-NUMA.arm64",
+            "bootloader": "/home/kaustavg/kernel/arm/bootloader/arm64-bootloader"
+        }
+    },
+    "5": {
+        "metadata": {
+            "comment": "This is a simple host that runs NPB sp.D remotely (12GiB).",
+            "experiment": "npb-7-nodes-1s",
+            "checkpoint": "",
+            "maxinsts": "",
+            "max-time": "1s",
+            "parallel-eff": ""
+        },
+        "cpu": {
+            "ff-core": "kvm",
+            "roi-core": "o3",
+            "isa": "arm",
+            "count": "8"
+        },
+        "cache": {
+            "type": "l1l2l3",
+            "l1i-size": "32KiB",
+            "l1d-size": "32KiB",
+            "l2-size": "512KiB",
+            "l3-size": "8MiB",
+            "l3-assoc": "16"
+        },
+        "local-memory": {
+            "type": "ddr4",
+            "size": "8GiB"
+        },
+        "remote-memory": {
+            "size": "",
+            "shared": "false",
+            "latency": "250ns",
+            "start": "0x25C0000000",
+            "end": "0x28C0000000"
+        },
+        "workitem": {
+            "cmd": ["echo \"exp: starting sp.D remotely!\"\n",
+                    "numastat;",
+                    "numactl --preferred=0 -- /home/ubuntu/NPB/NPB3.4-OMP/bin/sp.D.x;",
+                    "numastat;",
+                    "m5 --addr=0x10010000 exit;"],
+            "disk": "/home/kaustavg/disk-images/arm/arm64-hpc-2204-numa-kvm.img-20240304",
+            "kernel": "/home/kaustavg/vmlinux-5.4.49-NUMA.arm64",
+            "bootloader": "/home/kaustavg/kernel/arm/bootloader/arm64-bootloader"
+        }
+    },
+    "6": {
+        "metadata": {
+            "comment": "This is a simple host that runs NPB ua.D remotely (8GiB).",
+            "experiment": "npb-7-nodes-1s",
+            "checkpoint": "",
+            "maxinsts": "",
+            "max-time": "1s",
+            "parallel-eff": ""
+        },
+        "cpu": {
+            "ff-core": "kvm",
+            "roi-core": "o3",
+            "isa": "arm",
+            "count": "8"
+        },
+        "cache": {
+            "type": "l1l2l3",
+            "l1i-size": "32KiB",
+            "l1d-size": "32KiB",
+            "l2-size": "512KiB",
+            "l3-size": "8MiB",
+            "l3-assoc": "16"
+        },
+        "local-memory": {
+            "type": "ddr4",
+            "size": "8GiB"
+        },
+        "remote-memory": {
+            "size": "",
+            "shared": "false",
+            "latency": "250ns",
+            "start": "0x28C0000000",
+            "end": "0x2AC0000000"
+        },
+        "workitem": {
+            "cmd": ["echo \"exp: starting ua.D remotely!\"\n",
+                    "numastat;",
+                    "numactl --preferred=0 -- /home/ubuntu/NPB/NPB3.4-OMP/bin/ua.D.x;",
+                    "numastat;",
+                    "m5 --addr=0x10010000 exit;"],
+            "disk": "/home/kaustavg/disk-images/arm/arm64-hpc-2204-numa-kvm.img-20240304",
+            "kernel": "/home/kaustavg/vmlinux-5.4.49-NUMA.arm64",
+            "bootloader": "/home/kaustavg/kernel/arm/bootloader/arm64-bootloader"
+        }
+    }
+}

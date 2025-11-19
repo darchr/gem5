@@ -45,8 +45,10 @@
 // from gem5
 #include <sim/sim_object.hh>
 #include <sst/outgoing_request_bridge.hh>
+#include <sst/external_memory.hh>
 #include <sim/root.hh>
 #include <sst/sst_responder_interface.hh>
+#include <mem/backdoor.hh>
 
 #include "translator.hh"
 #include "sst_responder.hh"
@@ -54,10 +56,15 @@
 class SSTResponderSubComponent: public SST::SubComponent
 {
   private:
-    gem5::OutgoingRequestBridge* responseReceiver;
+    // gem5::OutgoingRequestBridge* responseReceiver;
+    // responseReceiver for this branch is hardcoded to ExternalMemory*.
+    // TODO: We need to make a better design to handle multiple types of
+    // outgoing request classes.
+    gem5::ExternalMemory* responseReceiver;
     gem5::SSTResponderInterface* sstResponder;
 
     SST::Interfaces::StandardMem* memoryInterface;
+    // SST::MemHierarchy::Backend::Backing* backingStore;
     SST::TimeConverter* timeConverter;
     SST::Output* output;
     std::queue<gem5::PacketPtr> responseQueue;
@@ -66,6 +73,9 @@ class SSTResponderSubComponent: public SST::SubComponent
 
     std::string gem5SimObjectName;
     std::string memSize;
+    uint64_t processed_addr;
+    int count_limit;
+    int phases_needed;
 
   public:
     SSTResponderSubComponent(SST::ComponentId_t id, SST::Params& params);
@@ -75,7 +85,8 @@ class SSTResponderSubComponent: public SST::SubComponent
     void setTimeConverter(SST::TimeConverter* tc);
     void setOutputStream(SST::Output* output_);
 
-    void setResponseReceiver(gem5::OutgoingRequestBridge* gem5_bridge);
+    // void setResponseReceiver(gem5::OutgoingRequestBridge* gem5_bridge);
+    void setResponseReceiver(gem5::ExternalMemory* gem5_bridge);
     void portEventHandler(SST::Interfaces::StandardMem::Request* request);
 
     bool blocked();

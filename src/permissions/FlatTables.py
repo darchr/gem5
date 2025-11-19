@@ -157,20 +157,32 @@ class FlatTables(ClockedObject):
     hit_latency = Param.Tick(10, "Latency to forward packets")
     miss_latency = Param.Tick(50, "This must be a variable latency.")
 
-    # For the MMP cache, there needs to be a size and the caching policy.
-    # FIXME
-    cache_size = Param.Int(1024, "Size of the MMP cache")
-    cache_policy = Param.String(
-        "lru",
-        "caching policy of the MMP cache. \
-                            Must be lru, mru random.",
-    )
+    # Modeling the cache correctly. This is lg(total_Cache_entries)
+    cache_lookup_latency = Param.Tick(5, "Latency to lookup an entry")
+    cache_entry_creation_latency = Param.Tick(1, "Cache entry creation"
+                                                " latency")
 
     # need to specify the start of the remote memory
     remote_memory_start = Param.UInt64(0x0, "remote memory start address")
 
     # need to define the size of the memory
     total_memory_size = Param.UInt64(0x0, "Size of the memory")
+
+    # local memory sizes are needed for mondrain as it does permission checks
+    # for the entire memory range. For the hardcoded x86 board, the memory
+    # cannot start at 0x0.
+    local_memory_start = Param.UInt64(0x0, "remote memory start address")
+    local_memory_end = Param.UInt64(0x0, "remote memory end address")
+
+
+    # For the MMP cache, there needs to be a size and the caching policy.
+    # FIXME
+    cache_size = Param.UInt64(1024, "Size of the MMP cache in Bytes")
+    cache_policy = Param.String(
+        "lru",
+        "caching policy of the MMP cache. \
+                            Must be lru, mru random.",
+    )
 
     # Need to define a segment size for which default permissions are defined
     segment_size = Param.UInt64(4096, "By default, the segment is of 4 KiB")

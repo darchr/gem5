@@ -7,6 +7,7 @@
 #include "debug/PermissionPackets.hh"
 #include "debug/RemoteAddress.hh"
 #include "debug/PermissionResponses.hh"
+#include "debug/PermissionCaching.hh"
 
 namespace gem5 {
 
@@ -24,8 +25,12 @@ FlatTables::FlatTables(const FlatTablesParams &params) :
     creationLatency(params.creation_latency),
     hitLatency(params.hit_latency),
     missLatency(params.miss_latency),
+    cacheLookupLatency(params.cache_lookup_latency),
+    cacheEntryCreationLatency(params.cache_entry_creation_latency),
     remoteMemoryStart(params.remote_memory_start),
     totalMemorySize(params.total_memory_size),
+    localMemoryStart(params.local_memory_start),
+    localMemoryEnd(params.local_memory_end),
     cacheSize(params.cache_size),
     segmentSize(params.segment_size),
     cachePolicy(params.cache_policy),
@@ -67,9 +72,19 @@ FlatTables::FlatTables(const FlatTablesParams &params) :
     panic_if(remoteMemoryStart == 0,
         "define the start of the remote memory in the permission object!\n");
     // if the user wants mondi, they need to define the segment size
-    if (model_state == gem5::model::MONDRIAN)
-        panic_if(segmentSize == 0, "Cannot simulate mondrian with segment"
-                            " size set to 0\n");
+    if (model_state == gem5::model::MONDRIAN) {
+        // logic: there is a start and an address with permissions
+        panic_if(segmentSize != 16, "Cannot simulate mondrian with segment"
+                            " size set to anything other than 16B\n");
+        // mondi also requires the start and end addresses of the local memory
+        panic_if(localMemoryStart == 0x0, "Set the local memory's start and "
+                                        "end addresses correctly!");
+        panic_if(localMemoryEnd == 0x0, "Set the local memory's start and "
+                                        "end addresses correctly!");
+    }
+    panic_if(
+        model_state == gem5::model::SPACE_CONTROL && segmentSize == CACHE_LINE,
+        "Entry size for space control must be the same as PPN!");
 
     
     // extending the PLB model, we need to implement the number of lookups
@@ -85,28 +100,32 @@ FlatTables::FlatTables(const FlatTablesParams &params) :
                             model_state == gem5::model::DEACT) &&
                             (segmentSize != 4096), "Flat tables are expected "
                             " to be the same as PPN 4096!\n");
-    total_entries = totalMemorySize / segmentSize;
 
-    // the user can override the max attempts providing a number_of_entries.
-    if (numberOfEntries != 0) {
+    if (model_state == gem5::model::DEACT || model_state == gem5::model::FLAT_TABLE)
+        // For flat tables, each 4K page has a different permission entry
+        total_entries = totalMemorySize / PPN_MASK;
+    else {
+
+        // The user needs to provide the number of entries in mondrian and
+        // out technique
+        assert(numberOfEntries != 0);
+
         warn("number_of_entries is not 0!, overriding the number of entries!");
         // the user can set the total entries foe each PPN. this is the WC for
         // mondi and us
-        worst_case = (totalMemorySize / 4096 == numberOfEntries) ? true: false;
+        worst_case = ((totalMemorySize / PPN_MASK) == numberOfEntries)
+                     ? true: false;
         total_entries = numberOfEntries;
-        fatal_if(model_state == gem5::model::FLAT_TABLE || 
-                            model_state == gem5::model::DEACT,
-                "cannot have number of entries specified for flat tables\n");
     }
 
     DPRINTF(FlatPermissionTables,
-            "MMP table has %lu entries\n", total_entries);
+            "Permission table has %lu entries\n", total_entries);
 
     // All plb packets will be of size 64 bytes. This will always be 64.
     permission_block_size = 64;
 
-    // FIXME:
-    // All plb packets will be of READ type.
+    // All permission packets will be of READ type, unless the drive is trying
+    // to write to the table. This will always happen in KVM/INIT state.
     permission_cmd = MemCmd::ReadReq;
 
     // warn the user that this will be ignored for flat tables
@@ -115,6 +134,8 @@ FlatTables::FlatTables(const FlatTablesParams &params) :
     }
     else if (model_state == gem5::model::DEACT) {
         // each memory request cannot be more than 64 bytes.
+        // In this implementation, DeACT still does 1 access.
+        assert(permissionEntrySize == 64);
         max_search_attempts = permissionEntrySize / permission_block_size;
     }
     else {
@@ -150,33 +171,42 @@ FlatTables::FlatTables(const FlatTablesParams &params) :
 
     // create a mask for the the segment size. Each cached entry will be 64 B
     // and each segment table size will be segmentSize.
-    segment_mask = 0xFFFFFFFF & !(segmentSize - 1);
+    // TODO: Marked for deletion
+    // segment_mask = 0xFFFFFFFF & !(segmentSize - 1);
 
-    // cache_mask = 0xFFFFFFF0;
+    // Space control needs to model the caches.
+    if (model_state == gem5::model::SPACE_CONTROL) {
+        if (useDedicatedCaching) {
+            fatal_if(cacheLookupLatency == 0, "Cannot have an instantaneous"
+                                    " cache look up latency");
+            fatal_if(cacheEntryCreationLatency == 0, "Cannot have an"
+                                    " instantaneous cache creation latency");
+        
+            // next up, we need to fix the cache_mask (64 bytes)
+            cache_mask = CACHE_LINE;
+        }
+        panic_if(segmentSize != CACHE_LINE, "Cannot simulate SC with segment"
+                            " size set to anything other than 64B\n");
+        // Now set up the cache. We don't really need a lot of cache to maintain
+        // this table.
+        // We maintain a couple of states of the address in the cache. I am keeping
+        // a couple of values to make sure that it is compatible with all types of
+        // caches.
+        // address, [is_cached (bool), last_accessed (Tick), access_count (int)]
+        // The map is initialized with a dummy entry in the beginning. We might
+        // remove this in the future.
+        // permission_table.insert({uint64_t(-1), new struct cache_entry_vector});
 
-    // The number of the entries in MMP is variable and we need to count the
-    // varying number of entries
-    permission_table_entries = 0;
+        // Whether an entry is cached or not is detemined by the number of
+        // is_cache number.
+        total_cached_entries = 0;
 
-    // Now set up the cache. We don't really need a lot of cache to maintain
-    // this table.
-    // We maintain a couple of states of the address in the cache. I am keeping
-    // a couple of values to make sure that it is compatible with all tyoes of
-    // caches.
-    // address, [is_cached (bool), last_accessed (Tick), access_count (int)]
-    // The map is initialized with a dummy entry in the beginning. We might
-    // remove this in the future.
-    // permission_table.insert({uint64_t(-1), new struct cache_entry_vector});
-
-    // Whether an entry is cached or not is detemined by the number of
-    // is_cache number.
-    total_cached_entries = 0;
-
-    // need to figure out the maximum number of cachable entries.
-    max_cached_entries = cacheSize / 2;
-
-    DPRINTF(FlatPermissionTables, "MMP cache has %lu entries\n",
+        // need to figure out the maximum number of cachable entries. cacheSize
+        // is in Bytes.
+        max_cached_entries = cacheSize / 64;
+        DPRINTF(PermissionCaching, "Permission cache has %lu entries\n",
                                                         max_cached_entries);
+    }
     
     // mshrs
     mshrs_occupied = 0;
@@ -194,12 +224,12 @@ FlatTables::FlatTables(const FlatTablesParams &params) :
     // only
     else if (model_state == gem5::model::MONDRIAN) {
         // the table is fixed -> just 1. the entries vary.
-        table_size = 0x40000000;
+        table_size = ONE_G;
     }
     else if (model_state == gem5::model::SPACE_CONTROL) {
         // similar to MONDRIAN
         // the table is fixed -> just 1. the entries vary.
-        table_size = 0x40000000;
+        table_size = ONE_G;
     }
 
     // cache_policy = cachePolicy;
@@ -219,6 +249,7 @@ FlatTables::getAddrRanges() const
 }
 
 Tick
+        // I don't want any unforseen 
 FlatTables::recvAtomic(PacketPtr pkt)
 {
     memSidePort.sendAtomic(pkt);
@@ -457,20 +488,31 @@ FlatTables::getMondrianAddress(Addr addr) {
     // this needs to a bit hand waved. there is either single entry or all ppn
     // entries
     if (!worst_case) {
-        // there is just one 16B entry in the entire table
+        // there is just one 16B entry in the entire table. Each entry is defined
+        // by the segmentSize.
         return baseAddrPermissionTable + (hostID * 16);
     }
     else {
         // make sure that the permission table is always stored in the remote
         // memory. for local addresses, just return the base address
-        if (!isInRemoteRange(addr))
+        if (!isInRemoteRange(addr)) {
+            // Estimation
             return baseAddrPermissionTable + (hostID * 16);
-        Addr base = baseAddrPermissionTable + (hostID * (total_entries / 16))
-                                                         + (addr / 0x1000);
-        Addr offset = (addr / 0x1000) % 4;
+        }
+        // based on the host, we first get first index
+        // each table size = (total_entries / segmentSize)
+        Addr base = baseAddrPermissionTable +                   // base
+                    (hostID * (total_entries * segmentSize)) +  // which table
+                    ((addr - remoteMemoryStart) / PPN_MASK) * segmentSize;
+                    // entry in the table
+        // The exact offset (since there are 4x16Bytes in one cache line)
+        // since each entry is cache aligned, you should not send the
+        // offset.
+        // Addr offset = (((addr - remoteMemoryStart) / PPN_MASK) * segmentSize)
+        //                 % (CACHE_LINE / segmentSize);
         // I don't want any unforseen consequences
-        assert(isInPermissionRange(base + offset));
-        return base + offset;
+        assert(isInPermissionRange(base));
+        return base;
     }
     // the number of entries is only relevant to model lookup time as a binary
     // search.
@@ -488,14 +530,19 @@ FlatTables::getSpaceControlAddress(Addr addr) {
     // this needs to a bit hand waved. there is either single entry or all ppn
     // entries
     if (!worst_case) {
+        // there is only a single entry that starts where the table starts.
         return baseAddrPermissionTable;
     }
     else {
-        Addr base = baseAddrPermissionTable + (addr / 0x1000);
-        Addr offset = (addr / 0x1000);
+        // each entry is of 64 bytes (i.e. segmentSize). Every 4K page has
+        // different permissions!
+        Addr base = baseAddrPermissionTable + 
+                    ((addr - remoteMemoryStart) / PPN_MASK) * segmentSize;
+        // There is no offset in Space Control as each entry is always cache
+        // aligned.
         // I don't want any unforseen consequences
-        assert(isInPermissionRange(base + offset));
-        return base + offset;
+        assert(isInPermissionRange(base));
+        return base;
     }
     // the number of entries is only relevant to model lookup time as a binary
     // search.
@@ -610,6 +657,128 @@ FlatTables::recvTimingReqMondrian(PacketPtr pkt, uint64_t packet_id) {
 }
 bool
 FlatTables::recvTimingReqDeACT(PacketPtr pkt, uint64_t packet_id) {
+    // we're going with the simple logic
+    if (enablePermissionCheck) {
+        // enable permissions for remote memory addresses only
+        if (isInRemoteRange(pkt->getAddr())) { // && permission_checker[pkt->getAddr()] == false) {
+            // checking for permissions. assume that every 4 KiB page has
+            // access bits per host.
+            // queue all permission packets into the packet queue and let the
+            // regular packets go through naturally
+
+            // if (!waitingForCpuRetry) {
+            // DeACT needs two memory lookups: one for the ACM and the other
+            // for the shared bitmap
+            Addr acm_addr = getDeACTAddress(pkt->getAddr(), false);
+            Addr bitmap_addr = getDeACTAddress(pkt->getAddr(), true);
+
+
+            if (useDedicatedCaching) {
+                // cache the packet
+                assert(false && "Not implemented error!");
+            }
+            // Request::Flags flags;
+            RequestPtr acm_req = std::make_shared<Request>(acm_addr,
+                                                        1,
+                                                        pkt->req->getFlags(),
+                                                        pkt->requestorId());
+            // cannot send a higher memory packet than the cache-line size
+            // TODO in the class contructor
+            PacketPtr acm_pkt = new Packet(acm_req, permission_cmd,
+                                                        permissionEntrySize);
+            // TODO:
+            // make sure that the SenderState is correctly set.
+            // req->setFlags(Request::VALID_SIZE);
+            // permission_pkt->setSize(permissionEntrySize);
+
+            // system caches should not be used for permission packets. This
+            // should always be enabled.
+            acm_pkt->req->setFlags(Request::UNCACHEABLE);
+
+            acm_pkt->allocate();
+            // what is the sender state?
+            acm_pkt->senderState = new PermissionSenderState(pkt);
+
+            // this is the additonal latency required for the packet creation.
+            schedule(new EventFunctionWrapper([this, acm_pkt]{ },
+                name() + ".accessEvent", true),
+                clockEdge(static_cast<Cycles>(creationLatency)));
+            
+            // don't send the packet, instead create an event!
+            permission_packets.push(acm_pkt);
+
+            // Now create another packet for the bitmap lookup
+            // Request::Flags flags;
+            RequestPtr bitmap_req = std::make_shared<Request>(bitmap_addr,
+                                                        1,
+                                                        pkt->req->getFlags(),
+                                                        pkt->requestorId());
+            // cannot send a higher memory packet than the cache-line size
+            // TODO in the class contructor
+            PacketPtr bitmap_pkt = new Packet(bitmap_req, permission_cmd,
+                                                        permissionEntrySize);
+            // TODO:
+            // make sure that the SenderState is correctly set.
+            // req->setFlags(Request::VALID_SIZE);
+            // permission_pkt->setSize(permissionEntrySize);
+
+            // system caches should not be used for permission packets. This
+            // should always be enabled.
+            bitmap_pkt->req->setFlags(Request::UNCACHEABLE);
+
+            bitmap_pkt->allocate();
+            // what is the sender state?
+            bitmap_pkt->senderState = new PermissionSenderState(pkt);
+
+            // this is the additonal latency required for the packet creation.
+            schedule(new EventFunctionWrapper([this, bitmap_pkt]{ },
+                name() + ".accessEvent", true),
+                clockEdge(static_cast<Cycles>(creationLatency)));
+            
+            // don't send the packet, instead create an event!
+            permission_packets.push(bitmap_pkt);
+
+
+
+            // schedule an event to process this packet
+            if (!event.scheduled())
+                schedule(event, clockEdge(Cycles(1)));
+
+            // make an event to send this packet later.
+            // back pressure must be modeled in the resp side!
+        }
+        // now send the real packet.
+        // business as usual. if the permission packet is not sent, then this part
+        // of the code will never reach.
+
+        // now that there are two channels of sending packets, we need to make
+        // sure that the xbar is ready to receive real packets.
+        if (memSidePort.sendTimingReq(pkt)) {
+            // Send successful, keep the packet_id for later.s
+            DPRINTF(PermissionPackets, "Sent pkt %#x!\n",
+                                        pkt->getAddr());
+            portMap[pkt->id] = packet_id;
+
+            // since this packet was sent successfully, increase the memside
+            // packets
+            ++stats.numOutgoingMemSidePackets;
+
+            // keep the time on when this packet was sent from the permission
+            // checker to the memory. this is only true for real packets with
+            // permission checks
+            if (isInRemoteRange(pkt->getAddr()))
+                outstanding_packets[pkt] = gem5::curTick();
+
+            return true;
+        }
+        
+        // the actual packet was unsuccessful
+        DPRINTF(PermissionPackets, "Failed to send pkt %#x!\n", pkt->getAddr());
+        waitingForCpuRetry = true;
+        retry_queue.push(packet_id);
+        return false;
+    }
+    fatal("should be unreachable");
     return false;
 }
 bool
@@ -710,56 +879,128 @@ FlatTables::recvTimingReqSpaceControl(PacketPtr pkt, uint64_t packet_id) {
             // regular packets go through naturally
 
             // if (!waitingForCpuRetry) {
-            Addr permission_addr = getFlatTableAddress(pkt->getAddr());
+            Addr permission_addr = getSpaceControlAddress(pkt->getAddr());
             if (useDedicatedCaching) {
                 // cache the packet
-                assert(false && "Not implemented error!");
-            }
+                // assert(false && "Not implemented error!");
+                // 1. we need to find out the addr
+                // 2. see if that packet is cached.
+                // 3. if not, then send the memory request.
+                
+                // generate all the addresses to send.
+                int miss_count = 0;
+                for (int i = 0 ; i < max_search_attempts ; i++) {
+                    // this is a binary address list.
+                    permission_addr = getSpaceControlAddress(pkt->getAddr());
+                    
+                    // see if this is cached.
+                    if (isCached(maskAddr(permission_addr))) {
+                        DPRINTF(PermissionCaching,
+                            "Permission add %x is cached and simulated with"
+                            " hit time  %lu\n", pkt->getAddr(), hitLatency);
+                        incrementCounts(maskAddr(permission_addr));
+                        // schedule a lookup with cache hit
+                        schedule(new EventFunctionWrapper([this, pkt]{ },
+                            name() + ".accessEvent", true),
+                            clockEdge(static_cast<Cycles>(hitLatency)));
+                        // Important to note here that if all the lookup 
+                        // packets needed to verify this request are cached,
+                        // then you don't need to enforce the permission check 
+                        // by stalling the packet at the response end.
+                    }
+                    // if this packet is not cached, create a lookup packet
+                    else {
+                        DPRINTF(PermissionCaching,
+                            "Permission add %x is cached and simulated with"
+                            " hit time  %lu\n", pkt->getAddr(), hitLatency);
+                        miss_count++;
+                        // need to create a permission lookup packet
+                        RequestPtr req = std::make_shared<Request>(
+                                                        permission_addr,
+                                                        1,
+                                                        pkt->req->getFlags(),
+                                                        pkt->requestorId());
+                        // cannot send a higher memory packet than the
+                        // cache-line size: This is already addressed.
+                        PacketPtr permission_pkt = new Packet(req,
+                                                        permission_cmd,
+                                                        permissionEntrySize);
+                        // TODO:
+                        // make sure that the SenderState is correctly set.
+                        // req->setFlags(Request::VALID_SIZE);
+                        // permission_pkt->setSize(permissionEntrySize);
 
-            // for all tghe number of permisison lookups, there are a lot of
-            // permission packets
-            for (int i = 0 ; i < max_search_attempts ; i++) { 
-                // Request::Flags flags;
-                RequestPtr req = std::make_shared<Request>(permission_addr,
+                        // system caches should not be used for permission
+                        // packets. This should always be enabled.
+                        permission_pkt->req->setFlags(Request::UNCACHEABLE);
+
+                        permission_pkt->allocate();
+                        // what is the sender state?
+                        permission_pkt->senderState =
+                                                new PermissionSenderState(pkt);
+
+                        // this is the additonal latency required for the packet
+                        // creation.
+                        schedule(new EventFunctionWrapper(
+                            [this, permission_pkt]{ },
+                            name() + ".accessEvent", true),
+                            clockEdge(static_cast<Cycles>(creationLatency)));
+                        
+                        // don't send the packet, instead create an event!
+                        permission_packets.push(permission_pkt);
+                    }
+                }
+                if (miss_count == 0)
+                    // the packet doesn't need enforcement.
+                    permission_response_tracker[pkt->getAddr()] =
+                                                        max_search_attempts;
+            }
+            else {
+                // for all tghe number of permisison lookups, there are a lot of
+                // permission packets
+                for (int i = 0 ; i < max_search_attempts ; i++) { 
+                    // Request::Flags flags;
+                    RequestPtr req = std::make_shared<Request>(permission_addr,
                                                             1,
                                                             pkt->req->getFlags(),
                                                             pkt->requestorId());
-                // cannot send a higher memory packet than the cache-line size
-                // TODO in the class contructor
-                PacketPtr permission_pkt = new Packet(req, permission_cmd,
+                    // cannot send a higher memory packet than the cache-line size
+                    // TODO in the class contructor
+                    PacketPtr permission_pkt = new Packet(req, permission_cmd,
                                                             permissionEntrySize);
-                // TODO:
-                // make sure that the SenderState is correctly set.
-                // req->setFlags(Request::VALID_SIZE);
-                // permission_pkt->setSize(permissionEntrySize);
+                    // TODO:
+                    // make sure that the SenderState is correctly set.
+                    // req->setFlags(Request::VALID_SIZE);
+                    // permission_pkt->setSize(permissionEntrySize);
 
-                // system caches should not be used for permission packets. This
-                // should always be enabled.
-                permission_pkt->req->setFlags(Request::UNCACHEABLE);
+                    // system caches should not be used for permission packets. This
+                    // should always be enabled.
+                    permission_pkt->req->setFlags(Request::UNCACHEABLE);
 
-                permission_pkt->allocate();
-                // what is the sender state?
-                permission_pkt->senderState = new PermissionSenderState(pkt);
+                    permission_pkt->allocate();
+                    // what is the sender state?
+                    permission_pkt->senderState = new PermissionSenderState(pkt);
 
-                // this is the additonal latency required for the packet creation.
-                schedule(new EventFunctionWrapper([this, permission_pkt]{ },
-                    name() + ".accessEvent", true),
-                    clockEdge(static_cast<Cycles>(creationLatency)));
-                
-                // don't send the packet, instead create an event!
+                    // this is the additonal latency required for the packet creation.
+                    schedule(new EventFunctionWrapper([this, permission_pkt]{ },
+                        name() + ".accessEvent", true),
+                        clockEdge(static_cast<Cycles>(creationLatency)));
+                    
+                    // don't send the packet, instead create an event!
 
-                permission_packets.push(permission_pkt);
+                    permission_packets.push(permission_pkt);
+                }
+
+                // just schedule one event and the queue will start getting
+                // processed
+                // schedule an event to process this packet
+                if (!permission_packets.empty())
+                    if (!event.scheduled())
+                        schedule(event, clockEdge(Cycles(1)));
+
+                // make an event to send this packet later.
+                // back pressure must be modeled in the resp side!
             }
-
-            // just schedule one event and the queue will start getting
-            // processed
-            // schedule an event to process this packet
-            if (!permission_packets.empty())
-                if (!event.scheduled())
-                    schedule(event, clockEdge(Cycles(1)));
-
-            // make an event to send this packet later.
-            // back pressure must be modeled in the resp side!
         }
         else {
             // our design still checks for the C-bit
@@ -926,6 +1167,7 @@ FlatTables::recvTimingReq(PacketPtr pkt, uint64_t packet_id) {
         // the number of hosts determine the metadata lookup. Then there needs
         // to be another lookup to figure out the process ID. Why shall we
         // optimize their work?
+        return recvTimingReqDeACT(pkt, packet_id);
     }
     else if (model_state == gem5::model::FLAT_TABLE) {
         // the simplest implementation
@@ -994,7 +1236,7 @@ FlatTables::getBinarySearchPermissionTableAddr(int attempt) {
     // XXX: Assumption: the permission table is always 1 GiB with
     // 2 less entries
     Addr table_start = 0x80;        // 128 bytes
-    Addr table_end = 0x40000000;    // 1 GiB
+    Addr table_end = ONE_G;    // 1 GiB
 
     // since we have a table size of 32 GiB, we need ~0.49 GiB of permission
     // table.
@@ -1006,7 +1248,7 @@ FlatTables::getBinarySearchPermissionTableAddr(int attempt) {
 
     // must always be cache-line sized 
     assert(addr % 0x40 == 0 && (addr >= baseAddrPermissionTable &&
-            addr < baseAddrPermissionTable + 0x40000000));
+            addr < baseAddrPermissionTable + ONE_G));
 
     // XXX: This is unimplemented with the ID
     return addr;
@@ -1155,6 +1397,7 @@ FlatTables::recvTimingRespMondrian(PacketPtr pkt) {
 
 bool
 FlatTables::recvTimingRespDeACT(PacketPtr pkt) {
+    assert(false && "Not implemented error!\n");
     return false;
 }
 
@@ -1189,6 +1432,26 @@ FlatTables::recvTimingRespSpaceControl(PacketPtr pkt) {
             permission_response_tracker[originalAddr]++;
             // FIXME:
             // For caching, this matters a lot
+            if (useDedicatedCaching) {
+                assert(false && "not implemented yet!\n");
+                // store the permission packet in the cache. there will be a
+                // cache access
+                ++stats.numPermissionTableAccesses;
+
+                // see if there is space
+                if (doesCacheHaveSpace()) {
+                    // get the permission entry's 64 byte length address
+                    addCacheEntry(maskAddr(pkt->getAddr()));
+                    // there needs to be a cache lookup time implemented for
+                    // accurate modeling
+                    
+                }
+                else {
+                    // replace an entry based on the policy and store the cache
+                    // line
+                    assert(replaceEntry(pkt->getAddr()));
+                }
+            }
 
             // make the request packet 0 or decrease by 1
 
@@ -1487,6 +1750,74 @@ FlatTables::startup() {
 //             permission_response_tracker[originalAddr],
 //             mshrs_occupied);
 // }
+
+// ------------------------------- caches ---------------------------------- //
+
+bool
+FlatTables::isCached(gem5::Addr masked_addr) {
+    auto entry = cache_map.find(masked_addr);
+    if (entry == cache_map.end())
+        // not found!
+        return false;
+    // cache hit!
+    ++stats.numPermissionTableCacheHits;
+    return true;
+}
+bool
+FlatTables::replaceEntry(gem5::Addr masked_addr) {
+    if (cache_policy == "lru") {
+        // find the entry with the minimum 
+        gem5::Tick oldest = gem5::MaxTick;
+        gem5::Addr key = 0;
+        for (auto &it : cache_map) {
+            if (cache_map[it.first].last_accessed < oldest) {
+                key = it.first;
+                oldest = cache_map[it.first].last_accessed;
+            }
+        }
+        // replace the oldest entry
+        cache_map.erase(key);
+        number_of_entries--;
+        addCacheEntry(masked_addr);
+    }
+    else if (cache_policy == "mru") {
+        // find the entry with the minimum 
+        gem5::Tick youngest = 0;
+        gem5::Addr key = 0;
+        for (auto &it : cache_map) {
+            if (cache_map[it.first].last_accessed > youngest) {
+                key = it.first;
+                youngest = cache_map[it.first].last_accessed;
+            }
+        }
+        // replace the oldest entry
+        cache_map.erase(key);
+        number_of_entries--;
+        addCacheEntry(masked_addr);
+    }
+    else if (cache_policy == "counter") {
+        // this replacement policy kicks out the least used entry from the
+        // table
+        gem5::Tick least_used = 0;
+        gem5::Addr key = 0;
+        for (auto &it : cache_map) {
+            if (cache_map[it.first].access_count > least_used) {
+                key = it.first;
+                least_used = cache_map[it.first].access_count;
+            }
+        }
+        // replace the oldest entry
+        cache_map.erase(key);
+        number_of_entries--;
+        addCacheEntry(masked_addr);
+    }
+    else {
+        fatal("unknown caching policy\n");
+        return false;
+    }
+    return true;
+}
+
 
 FlatTables::StatGroup::StatGroup(statistics::Group *parent)
     : statistics::Group(parent),

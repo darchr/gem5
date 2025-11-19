@@ -29,7 +29,12 @@
 #define __NEW_META_HH__
 
 namespace gem5 {
-
+// 1 GB is reserved for the permission table
+#define ONE_G 0x40000000
+// Cache lines are always 64 bytes
+#define CACHE_LINE 0x40
+// Then there are ppn mask  (4096)
+#define PPN_MASK 0x1000
 // FIXME:
 // We need a template for a queue and a set. There can be multiple entries in
 // the template for a given address to figure out where is the ID.

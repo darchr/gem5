@@ -191,6 +191,7 @@ gem5Component::gem5Component(SST::ComponentId_t id, SST::Params& params):
         sstPorts[i]->setTimeConverter(timeConverter);
         sstPorts[i]->setOutputStream(&(output));
     }
+    flag = false;
 }
 
 gem5Component::~gem5Component()
@@ -212,11 +213,14 @@ gem5Component::init(unsigned phase)
             "import m5",
             "import m5.stats",
             "import m5.objects.Root",
+            "import _m5.drain",
+            "_drain_manager = _m5.drain.DrainManager.instance()",
             "root = m5.objects.Root.getInstance()",
             "for obj in root.descendants(): obj.startup()",
             "atexit.register(m5.stats.dump)",
             "atexit.register(_m5.core.doExitCleanup)",
-            "m5.stats.reset()"
+            "m5.stats.reset()",
+            "if _drain_manager.isDrained(): _drain_manager.resume()"
         };
         execPythonCommands(simobject_setup_commands);
 
@@ -249,12 +253,29 @@ gem5Component::setup()
     for (auto &port : sstPorts) {
         port->setup();
     }
+    // This needs to be in the class constructor!
+    // Assume that gem5 hasn't ended the simulation and SST will jsut pretend
+    // this throughout the simulation.
+    did_gem5_end = false;
 }
 
 void
 gem5Component::finish()
 {
     output.verbose(CALL_INFO, 1, 0, "Component is being finished.\n");
+    // In case SST wants to end the simulation here using a simulate ticks or
+    // wallclock time, we need to create and exit event in gem5 and drop the
+    // statistics. But we need to know if the stats are already dumped by gem5
+    // or not.
+    if (did_gem5_end == false) {
+        // It's SST's moral responsibility to end the simulation here and dump
+        // the stats of each of the gem5 nodes.
+        const std::vector<std::string> dumping_commands = {
+            "import m5.stats",
+            "m5.stats.dump()",
+        };
+        execPythonCommands(dumping_commands);
+    }
 }
 
 bool
@@ -265,25 +286,60 @@ gem5Component::clockTick(SST::Cycle_t currentCycle)
     clocksProcessed++;
     // gem5 exits due to reasons other than reaching simulation limit
     if (event != gem5::simulate_limit_event) {
+        bool return_value = false;
         output.output("exiting: curTick()=%lu cause=`%s` code=%d\n",
             gem5::curTick(), event->getCause().c_str(), event->getCode()
         );
+        if (strcmp(event->getCause().c_str(), "workbegin") == 0) {
+            const std::vector<std::string> output_stats_commands = {
+                "import m5.stats",
+                "m5.stats.reset()",
+            };
+            execPythonCommands(output_stats_commands);
+            return false;
+        }
+        else if (strcmp(event->getCause().c_str(), "workend") == 0) {
+            const std::vector<std::string> output_stats_commands = {
+                "import m5.stats",
+                "m5.stats.dump()",
+            };
+            execPythonCommands(output_stats_commands);
+            // return false;
+        }
         // output gem5 stats
         const std::vector<std::string> output_stats_commands = {
             "import m5.stats",
-            "m5.stats.dump()"
+            "m5.stats.dump()",
         };
         execPythonCommands(output_stats_commands);
 
+        // gem5 has dumped the stats, make sure the stats aren't dumped again!
+        did_gem5_end = true;
         primaryComponentOKToEndSim();
         return true;
     }
+        // if I executed 1 us of time, end the simulation
+        // cycle -> 1 cycles = 0.25 nano sec
+        if (currentCycle >= 4000000000) {
+            // assert(gem5::curTick() > base_time);
+            std::cout << gem5::curTick() << " " << base_time << std::endl;
 
+            const std::vector<std::string> output_stats_commands = {
+                "import m5.stats",
+                "m5.stats.dump()",
+            };
+            execPythonCommands(output_stats_commands);
+            // its okay to end gem5 now
+       
+        // gem5 has dumped the stats, make sure the stats aren't dumped again!
+        did_gem5_end = true;
+        primaryComponentOKToEndSim();
+        return true;
+        }
     // returning False means the simulation should go on
     return false;
 
 }
-
 #define PyCC(x) (const_cast<char *>(x))
 
 gem5::GlobalSimLoopExitEvent*
@@ -298,8 +354,12 @@ gem5Component::simulateGem5(uint64_t current_cycle)
     // Tick conversion
     // The main logic for synchronize SST Tick and gem5 Tick is here.
     // next_end_tick = current_cycle * timeConverter->getFactor()
+    if (flag == false) {
+        flag = true;
+        base_time = gem5::curTick();
+    }
     uint64_t next_end_tick = \
-        timeConverter->convertToCoreTime(current_cycle);
+        timeConverter->convertToCoreTime(current_cycle) + base_time;
 
     // Here, if the next event in gem5's queue is not executed within the next
     // cycle, there's no need to enter the gem5's sim loop.
