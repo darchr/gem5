@@ -83,7 +83,7 @@ FlatTables::FlatTables(const FlatTablesParams &params) :
                                         "end addresses correctly!");
     }
     panic_if(
-        model_state == gem5::model::SPACE_CONTROL && segmentSize == CACHE_LINE,
+        model_state == gem5::model::SPACE_CONTROL && segmentSize != CACHE_LINE,
         "Entry size for space control must be the same as PPN!");
 
     
@@ -237,8 +237,13 @@ FlatTables::FlatTables(const FlatTablesParams &params) :
     // permission_cache_line_size = 64;
     // number_of_entries = total_cache_size / permission_cache_line_size;
 
+    // avoid class variable assignment
+    waiting_for_cpu_retry = false;
+    waiting_for_mem_retry = false;
 
-    // auto permission_cache = new gem5::PermissionCache();
+    need_to_drain = false;
+
+    inflight_packets = 0;
 
 }
 
@@ -268,11 +273,21 @@ FlatTables::recvFunctional(PacketPtr pkt)
 // }
 
 void
+FlatTables::createDrainEvent() {
+    assert(need_to_drain);
+    DPRINTF(PermissionCheckpoint, "Draing: req: %lu, resp: %lu, flight: %lu\n",
+        permission_packets.size(), response_packets.size(), inflight_packets);
+
+    if (!event.scheduled())
+        schedule(event, clockEdge(Cycles(1)));
+}
+
+void
 FlatTables::processEvent() {
     // To have a non-infinite cache for flat tables, we need a version with
     // process events.
     DPRINTF(PermissionPackets, "Items to process %lu, current state %d\n",
-                                permission_packets.size(), waitingForCpuRetry);
+                                permission_packets.size(), waiting_for_cpu_retry);
     if (!permission_packets.empty()) {
         processPermissionRequest();
     }
@@ -281,6 +296,22 @@ FlatTables::processEvent() {
     if (!response_packets.empty())
         processPendingResponse();
     //     // recvRespRetry(0);
+
+    // the user wants to drain this into a checkpoint. make sure everything is
+    // ready
+    if (need_to_drain == true) {
+        // see if there are more events
+        DPRINTF(PermissionCheckpoint,
+        "stats :: Draing: req: %lu, resp: %lu, flight: %lu\n",
+        permission_packets.size(), response_packets.size(), inflight_packets);
+        if (permission_packets.empty() && response_packets.empty() && inflight_packets == 0) {
+            signalDrainDone();
+        } 
+        // else there are more events.
+        
+        if (!event.scheduled())
+            schedule(event, clockEdge(Cycles(1)));
+    }
 }
 
 void
@@ -305,7 +336,7 @@ FlatTables::processPendingResponse() {
             }
             else {
                 // packet sending failed!
-                waitingForMemRetry = true;
+                waiting_for_mem_retry = true;
             }
             
         }
@@ -323,7 +354,7 @@ FlatTables::processPendingResponse() {
 // void
 // FlatTables::processPermissionRequest() {
 //     // i am not waiting for the retry
-//     if (!waitingForCpuRetry) {
+//     if (!waiting_for_cpu_retry) {
 //         PacketPtr pkt = permission_packets.front();
 //         if (memSidePort.sendTimingReq(pkt)) {
 //             mshrs_occupied++;
@@ -351,7 +382,7 @@ FlatTables::processPendingResponse() {
 //         }
 //         else {
 //             // permission packet failed
-//             waitingForCpuRetry = true;
+//             waiting_for_cpu_retry = true;
 
 //         }
 //     }
@@ -365,7 +396,7 @@ FlatTables::processPendingResponse() {
 void
 FlatTables::processPermissionRequest() {
     // i am not waiting for the retry
-    if (!waitingForCpuRetry) {
+    if (!waiting_for_cpu_retry) {
         PacketPtr pkt = permission_packets.front();
         if (memSidePort.sendTimingReq(pkt)) {
 
@@ -405,7 +436,7 @@ FlatTables::processPermissionRequest() {
         }
         else {
             // permission packet failed
-            waitingForCpuRetry = true;
+            waiting_for_cpu_retry = true;
 
         }
     }
@@ -559,7 +590,7 @@ FlatTables::recvTimingReqMondrian(PacketPtr pkt, uint64_t packet_id) {
             // queue all permission packets into the packet queue and let the
             // regular packets go through naturally
 
-            // if (!waitingForCpuRetry) {
+            // if (!waiting_for_cpu_retry) {
             Addr permission_addr = getMondrianAddress(pkt->getAddr());
             if (useDedicatedCaching) {
                 // cache the packet
@@ -619,7 +650,7 @@ FlatTables::recvTimingReqMondrian(PacketPtr pkt, uint64_t packet_id) {
         // sure that the xbar is ready to receive real packets.
 
         // this port might be filled up
-        bool to_process = (!waitingForCpuRetry);
+        bool to_process = (!waiting_for_cpu_retry);
 
         // if this is a snoop request, then you have to let it go;
         if (!(pkt->isRead() || pkt->isWrite()))
@@ -648,7 +679,7 @@ FlatTables::recvTimingReqMondrian(PacketPtr pkt, uint64_t packet_id) {
         
         // the actual packet was unsuccessful
         DPRINTF(PermissionPackets, "Failed to send pkt %#x!\n", pkt->getAddr());
-        waitingForCpuRetry = true;
+        waiting_for_cpu_retry = true;
         retry_queue.push(packet_id);
         return false;
     }
@@ -666,7 +697,7 @@ FlatTables::recvTimingReqDeACT(PacketPtr pkt, uint64_t packet_id) {
             // queue all permission packets into the packet queue and let the
             // regular packets go through naturally
 
-            // if (!waitingForCpuRetry) {
+            // if (!waiting_for_cpu_retry) {
             // DeACT needs two memory lookups: one for the ACM and the other
             // for the shared bitmap
             Addr acm_addr = getDeACTAddress(pkt->getAddr(), false);
@@ -774,7 +805,7 @@ FlatTables::recvTimingReqDeACT(PacketPtr pkt, uint64_t packet_id) {
         
         // the actual packet was unsuccessful
         DPRINTF(PermissionPackets, "Failed to send pkt %#x!\n", pkt->getAddr());
-        waitingForCpuRetry = true;
+        waiting_for_cpu_retry = true;
         retry_queue.push(packet_id);
         return false;
     }
@@ -861,7 +892,7 @@ FlatTables::recvTimingReqSpaceControl(PacketPtr pkt, uint64_t packet_id) {
         
     //     // the actual packet was unsuccessful
     //     DPRINTF(PermissionPackets, "Failed to send pkt %#x!\n", pkt->getAddr());
-    //     waitingForCpuRetry = true;
+    //     waiting_for_cpu_retry = true;
     //     retry_queue.push(packet_id);
     //     return false;
     // }
@@ -878,7 +909,7 @@ FlatTables::recvTimingReqSpaceControl(PacketPtr pkt, uint64_t packet_id) {
             // queue all permission packets into the packet queue and let the
             // regular packets go through naturally
 
-            // if (!waitingForCpuRetry) {
+            // if (!waiting_for_cpu_retry) {
             Addr permission_addr = getSpaceControlAddress(pkt->getAddr());
             if (useDedicatedCaching) {
                 // cache the packet
@@ -1022,12 +1053,16 @@ FlatTables::recvTimingReqSpaceControl(PacketPtr pkt, uint64_t packet_id) {
         // sure that the xbar is ready to receive real packets.
 
         // this port might be filled up
-        if (!waitingForCpuRetry) {
+        if (!waiting_for_cpu_retry) {
             if (memSidePort.sendTimingReq(pkt)) {
                 // Send successful, keep the packet_id for later.s
                 DPRINTF(PermissionPackets, "Sent pkt %#x!\n",
                                             pkt->getAddr());
                 portMap[pkt->id] = packet_id;
+
+                // for signaling drain, we need to keep a track of outstanding
+                // real packets
+                inflight_packets++;
 
                 // since this packet was sent successfully, increase the memside
                 // packets
@@ -1046,7 +1081,7 @@ FlatTables::recvTimingReqSpaceControl(PacketPtr pkt, uint64_t packet_id) {
         
         // the actual packet was unsuccessful
         DPRINTF(PermissionPackets, "Failed to send pkt %#x!\n", pkt->getAddr());
-        waitingForCpuRetry = true;
+        waiting_for_cpu_retry = true;
         retry_queue.push(packet_id);
         return false;
     }
@@ -1065,7 +1100,7 @@ FlatTables::recvTimingReqFlatTables(PacketPtr pkt, uint64_t packet_id) {
             // queue all permission packets into the packet queue and let the
             // regular packets go through naturally
 
-            // if (!waitingForCpuRetry) {
+            // if (!waiting_for_cpu_retry) {
             Addr permission_addr = getFlatTableAddress(pkt->getAddr());
             if (useDedicatedCaching) {
                 // cache the packet
@@ -1136,7 +1171,7 @@ FlatTables::recvTimingReqFlatTables(PacketPtr pkt, uint64_t packet_id) {
         
         // the actual packet was unsuccessful
         DPRINTF(PermissionPackets, "Failed to send pkt %#x!\n", pkt->getAddr());
-        waitingForCpuRetry = true;
+        waiting_for_cpu_retry = true;
         retry_queue.push(packet_id);
         return false;
     }
@@ -1190,7 +1225,7 @@ FlatTables::recvReqRetry() {
         case gem5::model::SPACE_CONTROL: 
         case gem5::model::FLAT_TABLE:
             // techniques
-            waitingForCpuRetry = false;
+            waiting_for_cpu_retry = false;
             // regular stuff!
             while (!retry_queue.empty()) {
 
@@ -1256,7 +1291,7 @@ FlatTables::getBinarySearchPermissionTableAddr(int attempt) {
 
 void
 FlatTables::recvRespRetry(const PortID id) {
-    waitingForMemRetry = false;
+    waiting_for_mem_retry = false;
     memSidePort.sendRetryResp();
     DPRINTF(FlatTablesDebug, "recvRespRetry Found the issue! Retry called for %lu\n",
                                                                         id);
@@ -1354,7 +1389,7 @@ FlatTables::recvTimingRespMondrian(PacketPtr pkt) {
         else {
             // ++error_margin. just tell the memsideport to send this packet
             // again?
-            // waitingForMemRetry = true;
+            // waiting_for_mem_retry = true;
             DPRINTF(PermissionResponses, "Response received before all "
                 " permission packets were sent for addr %#x with count %d!"
                 " -- req count %lu\n", pkt->getAddr(),
@@ -1489,7 +1524,7 @@ FlatTables::recvTimingRespSpaceControl(PacketPtr pkt) {
  
     // if this is a remote memory packet then there must be a comparison
     // with the ACM
-    if (isInMemoryRange(pkt->getAddr())) {
+    if (isInRemoteRange(pkt->getAddr())) {
         Tick comparison_latency = 1;
         schedule(new EventFunctionWrapper([this, pkt]{ },
             name() + ".accessEvent", true),
@@ -1513,7 +1548,7 @@ FlatTables::recvTimingRespSpaceControl(PacketPtr pkt) {
         else {
             // ++error_margin. just tell the memsideport to send this packet
             // again?
-            // waitingForMemRetry = true;
+            // waiting_for_mem_retry = true;
             DPRINTF(PermissionResponses, "Response received before all "
                 " permission packets were sent for addr %#x with count %d!"
                 " -- req count %lu\n", pkt->getAddr(),
@@ -1524,6 +1559,10 @@ FlatTables::recvTimingRespSpaceControl(PacketPtr pkt) {
             // is received.
 
             // keep the packet but do not send it upstream
+
+            // for signaling drain, we need to keep a track of outstanding
+            // real packets
+            inflight_packets--;
             response_packets.push(pkt);
 
             // we need to sample the response packet queue. we only store real
@@ -1549,7 +1588,10 @@ FlatTables::recvTimingRespSpaceControl(PacketPtr pkt) {
     //     " -- req count %lu\n", pkt->getAddr(),
     // business as usual
 
-    // there could be packets with weird addresses (maybe instructions)
+    // for signaling drain, we need to keep a track of outstanding
+    // real packets
+    inflight_packets--;
+    // there could be packets with weird addresses DMA :)
     PacketId id = pkt->id;
     return cpuSidePorts[portMap[id]].sendTimingResp(pkt);
 }
@@ -1648,7 +1690,7 @@ FlatTables::recvTimingRespFT(PacketPtr pkt) {
         else {
             // ++error_margin. just tell the memsideport to send this packet
             // again?
-            // waitingForMemRetry = true;
+            // waiting_for_mem_retry = true;
             DPRINTF(PermissionResponses, "Response received before all "
                 " permission packets were sent for addr %#x with count %d!"
                 " -- req count %lu\n", pkt->getAddr(),

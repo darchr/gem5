@@ -48,8 +48,15 @@
 #include "sim/stats.hh"
 #include "sim/sim_exit.hh"
 
-// #include "permissions/permission_cache.hh"
+#include "sim/drain.hh"
+#include "debug/PermissionCheckpoint.hh"
+
 #include "permissions/meta.hh"
+
+// making sure that the checkpoint is correctly implemented
+
+#include "sim/serialize.hh"
+
 
 namespace gem5
 {
@@ -175,7 +182,7 @@ class FlatTables : public ClockedObject
         // the permission model to simulate
         std::string modelName;
         // just need to maintain the state.
-        int model_state; 
+        int model_state;
 
         // To enable or disable permission checks. If this is not set, this
         // SimObject is a simple packet forwarder.
@@ -273,10 +280,10 @@ class FlatTables : public ClockedObject
 
         // std::unordered_map<gem5::Addr, bool> permission_packet_tracker;
 
-
+        // TODO: Marked for deletion
         // we need a class variable for the additional latency until we find a
         // way to pass method parameters
-        Tick class_latency;
+        // Tick class_latency;
 
         // an infinite queue that stores all the incoming packets and it's
         // corresponding permission packets.
@@ -320,7 +327,7 @@ class FlatTables : public ClockedObject
         void recvReqRetry();
         void recvRangeChange();
 
-        bool waitingForMemRetry = false;
+        bool waiting_for_mem_retry;
 
         // gem5::EventWrapper delayEvent;
         // The permission table needs to schedule events
@@ -339,7 +346,13 @@ class FlatTables : public ClockedObject
 
 
         // Do we owe the CPU a retry right now?
-        bool waitingForCpuRetry = false;
+        bool waiting_for_cpu_retry;
+
+        // Variable for drainstate
+        bool need_to_drain;
+
+        // keep a track of inflight instructions
+        uint64_t inflight_packets;
 
         Addr getFlatTableAddress(Addr addr);
         Addr getDeACTAddress(Addr addr, bool shared);
@@ -381,6 +394,119 @@ class FlatTables : public ClockedObject
 
 
     public:
+        DrainState drain() override {
+            DPRINTF(PermissionCheckpoint,
+            "Drain called: req: %lu, resp: %lu, flight: %lu\n",
+                permission_packets.size(), response_packets.size(),
+                inflight_packets);
+            // Stop issuing new requests immediately
+            need_to_drain = true;
+            if (!permission_packets.empty() || !response_packets.empty() || inflight_packets > 0) {
+                // its draining. waiting for process event to finish.
+                createDrainEvent();
+                return DrainState::Draining;
+            }
+            
+            return DrainState::Drained;
+        }
+
+        void drainResume() override {
+            // make sure that the queues are empty
+            assert(permission_packets.empty() && response_packets.empty());
+        }
+        void createDrainEvent();
+        // make usre the checkpoints are also serialized and unserialized
+        // correctly
+        // void serialize(CheckpointOut &cp) const override {
+        //     // each of the variables must be serialized!
+        //     SERIALIZE_SCALAR(model_state);
+        //     SERIALIZE_SCALAR(mshrs_occupied);
+        //     SERIALIZE_SCALAR(table_size);
+        //     SERIALIZE_SCALAR(total_cached_entries);
+        //     SERIALIZE_SCALAR(max_cached_entries);
+        //     SERIALIZE_SCALAR(total_entries);
+        //     SERIALIZE_SCALAR(max_search_attempts);
+        //     SERIALIZE_SCALAR(permission_block_size);
+        //     SERIALIZE_SCALAR(permission_cmd);
+        //     SERIALIZE_SCALAR(worst_case);
+
+        //     SERIALIZE_SCALAR(waiting_for_cpu_retry);
+        //     SERIALIZE_SCALAR(waiting_for_mem_retry);
+
+        //     // public variables
+        //     SERIALIZE_SCALAR(cache_policy);
+        //     SERIALIZE_SCALAR(cache_mask);
+
+        //     // Vectors and STL contrainers
+        //     // SERIALIZE_CONTAINER(permission_checker);
+        //     // SERIALIZE_CONTAINER(outstanding_packets);
+        //     // SERIALIZE_CONTAINER(stall_time);
+
+        //     // SERIALIZE_CONTAINER(have_i_seen_this);
+
+        //     // assert the queues have 0 size
+        //     assert(permission_packets.size() == 0);
+        //     assert(response_packets.size() == 0);
+
+
+        //     // SERIALIZE_CONTAINER(permission_request_tracker);
+        //     // SERIALIZE_CONTAINER(permission_response_tracker);
+
+        //     // start storing these params
+        //     ScopedCheckpointSection sec(cp, "permissionTable_" + model_state);
+        //     ScopedCheckpointSection sec(cp, "permissionTable_" + mshrs_occupied);
+        //     ScopedCheckpointSection sec(cp, "permissionTable_" + model_state);
+        //     ScopedCheckpointSection sec(cp, "permissionTable_" + model_state);
+        //     ScopedCheckpointSection sec(cp, "permissionTable_" + model_state);
+        //     ScopedCheckpointSection sec(cp, "permissionTable_" + model_state);
+        //     ScopedCheckpointSection sec(cp, "permissionTable_" + model_state);
+        //     ScopedCheckpointSection sec(cp, "permissionTable_" + model_state);
+        //     ScopedCheckpointSection sec(cp, "permissionTable_" + model_state);
+        //     ScopedCheckpointSection sec(cp, "permissionTable_" + model_state);
+        //     ScopedCheckpointSection sec(cp, "permissionTable_" + model_state);
+        //     ScopedCheckpointSection sec(cp, "permissionTable_" + model_state);
+        //     ScopedCheckpointSection sec(cp, "permissionTable_" + model_state);
+        //     ScopedCheckpointSection sec(cp, "permissionTable_" + model_state);
+        //     ScopedCheckpointSection sec(cp, "permissionTable_" + model_state);
+            
+
+        // }
+
+        // void unserialize(CheckpointIn &cp) override {
+        //     // each of the variables must be serialized!
+        //     UNSERIALIZE_SCALAR(model_state);
+        //     UNSERIALIZE_SCALAR(mshrs_occupied);
+        //     UNSERIALIZE_SCALAR(table_size);
+        //     UNSERIALIZE_SCALAR(total_cached_entries);
+        //     UNSERIALIZE_SCALAR(max_cached_entries);
+        //     UNSERIALIZE_SCALAR(total_entries);
+        //     UNSERIALIZE_SCALAR(max_search_attempts);
+        //     UNSERIALIZE_SCALAR(permission_block_size);
+        //     UNSERIALIZE_SCALAR(permission_cmd);
+        //     UNSERIALIZE_SCALAR(worst_case);
+
+        //     UNSERIALIZE_SCALAR(waiting_for_cpu_retry);
+        //     UNSERIALIZE_SCALAR(waiting_for_mem_retry);
+
+        //     // public variables
+        //     UNSERIALIZE_SCALAR(cache_policy);
+        //     UNSERIALIZE_SCALAR(cache_mask);
+
+        //     // Vectors and STL contrainers
+        //     // UNSERIALIZE_CONTAINER(permission_checker);
+        //     // UNSERIALIZE_CONTAINER(outstanding_packets);
+        //     // UNSERIALIZE_CONTAINER(stall_time);
+
+        //     // UNSERIALIZE_CONTAINER(have_i_seen_this);
+
+        //     // assert the queues have 0 size
+        //     assert(permission_packets.size() == 0);
+        //     assert(response_packets.size() == 0);
+
+
+        //     // UNSERIALIZE_CONTAINER(permission_request_tracker);
+        //     // UNSERIALIZE_CONTAINER(permission_response_tracker);
+        // }
 
         // send permission packets
         bool sendPermissionPackets(PacketPtr pkt);
