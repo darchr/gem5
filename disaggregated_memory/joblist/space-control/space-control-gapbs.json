@@ -2,12 +2,12 @@
     "0": {
         "metadata": {
             "comment": "This is a host allocates the graph in shared memory.",
-            "experiment": "flat-tables-allocator",
+            "experiment": "space-control-allocator",
             "checkpoint": "",
             "maxtics": "",
             "max-time": "1s",
             "parallel-eff": "",
-            "permission": "flat-tables"
+            "permission": "space-control"
         },
         "cpu": {
             "ff-core": "kvm",
@@ -40,7 +40,7 @@
                     "echo \"exp: flat tables gapbs :: allocator !;\"\n",
                     "echo '12345' | sudo -S /home/gem5/shared-gapbs-v3/allocator -x 0 -S 12 -g 25;",
                     "m5 exit;",
-                    "m5 exit;"],
+                    "m5 --addr=0xFFFF0000 exit;"],
             "disk": "/home/kaustavg/projects/kg-resources-2/src/shared-gapbs/x86-disk-image-24-04/x86-ubuntu-2",
             "kernel": "/home/kaustavg/kernel/x86/linux-6.9.9/vmlinux",
             "bootloader": ""
@@ -49,7 +49,7 @@
     "1": {
         "metadata": {
             "comment": "This is a host runs bfs",
-            "experiment": "flat-tables-bfs",
+            "experiment": "space-control-bfs",
             "checkpoint": "",
             "maxtics": "",
             "parallel-eff": ""
@@ -85,7 +85,7 @@
                     "echo \"exp: flat tables :: bfs!;\"\n",
                     "echo '12345' | sudo -S /home/gem5/shared-gapbs-v3/allocator -x 0 -S 12 -g 25;",
                     "echo '12345' | sudo -S /home/gem5/shared-gapbs-v3/bfs -x 1 -S 12 -g 25;",
-                    "m5 exit;"],
+                    "m5 --addr=0xFFFF0000 exit;"],
             "disk": "/home/kaustavg/projects/kg-resources-2/src/shared-gapbs/x86-disk-image-24-04/x86-ubuntu-2",
             "kernel": "/home/kaustavg/kernel/x86/linux-6.9.9/vmlinux",
             "bootloader": ""
@@ -94,7 +94,7 @@
     "2": {
         "metadata": {
             "comment": "This is a host runs bc",
-            "experiment": "flat-tables-bc",
+            "experiment": "space-control-bc",
             "checkpoint": "",
             "maxtics": "",
             "parallel-eff": ""
@@ -130,7 +130,7 @@
                     "echo \"exp: flat tables :: bc!;\"\n",
                     "echo '12345' | sudo -S /home/gem5/shared-gapbs-v3/allocator -x 0 -S 12 -g 25;",
                     "echo '12345' | sudo -S /home/gem5/shared-gapbs-v3/bc -x 1 -S 12 -g 25;",
-                    "m5 exit;"],
+                    "m5 --addr=0xFFFF0000 exit;"],
             "disk": "/home/kaustavg/projects/kg-resources-2/src/shared-gapbs/x86-disk-image-24-04/x86-ubuntu-2",
             "kernel": "/home/kaustavg/kernel/x86/linux-6.9.9/vmlinux",
             "bootloader": ""
@@ -139,7 +139,7 @@
     "3": {
         "metadata": {
             "comment": "This is a host runs cc",
-            "experiment": "flat-tables-cc",
+            "experiment": "space-control-cc",
             "checkpoint": "",
             "maxtics": "",
             "parallel-eff": ""
@@ -175,7 +175,7 @@
                     "echo \"exp: flat tables :: cc!;\"\n",
                     "echo '12345' | sudo -S /home/gem5/shared-gapbs-v3/allocator -x 0 -S 12 -g 25;",
                     "echo '12345' | sudo -S /home/gem5/shared-gapbs-v3/cc -x 1 -S 12 -g 25;",
-                    "m5 exit;"],
+                    "m5 --addr=0xFFFF0000 exit;"],
             "disk": "/home/kaustavg/projects/kg-resources-2/src/shared-gapbs/x86-disk-image-24-04/x86-ubuntu-2",
             "kernel": "/home/kaustavg/kernel/x86/linux-6.9.9/vmlinux",
             "bootloader": ""
@@ -184,7 +184,7 @@
     "4": {
         "metadata": {
             "comment": "This is a host runs cc_sv",
-            "experiment": "flat-tables-cc_sv",
+            "experiment": "space-control-cc_sv",
             "checkpoint": "",
             "maxtics": "",
             "parallel-eff": ""
@@ -220,7 +220,7 @@
                     "echo \"exp: flat tables :: cc_sv!;\"\n",
                     "echo '12345' | sudo -S /home/gem5/shared-gapbs-v3/allocator -x 0 -S 12 -g 25;",
                     "echo '12345' | sudo -S /home/gem5/shared-gapbs-v3/cc_sv -x 1 -S 12 -g 25;",
-                    "m5 exit;"],
+                    "m5 --addr=0xFFFF0000 exit;"],
             "disk": "/home/kaustavg/projects/kg-resources-2/src/shared-gapbs/x86-disk-image-24-04/x86-ubuntu-2",
             "kernel": "/home/kaustavg/kernel/x86/linux-6.9.9/vmlinux",
             "bootloader": ""
@@ -229,7 +229,7 @@
     "5": {
         "metadata": {
             "comment": "This is a host runs pr",
-            "experiment": "flat-tables-pr",
+            "experiment": "space-control-pr",
             "checkpoint": "",
             "maxtics": "",
             "parallel-eff": ""
@@ -265,7 +265,7 @@
                     "echo \"exp: flat tables :: pr!;\"\n",
                     "echo '12345' | sudo -S /home/gem5/shared-gapbs-v3/allocator -x 0 -S 12 -g 25;",
                     "echo '12345' | sudo -S /home/gem5/shared-gapbs-v3/pr -x 1 -S 12 -g 25;",
-                    "m5 exit;"],
+                    "m5 --addr=0xFFFF0000 exit;"],
             "disk": "/home/kaustavg/projects/kg-resources-2/src/shared-gapbs/x86-disk-image-24-04/x86-ubuntu-2",
             "kernel": "/home/kaustavg/kernel/x86/linux-6.9.9/vmlinux",
             "bootloader": ""
@@ -274,7 +274,7 @@
     "6": {
         "metadata": {
             "comment": "This is a host runs tc",
-            "experiment": "flat-tables-tc",
+            "experiment": "space-control-tc",
             "checkpoint": "",
             "maxtics": "",
             "parallel-eff": ""
@@ -310,7 +310,7 @@
                     "echo \"exp: flat tables :: tc!;\"\n",
                     "echo '12345' | sudo -S /home/gem5/shared-gapbs-v3/allocator -x 0 -S 12 -g 25;",
                     "echo '12345' | sudo -S /home/gem5/shared-gapbs-v3/tc -x 1 -S 12 -g 25;",
-                    "m5 exit;"],
+                    "m5 --addr=0xFFFF0000 exit;"],
             "disk": "/home/kaustavg/projects/kg-resources-2/src/shared-gapbs/x86-disk-image-24-04/x86-ubuntu-2",
             "kernel": "/home/kaustavg/kernel/x86/linux-6.9.9/vmlinux",
             "bootloader": ""
@@ -319,7 +319,7 @@
     "7": {
         "metadata": {
             "comment": "This is a host runs nothing",
-            "experiment": "flat-tables",
+            "experiment": "space-control",
             "checkpoint": "",
             "maxtics": "",
             "parallel-eff": ""
@@ -353,7 +353,8 @@
             "cmd": [
                     "echo '12345' | sudo -S ndctl create-namespace -f -enamespace0.0 -m devdax;",
                     "echo \"exp: flat tables :: nothing!\"\n",
-                    "m5 exit;"],
+                    "m5 exit;",
+                    "m5 --addr=0xFFFF0000 exit;"],
             "disk": "/home/kaustavg/projects/kg-resources-2/src/shared-gapbs/x86-disk-image-24-04/x86-ubuntu-2",
             "kernel": "/home/kaustavg/kernel/x86/linux-6.9.9/vmlinux",
             "bootloader": ""

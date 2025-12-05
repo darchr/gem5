@@ -561,7 +561,7 @@ args = parser.parse_args()
 gem5_binary = ""
 sst_binary = ""
 if args.gem5[0] != "/":
-    gem5_binary = "build/" + args.gem5 + "/gem5.opt"
+    gem5_binary = "build/" + args.gem5 + "/gem5.debug"
 else:
     gem5_binary = args.gem5
 
@@ -724,7 +724,7 @@ if checkpoints == True:
                             "disaggregated_memory/configs/riscv_unified.py")
             elif jobs[job]["cpu"]["isa"].lower() == "x86":
                 p_config = os.path.join(os.getcwd(),
-                                "disaggregated_memory/configs/x86_unified.py")
+                                "disaggregated_memory/configs/x86_unified_with_memside_permissions.py")
             else:
                 fatal("Unsupported ISA!")
         except KeyError:
@@ -756,6 +756,7 @@ if checkpoints == True:
         try:
             gem5_processes.append(subprocess.Popen([gem5_binary,
                         "-re",
+                        "--debug-flags=PermissionCheckpoint",
                         "--outdir=" + p_experiment + "_" + str(job),
                         p_config,
                         "--instance=" + str(job),

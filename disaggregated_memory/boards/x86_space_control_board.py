@@ -31,6 +31,7 @@ from typing import List
 
 import m5
 from m5.objects import (
+    FlatTables,
     Addr,
     AddrRange,
     BadAddr,
@@ -127,6 +128,12 @@ class X86SpaceControlBoard(X86SharedMemoryBoard):
         # The kernel uses memory at 0x0 so we need a tiny range of memory for
         # the kernel to function properly
         self.kernelMemory = SingleChannelDDR4_2400(size="256MiB")
+        # Move the permission checker to the board from the cache to not
+        # interfere with the bridge packets.
+        self.permission_table = FlatTables()
+
+    def get_permission_table(self):
+        return self.permission_table
 
     def _setup_io_devices(self):
         """Sets up the x86 IO devices.
@@ -414,3 +421,62 @@ class X86SpaceControlBoard(X86SharedMemoryBoard):
             "lpj=7999923",
             "root=/dev/sda2",
         ]
+    @overrides(AbstractBoard)
+    def _connect_things(self) -> None:
+        """Connects all the components to the board.
+
+        The order of this board is always:
+
+        1. Connect the memory.
+        2. Connect the cache hierarchy.
+        3. Connect the processor.
+
+        Developers may build upon this assumption when creating components.
+
+        Notes
+        -----
+
+        * The processor is incorporated after the cache hierarchy due to a bug
+        noted here: https://gem5.atlassian.net/browse/GEM5-1113. Until this
+        bug is fixed, this ordering must be maintained.
+        * Once this function is called `_connect_things_called` *must* be set
+        to `True`.
+
+        The permission checker is incorporated after the membus and before the
+        external memory.
+        """
+
+        if self._connect_things_called:
+            raise Exception(
+                "The `_connect_things` function has already been called."
+            )
+
+        # Incorporate the memory into the motherboard.
+        self.get_local_memory().incorporate_memory(self)
+        self.get_remote_memory().incorporate_memory(self)
+
+        # Incorporate the cache hierarchy for the motherboard.
+        if self.get_cache_hierarchy():
+            self.get_cache_hierarchy().incorporate_cache(self)
+
+        # Create and connect Xbar for additional latency. This will override
+        # the cache's incorporate_cache
+        if (
+            self._remote_memory_access_cycles > 0
+            and self._external_simulator == False
+        ):
+            self.add_remote_link()
+        else:
+            # connect the system to the remote memory directly.
+            # This is a specialized version of the code where things must be
+            # hardcoded for reproducibility.
+            assert(len(self.get_remote_memory().get_memory_controllers()) == 1)
+            for cntr in self.get_remote_memory().get_memory_controllers():
+                cntr.port = self.permission_table.mem_side_port 
+
+            self.permission_table.cpu_side_ports = \
+                                self.get_cache_hierarchy().get_mem_side_port()
+        # Incorporate the processor into the motherboard.
+        self.get_processor().incorporate_processor(self)
+        self._connect_things_called = True
+

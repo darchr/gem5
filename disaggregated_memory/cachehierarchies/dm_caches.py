@@ -350,7 +350,13 @@ class ClassicPrivateL1PrivateL2SharedL3CacheHierarchyWChecks(
                 cpu.connect_interrupt(int_req_port, int_resp_port)
             else:
                 cpu.connect_interrupt()
+        # Let's add another xbar here with no latency
         self.l3bus.mem_side_ports = self.l3cache.cpu_side
+
+        self.permission_bus = L2XBar()
+        self.l3cache.mem_side = self.permission_bus.cpu_side_ports
+        
+
 
         # Connect the l3cache.mem_side to the dual port object
         self.l3cache.mem_side = self.permission_table.cpu_side_ports
@@ -360,27 +366,27 @@ class ClassicPrivateL1PrivateL2SharedL3CacheHierarchyWChecks(
         # self.l3cache.mem_side = self.membus.cpu_side_ports
 
 
-class ClassicSharedLLCFlatTables(
-    ClassicPrivateL1PrivateL2SharedL3CacheHierarchyWChecks
-):
-    def __init__(
-        self,
-        l1d_size: str,
-        l1i_size: str,
-        l2_size: str,
-        l3_size: str,
-        l3_assoc: int = 16,
-    ):
-        super().__init__(
-            l1d_size=l1d_size,
-            l1i_size=l1i_size,
-            l2_size=l2_size,
-            l3_size=l3_size,
-            l3_assoc=l3_assoc,
-        )
-        # Make sure to add the permission table object here
-        # self.permission_table = SimplePort()
-        self.permission_table = FlatTables()
-        self.permission_table.model_name = "flat-table"
-        self.permission_table.number_of_entries = 0
-        # self.permission_table = SimpleBlockingPort()
+# class ClassicSharedLLCFlatTables(
+#     ClassicPrivateL1PrivateL2SharedL3CacheHierarchyWChecks
+# ):
+#     def __init__(
+#         self,
+#         l1d_size: str,
+#         l1i_size: str,
+#         l2_size: str,
+#         l3_size: str,
+#         l3_assoc: int = 16,
+#     ):
+#         super().__init__(
+#             l1d_size=l1d_size,
+#             l1i_size=l1i_size,
+#             l2_size=l2_size,
+#             l3_size=l3_size,
+#             l3_assoc=l3_assoc,
+#         )
+#         # Make sure to add the permission table object here
+#         # self.permission_table = SimplePort()
+#         self.permission_table = FlatTables()
+#         self.permission_table.model_name = "flat-table"
+#         self.permission_table.number_of_entries = 0
+#         # self.permission_table = SimpleBlockingPort()
