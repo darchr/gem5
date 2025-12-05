@@ -304,6 +304,10 @@ gem5Component::clockTick(SST::Cycle_t currentCycle)
                 "m5.stats.dump()",
             };
             execPythonCommands(output_stats_commands);
+            // make sure to exit here.
+            did_gem5_end = true;
+            primaryComponentOKToEndSim();
+            return true;
             // return false;
         }
         // output gem5 stats
@@ -318,24 +322,24 @@ gem5Component::clockTick(SST::Cycle_t currentCycle)
         primaryComponentOKToEndSim();
         return true;
     }
-        // if I executed 1 us of time, end the simulation
-        // cycle -> 1 cycles = 0.25 nano sec
-        if (currentCycle >= 4000000000) {
-            // assert(gem5::curTick() > base_time);
-            std::cout << gem5::curTick() << " " << base_time << std::endl;
+    // if I executed 1 us of time, end the simulation
+    // cycle -> 1 cycles = 0.25 nano sec
+    if (currentCycle >= 1000000000) {
+        // assert(gem5::curTick() > base_time);
+        std::cout << gem5::curTick() << " " << base_time << std::endl;
 
-            const std::vector<std::string> output_stats_commands = {
-                "import m5.stats",
-                "m5.stats.dump()",
-            };
-            execPythonCommands(output_stats_commands);
-            // its okay to end gem5 now
-       
-        // gem5 has dumped the stats, make sure the stats aren't dumped again!
-        did_gem5_end = true;
-        primaryComponentOKToEndSim();
-        return true;
-        }
+        const std::vector<std::string> output_stats_commands = {
+            "import m5.stats",
+            "m5.stats.dump()",
+        };
+        execPythonCommands(output_stats_commands);
+        // its okay to end gem5 now
+    
+    // gem5 has dumped the stats, make sure the stats aren't dumped again!
+    did_gem5_end = true;
+    primaryComponentOKToEndSim();
+    return true;
+    }
     // returning False means the simulation should go on
     return false;
 
