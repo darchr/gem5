@@ -197,6 +197,7 @@ class FlatTables : public ClockedObject
         unsigned int numberOfEntries;
 
         bool binarySearch;
+        bool simulateBinarySearch;
 
         unsigned int permissionEntrySize;
 
@@ -261,6 +262,13 @@ class FlatTables : public ClockedObject
         // for lookup numberof packets
         int max_search_attempts;
 
+        // for worst-case simulation, max_search_attempts is variable per
+        // address. A binary search needs to be actually performed on the
+        // entire permission table
+        std::unordered_map<gem5::Addr, int> max_search_attempt_map;
+        // If all my packets are cahced, then I don't need to increment MSHRs
+        std::unordered_map<gem5::Addr, bool> all_cached; 
+
         // PLb specific values are here.
         int permission_block_size;
         int permission_cmd;
@@ -276,7 +284,7 @@ class FlatTables : public ClockedObject
         std::unordered_map<gem5::PacketPtr, gem5::Tick> outstanding_packets;
 
         // keep a track of stall time
-        std::unordered_map<gem5::PacketPtr, gem5::Tick> stall_time;
+        std::unordered_map<gem5::Addr, gem5::Tick> stall_time;
 
         // std::unordered_map<gem5::Addr, bool> permission_packet_tracker;
 
@@ -320,7 +328,7 @@ class FlatTables : public ClockedObject
         bool recvTimingRespMondrian(PacketPtr pkt);
         bool recvTimingRespDeACT(PacketPtr pkt);
         bool recvTimingRespSpaceControl(PacketPtr pkt);
-        bool recvTimingRespFT(PacketPtr pkt);
+        bool recvTimingRespFlatTable(PacketPtr pkt);
 
         // For the request port
         bool recvTimingResp(PacketPtr pkt);
@@ -389,6 +397,17 @@ class FlatTables : public ClockedObject
             return ((addr >= localMemoryStart && addr < localMemoryEnd) || 
                                         isInRemoteRange(addr)) ? true : false;
         }
+        inline bool isInLocalMemoryRange(gem5::Addr addr) {
+            // a method needed to avoid PCI addresses for permission checks.
+            // make sure that the address starts at 4G, not creating issues
+            // for m5ops.
+            return (addr > 0x100000000 && ((addr >= localMemoryStart) &&
+                        (addr < localMemoryEnd))) ? true: false;
+        }
+
+        // to implement binary search correctly, here is a helper function
+        std::vector<gem5::Addr> getBinarySearchAddress(gem5::Addr
+                                                    target_permission_address);
 
 
 
@@ -551,7 +570,7 @@ class FlatTables : public ClockedObject
         // keep a cache map
         std::unordered_map<gem5::Addr, cache_entry_vector> cache_map;
 
-        std::string cache_policy;
+        // std::string cache_policy;
 
         uint64_t cache_mask;
 
@@ -559,12 +578,12 @@ class FlatTables : public ClockedObject
             // understand the difference here. each ppn is the key.
             // there are 4096 consecutive addresses mapping to the same
             // permission entry. Each entry is of cache_line size!
-            return (addr & !PPN_MASK);
+            return (addr & ~(CACHE_LINE - 1));
         }
 
         inline bool doesCacheHaveSpace() {
             // Cache size is in Bytes.
-            return (total_cached_entries < max_cached_entries) ? true : false; 
+            return (cache_map.size() < max_cached_entries) ? true : false; 
         }
 
         inline void addCacheEntry(gem5::Addr masked_addr) {
@@ -574,7 +593,7 @@ class FlatTables : public ClockedObject
             cve.access_count = 1;
             cve.last_accessed = gem5::curTick();
             cache_map[masked_addr] = cve;
-            total_cached_entries++;
+            // total_cached_entries++;
         }
 
         // we need a very simple method to 
@@ -614,17 +633,31 @@ class FlatTables : public ClockedObject
 
             /** Number of hits in the permission table cache */
             statistics::Scalar numPermissionTableCacheHits;
+            /** Number of hits in the permission table cache */
+            statistics::Scalar numPermissionTableCacheMisses;
 
             /** total number of accesses into the permission table
              * (redundant!) */
-            statistics::Scalar numPermissionTableAccesses;
+            statistics::Scalar numPermissionTableCacheAccesses;
+
+            /** more details: number of replacements (should be same as misses)
+             */
+            statistics::Scalar numCacheEntriesReplaced;
+            /** number of entries created */
+            statistics::Scalar numCacheEntriesCreated;
+            /** occupancy of the cache */
+            statistics::Histogram numUniqueCacheOccupancy;
+            
+            // we need to keep a track of max number of responses that are
+            // stored in the checker.
+            statistics::Histogram maxStoredResponses;
 
             // max number of MSHRs occupied needs to be studied as a histogram
             statistics::Histogram maxPermissionMSHROcuppied;
 
-            // we need to keep a track of max number of responses that are
-            // stored in the checker.
-            statistics::Histogram maxStoredResponses;
+            // histogram of the binary searches
+            statistics::Histogram binarySearchAttempts;
+
 
 
             // /** Count the number of incoming read packets */
@@ -633,11 +666,13 @@ class FlatTables : public ClockedObject
             // /** Count the number of incoming write packets */
             // statistics::Scalar numWriteIncomingPackets;
 
-            // /** Create a histogram of the latencies of packets sent via this
-            // port*/
+            /** The total time it takes from receiving the real packet from
+             * the and sending back the response to the CPU. Retry delay is not
+             * counted. */
             statistics::Histogram packetLatency;
 
-            // keep a track to total time spent on stalling the response packet
+            /** Time taken from receiving the real response until all
+             *  corresponding permission packets are received. */
             statistics::Histogram stallTime;
 
             // /** Create a histogram of the total outstanding packets */

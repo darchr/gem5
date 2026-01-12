@@ -54,8 +54,11 @@ SimObject('CopyEngine.py', sim_objects=['CopyEngine'])
 Source('copy_engine.cc')
 DebugFlag('DMACopyEngine')
 
+<<<<<<< HEAD
 # My SimObjects
 # SimObject('SimplePciDevice.py', sim_objects=['SimplePciDevice'])
 # Source('simple_pci_device.cc')
 
 # DebugFlag('SimplePciDevice', "For the SimplePciDevice SimObject")
+=======
+>>>>>>> 6d832f5363 (config,src,mem,ext: added all the configs and srcs)

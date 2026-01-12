@@ -1,0 +1,185 @@
+{
+    "0": {
+        "metadata": {
+            "comment": "This is a host allocates the graph in shared memory.",
+            "experiment": "space-control-allocator-bfs",
+            "checkpoint": "",
+            "maxtics": "",
+            "max-time": "1s",
+            "parallel-eff": "",
+            "permission": "space-control"
+        },
+        "cpu": {
+            "ff-core": "kvm",
+            "roi-core": "timing",
+            "isa": "x86",
+            "count": "8"
+        },
+        "cache": {
+            "type": "l1l2l3",
+            "l1i-size": "32KiB",
+            "l1d-size": "32KiB",
+            "l2-size": "1MiB",
+            "l3-size": "16MiB",
+            "l3-assoc": "16"
+        },
+        "local-memory": {
+            "type": "ddr4",
+            "size": "16GiB"
+        },
+        "remote-memory": {
+            "size": "",
+            "shared": "true",
+            "latency": "170ns",
+            "start": "0x500000000",
+            "end": "0x900000000"
+        },
+        "workitem": {
+            "cmd": [
+                    "echo '12345' | sudo -S ndctl create-namespace -f -enamespace0.0 -m devdax;",
+                    "echo \"exp: flat tables gapbs :: allocator !;\"\n",
+                    "echo '12345' | sudo -S /home/gem5/shared-gapbs/allocator -x 0 -S 12 -g 25;",
+                    "echo '12345' | sudo -S /home/gem5/shared-gapbs/bfs -x 1 -S 12 -g 25;",
+                    "m5 exit;",
+                    "m5 --addr=0xFFFF0000 exit;"],
+            "disk": "/home/kaustavg/projects/kg-resources-2/src/shared-gapbs/x86-disk-image-24-04/x86-ubuntu-2",
+            "kernel": "/home/kaustavg/kernel/x86/linux-6.9.9/vmlinux",
+            "bootloader": ""
+        }
+    },
+    "1": {
+        "metadata": {
+            "comment": "This is a host runs bc",
+            "experiment": "space-control-bc",
+            "checkpoint": "",
+            "maxtics": "",
+            "parallel-eff": ""
+        },
+        "cpu": {
+            "ff-core": "kvm",
+            "roi-core": "timing",
+            "isa": "x86",
+            "count": "8"
+        },
+        "cache": {
+            "type": "l1l2l3",
+            "l1i-size": "32KiB",
+            "l1d-size": "32KiB",
+            "l2-size": "1MiB",
+            "l3-size": "16MiB",
+            "l3-assoc": "16"
+        },
+        "local-memory": {
+            "type": "ddr4",
+            "size": "16GiB"
+        },
+        "remote-memory": {
+            "size": "",
+            "shared": "true",
+            "latency": "170ns",
+            "start": "0x500000000",
+            "end": "0x900000000"
+        },
+        "workitem": {
+            "cmd": [
+                    "echo '12345' | sudo -S ndctl create-namespace -f -enamespace0.0 -m devdax;",
+                    "echo \"exp: flat tables :: bfs!;\"\n",
+                    "echo '12345' | sudo -S /home/gem5/shared-gapbs/allocator -x 0 -S 12 -g 25;",
+                    "echo '12345' | sudo -S /home/gem5/shared-gapbs/bc -x 1 -S 12 -g 25;",
+                    "m5 --addr=0xFFFF0000 exit;"],
+            "disk": "/home/kaustavg/projects/kg-resources-2/src/shared-gapbs/x86-disk-image-24-04/x86-ubuntu-2",
+            "kernel": "/home/kaustavg/kernel/x86/linux-6.9.9/vmlinux",
+            "bootloader": ""
+        }
+    },
+    "2": {
+        "metadata": {
+            "comment": "This is a host runs pr",
+            "experiment": "space-control-pr",
+            "checkpoint": "",
+            "maxtics": "",
+            "parallel-eff": ""
+        },
+        "cpu": {
+            "ff-core": "kvm",
+            "roi-core": "timing",
+            "isa": "x86",
+            "count": "8"
+        },
+        "cache": {
+            "type": "l1l2l3",
+            "l1i-size": "32KiB",
+            "l1d-size": "32KiB",
+            "l2-size": "1MiB",
+            "l3-size": "16MiB",
+            "l3-assoc": "16"
+        },
+        "local-memory": {
+            "type": "ddr4",
+            "size": "16GiB"
+        },
+        "remote-memory": {
+            "size": "",
+            "shared": "true",
+            "latency": "170ns",
+            "start": "0x500000000",
+            "end": "0x900000000"
+        },
+        "workitem": {
+            "cmd": [
+                    "echo '12345' | sudo -S ndctl create-namespace -f -enamespace0.0 -m devdax;",
+                    "echo \"exp: flat tables :: bc!;\"\n",
+                    "echo '12345' | sudo -S /home/gem5/shared-gapbs/allocator -x 0 -S 12 -g 25;",
+                    "echo '12345' | sudo -S /home/gem5/shared-gapbs/pr -x 1 -S 12 -g 25;",
+                    "m5 --addr=0xFFFF0000 exit;"],
+            "disk": "/home/kaustavg/projects/kg-resources-2/src/shared-gapbs/x86-disk-image-24-04/x86-ubuntu-2",
+            "kernel": "/home/kaustavg/kernel/x86/linux-6.9.9/vmlinux",
+            "bootloader": ""
+        }
+    },
+    "3": {
+        "metadata": {
+            "comment": "This is a host runs tc",
+            "experiment": "space-control-tc",
+            "checkpoint": "",
+            "maxtics": "",
+            "parallel-eff": ""
+        },
+        "cpu": {
+            "ff-core": "kvm",
+            "roi-core": "timing",
+            "isa": "x86",
+            "count": "8"
+        },
+        "cache": {
+            "type": "l1l2l3",
+            "l1i-size": "32KiB",
+            "l1d-size": "32KiB",
+            "l2-size": "1MiB",
+            "l3-size": "16MiB",
+            "l3-assoc": "16"
+        },
+        "local-memory": {
+            "type": "ddr4",
+            "size": "16GiB"
+        },
+        "remote-memory": {
+            "size": "",
+            "shared": "true",
+            "latency": "170ns",
+            "start": "0x500000000",
+            "end": "0x900000000"
+        },
+        "workitem": {
+            "cmd": [
+                    "echo '12345' | sudo -S ndctl create-namespace -f -enamespace0.0 -m devdax;",
+                    "echo \"exp: flat tables :: cc!;\"\n",
+                    "echo '12345' | sudo -S /home/gem5/shared-gapbs/allocator -x 0 -S 12 -g 25;",
+                    "echo '12345' | sudo -S /home/gem5/shared-gapbs/tc -x 1 -S 12 -g 25;",
+                    "m5 --addr=0xFFFF0000 exit;"],
+            "disk": "/home/kaustavg/projects/kg-resources-2/src/shared-gapbs/x86-disk-image-24-04/x86-ubuntu-2",
+            "kernel": "/home/kaustavg/kernel/x86/linux-6.9.9/vmlinux",
+            "bootloader": ""
+        }
+    }
+}

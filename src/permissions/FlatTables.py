@@ -136,6 +136,13 @@ class FlatTables(ClockedObject):
         "Assume that the permission table is sorted.",
     )
 
+    # enable binary search simulation. do this only when simulating worst case
+    # condition
+    simulate_binary_search = Param.Bool(
+        False,
+        "Do a holistic simulation of the binary search!"
+    )
+
     permission_entry_size = Param.Unsigned(
         32,
         "Size of a permission table entry.",

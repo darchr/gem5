@@ -1,4 +1,3 @@
-
 # Copyright (c) 2023-24 The Regents of the University of California
 # All rights reserved.
 #
@@ -31,6 +30,7 @@ from typing import List
 
 import m5
 from m5.objects import (
+    L2XBar,
     FlatTables,
     Addr,
     AddrRange,
@@ -82,7 +82,7 @@ from boards.x86_main_board import X86ComposableMemoryBoard
 from boards.x86_shared_board import X86SharedMemoryBoard
 
 
-class X86SpaceControlOGBoard(X86SharedMemoryBoard):
+class X86SpaceControlNoPermissionBoard(X86SharedMemoryBoard):
     """
     This class extends the existing X86Board with dax device support and
     space-control like permission checks. We'll replace this with the remote
@@ -128,6 +128,11 @@ class X86SpaceControlOGBoard(X86SharedMemoryBoard):
         # The kernel uses memory at 0x0 so we need a tiny range of memory for
         # the kernel to function properly
         self.kernelMemory = SingleChannelDDR4_2400(size="256MiB")
+        # self.permission_table = FlatTables()
+
+    def get_permission_table(self):
+        raise NotImplementedError
+        # return self.permission_table
 
     def _setup_io_devices(self):
         """Sets up the x86 IO devices.
@@ -389,7 +394,13 @@ class X86SpaceControlOGBoard(X86SharedMemoryBoard):
             self.get_cache_hierarchy().incorporate_cache(self)
             
         self.kernelMemory.incorporate_memory(self)
-        self.kernelMemory.get_memory_controllers()[0].port = self.get_cache_hierarchy().get_mem_side_port()
+        self.extra_bar = L2XBar()
+
+        for cntr in self.get_local_memory().get_memory_controllers():
+            self.extra_bar.mem_side_ports = cntr.port
+
+        for cntr in self.kernelMemory.get_memory_controllers():
+            self.extra_bar.mem_side_ports = cntr.port
 
         # Create and connect Xbar for additional latency. This will override
         # the cache's incorporate_cache
@@ -401,11 +412,12 @@ class X86SpaceControlOGBoard(X86SharedMemoryBoard):
         else:
             # connect the system to the remote memory directly.
             for cntr in self.get_remote_memory().get_memory_controllers():
-                cntr.port = self.get_cache_hierarchy().get_mem_side_port()
-            for cntr in self.get_local_memory().get_memory_controllers():
-                cntr.port = self.get_cache_hierarchy().get_mem_side_port()
+                cntr.port = self.extra_bar.mem_side_ports # self.get_cache_hierarchy().get_mem_side_port()
         # Incorporate the processor into the motherboard.
         self.get_processor().incorporate_processor(self)
+
+        # Create another xbar for permissions
+        self.get_cache_hierarchy().membus.mem_side_ports = self.extra_bar.cpu_side_ports
 
         self._connect_things_called = True
 

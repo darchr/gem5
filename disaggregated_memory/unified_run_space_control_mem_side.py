@@ -561,7 +561,7 @@ args = parser.parse_args()
 gem5_binary = ""
 sst_binary = ""
 if args.gem5[0] != "/":
-    gem5_binary = "build/" + args.gem5 + "/gem5.opt"
+    gem5_binary = "build/" + args.gem5 + "/gem5.debug"
 else:
     gem5_binary = args.gem5
 
@@ -791,11 +791,7 @@ if checkpoints == True:
                         "--bootloader-path=" + jobs[job]["workitem"]
                                                         ["bootloader"],
                         "--systemd=" + systemd,
-                        "--permission=" + jobs["0"]["metadata"]["permission"],
-                        "--permission-cache=" + jobs["0"]["metadata"]["permission-cache"],
-                        "--permission-cache-entries=" + jobs["0"]["metadata"]["permission-cache-entries"],
-                        "--binary-search=" + jobs["0"]["metadata"]["binary-search"],
-                        "--number-of-entries=" + jobs["0"]["metadata"]["number-of-entries"]
+                        "--permission=" + jobs["0"]["metadata"]["permission"]
                         ]))
         except KeyError:
             traceback.print_exc()

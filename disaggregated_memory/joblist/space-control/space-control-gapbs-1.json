@@ -39,7 +39,7 @@
                     "echo '12345' | sudo -S ndctl create-namespace -f -enamespace0.0 -m devdax;",
                     "echo \"exp: flat tables gapbs :: allocator !;\"\n",
                     "echo '12345' | sudo -S /home/gem5/shared-gapbs-v3/allocator -x 0 -S 12 -g 25;",
-                    "echo '12345' | sudo -S /home/gem5/shared-gapbs-v3/bc -x 1 -S 12 -g 25;",
+                    "echo '12345' | sudo -S /home/gem5/shared-gapbs-v3/tc -x 1 -S 12 -g 25 -Z 1;",
                     "m5 exit;",
                     "m5 exit;"],
             "disk": "/home/kaustavg/projects/kg-resources-2/src/shared-gapbs/x86-disk-image-24-04/x86-ubuntu-2",

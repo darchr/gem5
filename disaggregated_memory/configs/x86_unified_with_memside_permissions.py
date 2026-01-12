@@ -45,11 +45,14 @@ sys.path.append(
 
 from boards.x86_shared_board import X86SharedMemoryBoard
 from boards.x86_main_board import X86ComposableMemoryBoard
-from boards.x86_space_control_board import X86SpaceControlBoard
+from boards.x86_space_control_board import X86SpaceControlOGBoard
+from boards.x86_space_control_w_memside_board import X86SpaceControlBoard
+from boards.x86_space_control_no_permission_board import X86SpaceControlNoPermissionBoard
 
 from cachehierarchies.dm_caches import ClassicPrivateL1PrivateL2SharedL3CacheHierarchyWChecks
 from cachehierarchies.dm_caches import ClassicPrivateL1PrivateL2SharedL3DMCache
 from cachehierarchies.dm_caches import ClassicPrivateL1PrivateL2DMCache
+from cachehierarchies.dm_caches import ClassicPrivateL1PrivateL2SharedL3CacheHierarchyExtraXbar
 from memories.external_remote_memory import ExternalRemoteMemory
 
 import m5
@@ -274,10 +277,38 @@ parser.add_argument(
     "--permission",
     type=str,
     required=True,
-    choices=["none", "flat-tables", "deact", "mondrian", "space-control"],
+    choices=["none", "flat-table", "deact", "mondrian", "space-control"],
     help="An option to simulate permission table"
 )
 
+parser.add_argument(
+    "--permission-cache",
+    type=str,
+    required=False,
+    choices=["true", "false"],
+    help="An option to simulate permission cache"
+)
+parser.add_argument(
+    "--permission-cache-entries",
+    type=int,
+    required=False,
+    default=512,
+    help="An option to add permission cache entries"
+)
+parser.add_argument(
+    "--binary-search",
+    type=str,
+    required=False,
+    choices=["true", "false"],
+    help="An option to simulate binary search. must be enabled if entries != 1"
+)
+parser.add_argument(
+    "--number-of-entries",
+    type=int,
+    required=False,
+    choices=[0, 1],
+    help="Number of entries in the permission table. 0 means WC"
+)
 
 args = parser.parse_args()
 
@@ -310,6 +341,27 @@ if args.local_memory_size == "":
 
 
 use_sst = {"true": True, "false": False}[args.is_composable]
+use_permission_cache = {"true": True, "false": False}[args.permission_cache]
+use_binary_search = {"true": True, "false": False}[args.binary_search]
+
+if args.permission == "space-control" or args.permission == "mondrian":
+    if args.number_of_entries == 1 and use_binary_search == True:
+        fatal("Cannot simulate 1 entry and binary search together")
+
+    if args.number_of_entries == 0:
+        args.number_of_entries = int(
+                (int(
+                    args.remote_memory_end, 16) - int(
+                                    args.remote_memory_start, 16)) / 0x1000)
+else:
+    # This is either flat-tables or deact. The number of entries will be
+    # computed at the simobject.
+    assert(args.number_of_entries == 0)
+    assert(use_binary_search == False)
+    assert(use_permission_cache == False)
+
+    warn("permission parameters like caches will be ignored.")
+
 ff_core = {"kvm": CPUTypes.KVM,
            "atomic": CPUTypes.ATOMIC}[args.ff_core_type]
 roi_core = {"timing": CPUTypes.TIMING,
@@ -323,16 +375,12 @@ core_to_use = ff_core
 if use_sst == True:
     core_to_use = roi_core
     
-cache_type = {  "l1l2l3": ClassicPrivateL1PrivateL2SharedL3DMCache(
+cache_type = {  "l1l2l3": ClassicPrivateL1PrivateL2SharedL3CacheHierarchyExtraXbar(
                         l1i_size=args.l1i_size,
                         l1d_size=args.l1d_size,
                         l2_size=args.l2_size,
                         l3_size=args.l3_size,
-                        l3_assoc=args.l3_assoc),
-                "l1l2": ClassicPrivateL1PrivateL2DMCache(
-                        l1i_size=args.l1i_size,
-                        l1d_size=args.l1d_size,
-                        l2_size=args.l2_size,)}[args.cache_type]
+                        l3_assoc=args.l3_assoc)}[args.cache_type]
 """
 if args.permission == "none":
     print("permissions -- none")
@@ -510,47 +558,145 @@ if shared_memory == False:
     )
 else:
     # inherits from the ComposableMemory board
-    board = X86SpaceControlBoard(
-        clk_freq=core_freq,
-        processor=processor,
-        cache_hierarchy=cache_hierarchy,
-        local_memory=local_memory,
-        remote_memory=remote_memory,
-        remote_memory_address_range=remote_memory_range
-    )
-    # setup the permissions on the board instead of the caches
-    # Cache type will be overridden by the type of permission table
-    warn("The cache is overridden with flat tables cache") 
-    board.get_permission_table().model_name = "space-control"
+    if args.permission == "none":
+        print("no permissions")
+        board = X86SpaceControlNoPermissionBoard(
+            clk_freq=core_freq,
+            processor=processor,
+            cache_hierarchy=cache_hierarchy,
+            local_memory=local_memory,
+            remote_memory=remote_memory,
+            remote_memory_address_range=remote_memory_range
+        )
+    elif args.permission == "space-control":
+        board = X86SpaceControlBoard(
+            clk_freq=core_freq,
+            processor=processor,
+            cache_hierarchy=cache_hierarchy,
+            local_memory=local_memory,
+            remote_memory=remote_memory,
+            remote_memory_address_range=remote_memory_range
+        )
+        # setup the permissions on the board instead of the caches
+        # Cache type will be overridden by the type of permission table
+        warn("The cache is overridden with flat tables cache") 
+        board.get_permission_table().model_name = "space-control"
 
-    # flat tables consume a lot of storage. this needs to be modeled correctly.
-    # The host is needed to be specified to figure our where is the repeated entry
-    board.get_permission_table().host_id = args.instance
+        # flat tables consume a lot of storage. this needs to be modeled correctly.
+        # The host is needed to be specified to figure our where is the repeated entry
+        board.get_permission_table().host_id = args.instance
 
-    # configure the permission table for flat tables control
-    board.get_permission_table().enable_permission_check = True
+        # configure the permission table for flat tables control
+        board.get_permission_table().enable_permission_check = True
+        board.get_permission_table().simulate_binary_search = use_binary_search
 
-    # We'll get to this later.
-    board.get_permission_table().use_dedicated_caching = False
-    # make sure that the permission parameters are setup correctly.
-    board.get_permission_table().permission_base_addr = 0x8C0000000 # 35 GiB
-    board.get_permission_table().remote_memory_start = 0x500000000
-    board.get_permission_table().local_memory_start =  0x100000000
-    board.get_permission_table().local_memory_end =  0x500000000
+        # We'll get to this later.
+        board.get_permission_table().use_dedicated_caching = \
+                                                        use_permission_cache
+        board.get_permission_table().cache_size = args.permission_cache_entries
+        # make sure that the permission parameters are setup correctly.
+        board.get_permission_table().permission_base_addr = 0x8C0000000 # 35 GiB
+        board.get_permission_table().remote_memory_start = 0x500000000
+        board.get_permission_table().local_memory_start =  0x100000000
+        board.get_permission_table().local_memory_end =  0x500000000
 
-    # Number of entries is used to override the class contructor.
-    # cache_hierarchy.get_permission_table().number_of_entries = (0x800000000 / (2 ** 12))
+        # Number of entries is used to override the class contructor.
+        # cache_hierarchy.get_permission_table().number_of_entries = (0x800000000 / (2 ** 12))
 
-    board.get_permission_table().binary_search = True
-    # using parameters from the driver. After the cacheline version is finished,
-    # this latency is drastically reduced!
-    board.get_permission_table().permission_entry_size = 64
+        board.get_permission_table().binary_search = True
+        board.get_permission_table().simulate_binary_search = use_binary_search
+        # using parameters from the driver. After the cacheline version is finished,
+        # this latency is drastically reduced!
+        board.get_permission_table().permission_entry_size = 64
 
-    board.get_permission_table().total_memory_size = 0x400000000
-    board.get_permission_table().mshr_count = 1024
-    board.get_permission_table().number_of_entries = int(
-                                                0x800000000 / 0x1000)
-    board.get_permission_table().segment_size = 64
+        board.get_permission_table().total_memory_size = 0x400000000
+        board.get_permission_table().mshr_count = 1024
+        board.get_permission_table().number_of_entries = args.number_of_entries # int(
+                                                    # 0x400000000 / 0x1000)
+        board.get_permission_table().segment_size = 64
+    
+    elif args.permission == "flat-table":
+        board = X86SpaceControlBoard(
+            clk_freq=core_freq,
+            processor=processor,
+            cache_hierarchy=cache_hierarchy,
+            local_memory=local_memory,
+            remote_memory=remote_memory,
+            remote_memory_address_range=remote_memory_range
+        )
+        # Cache type will be overridden by the type of permission table
+        warn("The cache is overridden with flat tables cache")
+
+        board.get_permission_table().model_name = "flat-table"
+
+        # flat tables consume a lot of storage. this needs to be modeled correctly.
+        # The host is needed to be specified to figure our where is the repeated entry
+        board.get_permission_table().host_id = args.instance
+
+        # configure the permission table for flat tables control
+        board.get_permission_table().enable_permission_check = True
+
+        # This is checked to false
+        board.get_permission_table().use_dedicated_caching = use_permission_cache
+        # make sure that the permission parameters are setup correctly.
+        board.get_permission_table().permission_base_addr = 0x8C0000000 # 35 GiB
+        board.get_permission_table().remote_memory_start = 0x500000000
+        board.get_permission_table().local_memory_start =  0x100000000
+        board.get_permission_table().local_memory_end =  0x500000000
+
+        # Number of entries is used to override the class contructor.
+        # cache_hierarchy.get_permission_table().number_of_entries = (0x800000000 / (2 ** 12))
+
+        board.get_permission_table().binary_search = True
+        # using parameters from the driver. After the cacheline version is finished,
+        # this latency is drastically reduced!
+        board.get_permission_table().permission_entry_size = 64
+
+        board.get_permission_table().total_memory_size = 0x400000000
+        board.get_permission_table().mshr_count = 1024
+
+        board.get_permission_table().segment_size = 64
+    elif args.permission == "deact":
+        board = X86SpaceControlBoard(
+            clk_freq=core_freq,
+            processor=processor,
+            cache_hierarchy=cache_hierarchy,
+            local_memory=local_memory,
+            remote_memory=remote_memory,
+            remote_memory_address_range=remote_memory_range
+        )
+        # Cache type will be overridden by the type of permission table
+        warn("The cache is overridden with flat tables cache")
+
+        board.get_permission_table().model_name = "deact"
+
+        # flat tables consume a lot of storage. this needs to be modeled correctly.
+        # The host is needed to be specified to figure our where is the repeated entry
+        board.get_permission_table().host_id = args.instance
+
+        # configure the permission table for flat tables control
+        board.get_permission_table().enable_permission_check = True
+
+        # This is checked to false
+        board.get_permission_table().use_dedicated_caching = use_permission_cache
+        # make sure that the permission parameters are setup correctly.
+        board.get_permission_table().permission_base_addr = 0x8C0000000 # 35 GiB
+        board.get_permission_table().remote_memory_start = 0x500000000
+        board.get_permission_table().local_memory_start =  0x100000000
+        board.get_permission_table().local_memory_end =  0x500000000
+
+        # Number of entries is used to override the class contructor.
+        # cache_hierarchy.get_permission_table().number_of_entries = (0x800000000 / (2 ** 12))
+
+        board.get_permission_table().binary_search = True
+        # using parameters from the driver. After the cacheline version is finished,
+        # this latency is drastically reduced!
+        board.get_permission_table().permission_entry_size = 64
+
+        board.get_permission_table().total_memory_size = 0x400000000
+        board.get_permission_table().mshr_count = 1024
+
+        board.get_permission_table().segment_size = 64
 
 
 workload = CustomWorkload(

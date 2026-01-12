@@ -2,12 +2,16 @@
     "0": {
         "metadata": {
             "comment": "This is a host allocates the graph in shared memory.",
-            "experiment": "space-control-allocator",
+            "experiment": "flat-table-allocator",
             "checkpoint": "",
             "maxtics": "",
             "max-time": "1s",
             "parallel-eff": "",
-            "permission": "space-control"
+            "permission": "flat-table",
+            "permission-cache": "false",
+            "permission-cache-entries": "0",
+            "binary-search": "false",
+            "number-of-entries": "0"
         },
         "cpu": {
             "ff-core": "kvm",
@@ -48,7 +52,7 @@
     "1": {
         "metadata": {
             "comment": "This is a host runs bfs",
-            "experiment": "space-control-bfs",
+            "experiment": "flat-table-bfs",
             "checkpoint": "",
             "maxtics": "",
             "parallel-eff": ""
@@ -93,7 +97,7 @@
     "2": {
         "metadata": {
             "comment": "This is a host runs bc",
-            "experiment": "space-control-bc",
+            "experiment": "flat-table-bc",
             "checkpoint": "",
             "maxtics": "",
             "parallel-eff": ""
@@ -138,7 +142,7 @@
     "3": {
         "metadata": {
             "comment": "This is a host runs cc",
-            "experiment": "space-control-cc",
+            "experiment": "flat-table-cc",
             "checkpoint": "",
             "maxtics": "",
             "parallel-eff": ""
@@ -183,7 +187,7 @@
     "4": {
         "metadata": {
             "comment": "This is a host runs cc_sv",
-            "experiment": "space-control-cc_sv",
+            "experiment": "flat-table-cc_sv",
             "checkpoint": "",
             "maxtics": "",
             "parallel-eff": ""
@@ -228,7 +232,7 @@
     "5": {
         "metadata": {
             "comment": "This is a host runs pr",
-            "experiment": "space-control-pr",
+            "experiment": "flat-table-pr",
             "checkpoint": "",
             "maxtics": "",
             "parallel-eff": ""
@@ -273,7 +277,7 @@
     "6": {
         "metadata": {
             "comment": "This is a host runs tc",
-            "experiment": "space-control-tc",
+            "experiment": "flat-table-tc",
             "checkpoint": "",
             "maxtics": "",
             "parallel-eff": ""
@@ -318,7 +322,7 @@
     "7": {
         "metadata": {
             "comment": "This is a host runs nothing",
-            "experiment": "space-control",
+            "experiment": "flat-table",
             "checkpoint": "",
             "maxtics": "",
             "parallel-eff": ""
