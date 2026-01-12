@@ -324,7 +324,7 @@ gem5Component::clockTick(SST::Cycle_t currentCycle)
     }
     // if I executed 1 us of time, end the simulation
     // cycle -> 1 cycles = 0.25 nano sec
-    if (currentCycle >= 1000000000) {
+    if (currentCycle >= 4000000000) {
         // assert(gem5::curTick() > base_time);
         std::cout << gem5::curTick() << " " << base_time << std::endl;
 
