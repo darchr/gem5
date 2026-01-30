@@ -263,7 +263,7 @@ class GPT(SubSystem):
         )
 
         # self.coalesce_engine.clk_domain = SrcClockDomain()
-        # self.coalesce_engine.clk_domain.clock = "100GHz"
+        # self.coalesce_engine.clk_domain.clock = "625MHz"
         # self.coalesce_engine.clk_domain.voltage_domain = VoltageDomain()
         # self.push_engine.clk_domain = SrcClockDomain()
         # self.push_engine.clk_domain.clock = "100GHz"

@@ -261,8 +261,7 @@ CoalesceEngine::recvWLRead(Addr addr)
     DPRINTF(CacheBlockState, "%s: cacheBlocks[%d]: %s.\n", __func__,
                         block_index, cacheBlocks[block_index].to_string());
 
-    if ((cacheBlocks[block_index].addr == aligned_addr) &&
-        (cacheBlocks[block_index].valid)) {
+    if (false) {  // Cache disabled
         // Hit
         DPRINTF(CoalesceEngine,  "%s: Addr: %lu is a hit.\n", __func__, addr);
         stats.readHits++;
@@ -301,8 +300,7 @@ CoalesceEngine::recvWLRead(Addr addr)
 
         stats.numVertexReads++;
         return ReadReturnStatus::ACCEPT;
-    } else if ((cacheBlocks[block_index].addr == aligned_addr) &&
-                (cacheBlocks[block_index].state == CacheState::PENDING_DATA)) {
+    } else if (false) {  // Cache disabled
         // Hit under miss
         DPRINTF(CoalesceEngine,  "%s: Addr: %lu is a hit under miss.\n",
                                                         __func__, addr);
@@ -323,7 +321,7 @@ CoalesceEngine::recvWLRead(Addr addr)
         return ReadReturnStatus::ACCEPT;
     } else {
         // miss
-        assert(cacheBlocks[block_index].addr != aligned_addr);
+        // assert(cacheBlocks[block_index].addr != aligned_addr);
         DPRINTF(CoalesceEngine,  "%s: Addr: %lu is a miss.\n", __func__, addr);
         stats.readMisses++;
         if (blocksTouchedThisTick.find(block_index) != blocksTouchedThisTick.end()) {
