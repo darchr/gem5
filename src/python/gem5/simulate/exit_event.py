@@ -116,6 +116,12 @@ class ExitEvent(Enum):
         elif exit_string.endswith("is finished updating the memory.\n"):
             # This is for the gups generator exit event
             return ExitEvent.EXIT
+        # willstuff
+        elif exit_string.endswith(
+            "has encountered the exit state and will terminate the simulation.\n"
+        ):
+            return ExitEvent.EXIT
+        # ffutslliw
         elif exit_string.endswith("received all expected responses."):
             return ExitEvent.SPATTER_EXIT
         raise NotImplementedError(

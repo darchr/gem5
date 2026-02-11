@@ -68,3 +68,13 @@ def DualChannelLPDDR3_1600(
     size: Optional[str] = None,
 ) -> AbstractMemorySystem:
     return ChanneledMemory(LPDDR3_1600_1x32, 2, 64, size=size)
+
+
+def EightChannelDDR3_2133(
+    size: Optional[str] = None,
+    mem_lat: Optional[int] = 10,
+) -> AbstractMemorySystem:
+    """
+    A eight channel memory system using DDR3_2133_8x8 based DIMM.
+    """
+    return ChanneledMemory(DDR3_2133_8x8, 8, 64, size=size, mem_lat=mem_lat)

@@ -40,10 +40,12 @@
 
 #include "mem/mem_ctrl.hh"
 
+#include "base/cprintf.hh"
 #include "base/trace.hh"
 #include "debug/DRAM.hh"
 #include "debug/Drain.hh"
 #include "debug/MemCtrl.hh"
+#include "debug/MemCtrlExtended.hh"
 #include "debug/NVM.hh"
 #include "debug/QOS.hh"
 #include "mem/dram_interface.hh"
@@ -409,6 +411,42 @@ MemCtrl::recvTimingReq(PacketPtr pkt)
     // This is where we enter from the outside world
     DPRINTF(MemCtrl, "recvTimingReq: request %s addr %#x size %d\n",
             pkt->cmdString(), pkt->getAddr(), pkt->getSize());
+
+    DPRINTF(MemCtrlExtended, "Packet Details: %s\n", pkt->print());
+
+    if (pkt->hasData() && pkt->getSize() > 0) {
+        const uint8_t *data = pkt->getConstPtr<uint8_t>();
+        const Addr base = pkt->getAddr();
+        const unsigned size = pkt->getSize();
+        const unsigned dump_len = std::min(size, 64u);
+
+        // One header line (optional but nice for grepping context)
+        DPRINTF(MemCtrlExtended, "Packet raw data base=%#lx size=%u "
+                " (showing %u):\n",
+                (unsigned long)base, size, dump_len);
+
+        for (unsigned i = 0; i < dump_len; i += 16) {
+            std::ostringstream line;
+
+            // Print the actual address for this line, then offset.
+            ccprintf(line, "%#lx  +%04u: ", (unsigned long)(base + i), i);
+
+            const unsigned end = std::min(i + 16, dump_len);
+            for (unsigned j = i; j < end; ++j)
+                ccprintf(line, "%02x ", data[j]);
+
+            DPRINTF(MemCtrlExtended, "%s\n", line.str());
+        }
+
+        if (dump_len < size) {
+            DPRINTF(MemCtrlExtended,
+                    "Packet raw data truncated: showed %u/%u bytes\n",
+                    dump_len, size);
+        }
+    } else {
+        DPRINTF(MemCtrlExtended, "Packet raw data: <none> addr=%#lx size=%u\n",
+                (unsigned long)pkt->getAddr(), pkt->getSize());
+    }
 
     panic_if(pkt->cacheResponding(), "Should not see packets where cache "
              "is responding");

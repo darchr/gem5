@@ -52,6 +52,8 @@ PySource('gem5.components.boards', 'gem5/components/boards/simple_board.py')
 PySource('gem5.components.boards', 'gem5/components/boards/test_board.py')
 PySource('gem5.components.boards', 'gem5/components/boards/x86_board.py')
 PySource('gem5.components.boards', 'gem5/components/boards/arm_board.py')
+PySource('gem5.components.boards', 'gem5/components/boards/arm_board_dax.py')
+
 PySource('gem5.components.boards',
     "gem5/components/boards/kernel_disk_workload.py")
 PySource('gem5.components.boards',
@@ -68,6 +70,12 @@ PySource('gem5.components.cachehierarchies.chi',
     'gem5/components/cachehierarchies/chi/__init__.py')
 PySource('gem5.components.cachehierarchies.chi',
     'gem5/components/cachehierarchies/chi/private_l1_cache_hierarchy.py')
+PySource('gem5.components.cachehierarchies.chi',
+    'gem5/components/cachehierarchies/chi/remote_dir.py')
+PySource('gem5.components.cachehierarchies.chi',
+    'gem5/components/cachehierarchies/chi/host.py')
+PySource('gem5.components.cachehierarchies.chi',
+    'gem5/components/cachehierarchies/chi/network.py')
 PySource('gem5.components.cachehierarchies.chi.nodes',
     'gem5/components/cachehierarchies/chi/nodes/__init__.py')
 PySource('gem5.components.cachehierarchies.chi.nodes',

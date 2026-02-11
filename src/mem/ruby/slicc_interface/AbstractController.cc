@@ -37,8 +37,9 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-
 #include "mem/ruby/slicc_interface/AbstractController.hh"
+
+#include <iostream>
 
 #include "debug/RubyQueue.hh"
 #include "mem/ruby/network/Network.hh"
@@ -95,14 +96,53 @@ AbstractController::init()
     downstreamDestinations.setRubySystem(m_ruby_system);
     upstreamDestinations.setRubySystem(m_ruby_system);
 
+    std::cout << "AbstractController::init(): " << name()
+          << " downstream_destinations size = "
+          << params().downstream_destinations.size() << "\n";
+
+    for (auto* abs_cntrl : params().downstream_destinations) {
+        std::cout << "  " << abs_cntrl->name()
+                << " mid=" << abs_cntrl->getMachineID() << "\n";
+
+        const auto& ranges = abs_cntrl->getAddrRanges();
+        if (ranges.empty()) {
+            std::cout << "    (no addr ranges)\n";
+        } else {
+            for (const auto& r : ranges) {
+                std::cout << "    range: [" << std::hex
+                        << r.start() << ", " << r.end()
+                        << ") size=0x" << r.size() << std::dec << "\n";
+            }
+        }
+    }
+        // william added
+        // setDownstreamDestinations(params().downstream_destinations);
+
     // Initialize the addr->downstream machine mappings. Multiple machines
     // in downstream_destinations can have the same address range if they have
     // different types. If this is the case, mapAddressToDownstreamMachine
     // needs to specify the machine type
     downstreamDestinations.resize();
+
+    std::cout << "AFTER AbstractController::init(): " << name()
+          << " downstream_destinations size = "
+          << params().downstream_destinations.size() << "\n";
+
     for (auto abs_cntrl : params().downstream_destinations) {
+        std::cout << "in For loop:  " << "\n";
         MachineID mid = abs_cntrl->getMachineID();
+
         const AddrRangeList &ranges = abs_cntrl->getAddrRanges();
+        // for (const auto &addr_range : ranges) {
+        //     std::cout << "    inloop range: [" << std::hex
+        //               << addr_range.start() << ", " << addr_range.end()
+        //               << ") size=0x" << addr_range.size() << std::dec
+        //               << " type=" << mid.getType() << "\n";
+        // }
+        if (ranges.empty()) {
+            fatal("%s: downstream destination %s has no address ranges\n",
+                name(), abs_cntrl->name());
+        }
         for (const auto &addr_range : ranges) {
             auto i = downstreamAddrMap.find(mid.getType());
             if ((i != downstreamAddrMap.end()) &&
@@ -110,6 +150,7 @@ AbstractController::init()
                 fatal("%s: %s mapped to multiple machines of the same type\n",
                     name(), addr_range.to_string());
             }
+
             downstreamAddrMap[mid.getType()].insert(addr_range, mid);
         }
         downstreamDestinations.add(mid);
@@ -453,6 +494,14 @@ const
                 return mapping->second;
         }
     }
+    for (const auto &i : downstreamAddrMap) {
+        for (const auto &r : i.second) {
+            DPRINTF(RubyQueue, "%s: downstream mapping: %s -> %s\n", name(),
+                    r.first.to_string(), r.second);
+        }
+    }
+    std::cout << "length of downstreamAddrMap: " << downstreamAddrMap.size()
+              << std::endl;
     fatal("%s: couldn't find mapping for address %x mtype=%s\n",
         name(), addr, mtype);
 }

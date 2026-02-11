@@ -59,6 +59,7 @@ Port::~Port() {}
 void
 Port::reportUnbound() const
 {
+    std::cout << "Port ID: " << id << std::endl;
     fatal("%s: Unconnected port!", name());
 }
 
