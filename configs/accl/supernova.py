@@ -77,6 +77,14 @@ class TemporalAdderPower(PyEnum):
     DYNAMIC = 2.4
 
 
+class TemporalMemoryPower(PyEnum):
+    # Static power (µW)
+    STATIC = 981.9
+
+    # Dynamic/Active power (µW)
+    DYNAMIC = 6.4
+
+
 class ComponentJJ(PyEnum):
     # Number of Josephson Junctions (JJs)
     SPLITTER = 3
@@ -178,6 +186,43 @@ def get_temporal_adder_energy(time_ticks: int):
     Energy = Power * time; assumes 1 tick = 1 ps.
     """
     p = get_temporal_adder_power()
+    # Convert ticks (ps) to seconds via 1e-12
+    static_E = p["static_power"] * time_ticks * 1e-12
+    dynamic_E = p["dynamic_power"] * time_ticks * 1e-12
+    total_E = static_E + dynamic_E
+
+    return {
+        "static_energy": static_E,
+        "dynamic_energy": dynamic_E,
+        "total_energy": total_E,
+    }
+
+
+def get_temporal_memory_power():
+    """
+    Returns power dict with Watts for the Temporal Memory.
+    - static_uW -> W via *1e-6
+    - dynamic_uW -> W via *1e-6
+    """
+    static_uW = TemporalMemoryPower.STATIC.value
+    dynamic_uW = TemporalMemoryPower.DYNAMIC.value
+
+    static_W = static_uW * 1e-6
+    dynamic_W = dynamic_uW * 1e-6
+    total_W = static_W + dynamic_W
+
+    return {
+        "static_power": static_W,
+        "dynamic_power": dynamic_W,
+        "total_power": total_W,
+    }
+
+
+def get_temporal_memory_energy(time_ticks: int):
+    """
+    Energy = Power * time; assumes 1 tick = 1 ps.
+    """
+    p = get_temporal_memory_power()
     # Convert ticks (ps) to seconds via 1e-12
     static_E = p["static_power"] * time_ticks * 1e-12
     dynamic_E = p["dynamic_power"] * time_ticks * 1e-12

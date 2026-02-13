@@ -167,22 +167,28 @@ if __name__ == "__m5_main__":
         total_dec_energy = 0.0
         total_ta_power = 0.0
         total_ta_energy = 0.0
+        total_tm_power = 0.0
+        total_tm_energy = 0.0
 
         for g in system.gpts:
             p_enc = g.getEncoderPowerAndArea()
             p_dec = g.getDecoderPowerAndArea()
             p_ta = g.getTemporalAdderPowerAndArea()
+            p_tm = g.getTemporalMemoryPowerAndArea()
             total_enc_power += p_enc["total_power"]
             total_dec_power += p_dec["total_power"]
             total_ta_power += p_ta["total_power"]
+            total_tm_power += p_tm["total_power"]
 
             total_enc_energy += g.getEncoderEnergy(end_time)
             total_dec_energy += g.getDecoderEnergy(end_time)
             total_ta_energy += g.getTemporalAdderEnergy(end_time)
+            total_tm_energy += g.getTemporalMemoryEnergy(end_time)
 
         print(f"[ENC] Aggregate total power:  {total_enc_power * 1e6:.3f} uW")
         print(f"[DEC] Aggregate total power:  {total_dec_power * 1e6:.3f} uW")
         print(f"[TA]  Aggregate total power:  {total_ta_power * 1e6:.3f} uW")
+        print(f"[TM]  Aggregate total power:  {total_tm_power * 1e6:.3f} uW")
         print(
             f"[ENC] Aggregate energy @ {end_time} ticks: {total_enc_energy:.15f} J"
         )
@@ -192,6 +198,9 @@ if __name__ == "__m5_main__":
         print(
             f"[TA]  Aggregate energy @ {end_time} ticks: {total_ta_energy:.15f} J"
         )
+        print(
+            f"[TM]  Aggregate energy @ {end_time} ticks: {total_tm_energy:.15f} J"
+        )
 
         # Aggregate total energy
         total_energy = (
@@ -199,6 +208,7 @@ if __name__ == "__m5_main__":
             + total_enc_energy
             + total_dec_energy
             + total_ta_energy
+            + total_tm_energy
         )
         print(
             f"[TOTAL] Aggregate energy @ {end_time} ticks: {total_energy:.15f} J"
@@ -206,7 +216,11 @@ if __name__ == "__m5_main__":
 
         # Aggregate total power
         total_power = (
-            router_power + total_enc_power + total_dec_power + total_ta_power
+            router_power
+            + total_enc_power
+            + total_dec_power
+            + total_ta_power
+            + total_tm_power
         )
         print(f"[TOTAL] Aggregate total power: {total_power * 1e6:.3f} uW")
 
@@ -216,9 +230,11 @@ if __name__ == "__m5_main__":
             enc_pct = (total_enc_energy / total_energy) * 100
             dec_pct = (total_dec_energy / total_energy) * 100
             ta_pct = (total_ta_energy / total_energy) * 100
+            tm_pct = (total_tm_energy / total_energy) * 100
             print(f"[ROUTER] Energy percentage: {router_pct:.2f}%")
             print(f"[ENC] Energy percentage: {enc_pct:.2f}%")
             print(f"[DEC] Energy percentage: {dec_pct:.2f}%")
             print(f"[TA] Energy percentage: {ta_pct:.2f}%")
+            print(f"[TM] Energy percentage: {tm_pct:.2f}%")
 
         system.print_answer()
