@@ -69,9 +69,7 @@ SimObject('MemDelay.py', sim_objects=['MemDelay', 'SimpleMemDelay'])
 SimObject('PortTerminator.py', sim_objects=['PortTerminator'])
 SimObject('ThreadBridge.py', sim_objects=['ThreadBridge'])
 
-SimObject('FifoMem.py', sim_objects=['FifoMem'])
-Source('fifo_mem.cc')
-DebugFlag('FifoMem')
+
 
 Source('abstract_mem.cc')
 Source('addr_mapper.cc')

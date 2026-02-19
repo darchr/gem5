@@ -41,6 +41,9 @@
 
 #include "mem/ruby/system/Sequencer.hh"
 
+#include <iomanip>
+#include <sstream>
+
 #include "arch/x86/ldstflags.hh"
 #include "base/compiler.hh"
 #include "base/logging.hh"
@@ -49,6 +52,7 @@
 #include "debug/LLSC.hh"
 #include "debug/MemoryAccess.hh"
 #include "debug/ProtocolTrace.hh"
+#include "debug/RubyBypass.hh"
 #include "debug/RubyHitMiss.hh"
 #include "debug/RubySequencer.hh"
 #include "debug/RubyStats.hh"
@@ -86,6 +90,8 @@ Sequencer::Sequencer(const Params &p)
     m_unaddressedTransactionCnt = 0;
 
     m_runningGarnetStandalone = p.garnet_standalone;
+
+    m_pmem_address_ranges.push_back(p.pmem_address_range);
 
     m_num_pending_invs = 0;
     m_cache_inv_pkt = nullptr;
@@ -276,6 +282,18 @@ Sequencer::functionalWrite(Packet *func_pkt)
     llscClearMonitor(makeLineAddress(func_pkt->getAddr()));
 
     return num_written;
+}
+
+void
+Sequencer::regStats()
+{
+    RubyPort::regStats();
+
+    m_pmemLatencyHist
+        .init(10)
+        .name(name() + ".pmem_latency")
+        .desc("Latency of PMEM requests")
+        .flags(statistics::nozero);
 }
 
 void Sequencer::resetStats()
@@ -946,6 +964,32 @@ Sequencer::makeRequest(PacketPtr pkt)
         return RequestStatus_BufferFull;
     }
 
+    // Check if the request is in the PMEM address range
+    for (const auto &range : m_pmem_address_ranges) {
+        if (range.contains(pkt->getAddr())) {
+            std::stringstream ss;
+            ss << "PMEM request bypassing Ruby: " << pkt->cmdString()
+               << " Addr: 0x" << std::hex << pkt->getAddr();
+            if (pkt->isWrite() && pkt->hasData()) {
+                ss << " Data: ";
+                const uint8_t* data = pkt->getConstPtr<uint8_t>();
+                for (int i = 0; i < pkt->getSize(); ++i) {
+                    ss << std::setw(2) << std::setfill('0') << (int)data[i];
+                }
+            }
+            DPRINTF(RubyBypass, "%s\n", ss.str());
+
+            // Schedule the request on the memRequestPort
+            // Set the issue time in the sender state
+            RubyPort::SenderState *ss_pkt =
+                safe_cast<RubyPort::SenderState *>(pkt->senderState);
+            ss_pkt->issueTime = curTick();
+
+            memRequestPort.schedTimingReq(pkt, clockEdge(Cycles(1)));
+            return RequestStatus_Issued;
+        }
+    }
+
     RubyRequestType primary_type = RubyRequestType_NULL;
     RubyRequestType secondary_type = RubyRequestType_NULL;
 
@@ -1197,6 +1241,12 @@ Sequencer::recordRequestType(SequencerRequestType requestType) {
 }
 
 void
+Sequencer::recordPmemLatency(Tick latency)
+{
+    m_pmemLatencyHist.sample(ticksToCycles(latency));
+}
+
+void
 Sequencer::evictionCallback(Addr address)
 {
     llscClearMonitor(address);
@@ -1224,6 +1274,34 @@ Sequencer::getCurrentUnaddressedTransactionID() const
         uint64_t(m_version & 0xFFFFFFFF) << 32) |
         (m_unaddressedTransactionCnt << m_ruby_system->getBlockSizeBits()
     );
+}
+
+Tick
+Sequencer::recvAtomic(PacketPtr pkt)
+{
+    // Check if the request is in the PMEM address range
+    for (const auto &range : m_pmem_address_ranges) {
+        if (range.contains(pkt->getAddr())) {
+            Tick latency = memRequestPort.sendAtomic(pkt);
+
+            std::stringstream ss;
+            ss << "PMEM atomic request bypassing Ruby: " << pkt->cmdString()
+               << " Addr: 0x" << std::hex << pkt->getAddr();
+            if (pkt->hasData()) {
+                ss << " Data: ";
+                const uint8_t* data = pkt->getConstPtr<uint8_t>();
+                for (int i = 0; i < pkt->getSize(); ++i) {
+                    ss << std::setw(2) << std::setfill('0') << (int)data[i];
+                }
+            }
+            DPRINTF(RubyBypass, "%s\n", ss.str());
+
+            m_pmemLatencyHist.sample(ticksToCycles(latency));
+            return latency;
+        }
+    }
+
+    return RubyPort::recvAtomic(pkt);
 }
 
 } // namespace ruby

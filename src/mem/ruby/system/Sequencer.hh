@@ -45,6 +45,7 @@
 #include <list>
 #include <unordered_map>
 
+#include "base/statistics.hh"
 #include "cpu/testers/rubytest/RubyTester.hh"
 #include "mem/ruby/common/Address.hh"
 #include "mem/ruby/protocol/MachineType.hh"
@@ -99,6 +100,7 @@ class Sequencer : public RubyPort
     // Public Methods
     virtual void wakeup(); // Used only for deadlock detection
     void resetStats() override;
+    void regStats() override;
     void collateStats();
 
     void writeCallback(Addr address,
@@ -145,6 +147,7 @@ class Sequencer : public RubyPort
     void invL1();
 
     RequestStatus makeRequest(PacketPtr pkt) override;
+    Tick recvAtomic(PacketPtr pkt) override;
     virtual bool empty() const;
     int outstandingCount() const override { return m_outstanding_count; }
 
@@ -161,6 +164,8 @@ class Sequencer : public RubyPort
     int coreId() const { return m_coreId; }
 
     virtual int functionalWrite(Packet *func_pkt) override;
+
+    void recordPmemLatency(Tick latency) override;
 
     void recordRequestType(SequencerRequestType requestType);
     statistics::Histogram& getOutstandReqHist() { return m_outstandReqHist; }
@@ -279,6 +284,11 @@ class Sequencer : public RubyPort
     uint64_t m_unaddressedTransactionCnt;
 
     bool m_runningGarnetStandalone;
+
+    std::list<AddrRange> m_pmem_address_ranges;
+
+    //! Histogram for PMEM latency
+    statistics::Histogram m_pmemLatencyHist;
 
     //! Histogram for number of outstanding requests per cycle.
     statistics::Histogram m_outstandReqHist;

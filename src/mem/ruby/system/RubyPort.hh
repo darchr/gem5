@@ -66,6 +66,7 @@ class RubyPort : public ClockedObject
   public:
     class MemRequestPort : public QueuedRequestPort
     {
+        friend class RubyPort;
       private:
         RubyPort& owner;
         ReqPacketQueue reqQueue;
@@ -81,6 +82,7 @@ class RubyPort : public ClockedObject
 
     class MemResponsePort : public QueuedResponsePort
     {
+        friend class RubyPort;
       private:
         RubyPort& owner;
         RespPacketQueue queue;
@@ -102,14 +104,15 @@ class RubyPort : public ClockedObject
 
         void recvFunctional(PacketPtr pkt);
 
+        bool isShadowRomAddress(Addr addr) const;
+        bool isPhysMemAddress(PacketPtr pkt) const;
+
         AddrRangeList getAddrRanges() const
         { AddrRangeList ranges; return ranges; }
 
         void addToRetryList();
 
       private:
-        bool isShadowRomAddress(Addr addr) const;
-        bool isPhysMemAddress(PacketPtr pkt) const;
     };
 
     class PioRequestPort : public QueuedRequestPort
@@ -151,7 +154,9 @@ class RubyPort : public ClockedObject
     struct SenderState : public Packet::SenderState
     {
         MemResponsePort *port;
-        SenderState(MemResponsePort * _port) : port(_port)
+
+        Tick issueTime;
+        SenderState(MemResponsePort * _port) : port(_port), issueTime(0)
         {}
      };
 
@@ -165,6 +170,7 @@ class RubyPort : public ClockedObject
                   PortID idx=InvalidPortID) override;
 
     virtual RequestStatus makeRequest(PacketPtr pkt) = 0;
+    virtual Tick recvAtomic(PacketPtr pkt);
     virtual int outstandingCount() const = 0;
     virtual bool isDeadlockEventScheduled() const = 0;
     virtual void descheduleDeadlockEvent() = 0;
@@ -180,6 +186,8 @@ class RubyPort : public ClockedObject
     bool isCPUSequencer() { return m_isCPUSequencer; }
 
     virtual int functionalWrite(Packet *func_pkt);
+
+    virtual void recordPmemLatency(Tick latency) {}
 
     // Helper methods for commonly used functions called in common/address.hh
     Addr getOffset(Addr addr) const;
@@ -213,7 +221,7 @@ class RubyPort : public ClockedObject
 
     std::vector<MemResponsePort *> response_ports;
 
-  private:
+  protected:
     bool onRetryList(MemResponsePort * port)
     {
         return (std::find(retryList.begin(), retryList.end(), port) !=

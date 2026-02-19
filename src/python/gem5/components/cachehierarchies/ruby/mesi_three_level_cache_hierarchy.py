@@ -26,6 +26,7 @@
 
 
 from m5.objects import (
+    AddrRange,
     DMASequencer,
     RubyPortProxy,
     RubySequencer,
@@ -72,6 +73,7 @@ class MESIThreeLevelCacheHierarchy(
         l3_size: str,
         l3_assoc: int,
         num_l3_banks: int,
+        pmem_address_range: AddrRange = None,
     ):
         AbstractRubyCacheHierarchy.__init__(self=self)
         AbstractThreeLevelCacheHierarchy.__init__(
@@ -87,6 +89,7 @@ class MESIThreeLevelCacheHierarchy(
         )
 
         self._num_l3_banks = num_l3_banks
+        self._pmem_address_range = pmem_address_range
 
     @overrides(AbstractCacheHierarchy)
     def get_coherence_protocol(self):
@@ -126,6 +129,7 @@ class MESIThreeLevelCacheHierarchy(
                 dcache=l1_cache.Dcache,
                 clk_domain=l1_cache.clk_domain,
                 ruby_system=self.ruby_system,
+                pmem_address_range=self._pmem_address_range,
             )
 
             if board.has_io_bus():

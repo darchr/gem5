@@ -46,12 +46,15 @@ class CHI_Host(SubSystem):
         l1i_size,
         l1d_size,
         l2_size,
+        pmem_address_range=None,
     ):
         super(SubSystem, self).__init__()
 
         self._l1i_size = l1i_size
         self._l1d_size = l1d_size
         self._l2_size = l2_size
+
+        self._pmem_address_range = pmem_address_range
 
         self._ruby_system = ruby_system
 
@@ -62,7 +65,8 @@ class CHI_Host(SubSystem):
 
         # Create one core cluster with a split I/D and L2 cache for each core
         self.core_clusters = [
-            self._create_core_clusters(core, board) for core in cores
+            self._create_core_clusters(core, board, pmem_address_range)
+            for core in cores
         ]
 
     def get_sequencers(self) -> List[RubySequencer]:
@@ -122,6 +126,7 @@ class CHI_Host(SubSystem):
         self,
         core: AbstractCore,
         board: AbstractBoard,
+        pmem_address_range=None,
     ) -> SubSystem:
         """Given the core and the core number this function creates a cluster
         for the core with a split I/D cache and L2 cache
@@ -157,6 +162,7 @@ class CHI_Host(SubSystem):
             dcache=cluster.icache.cache,
             clk_domain=cluster.icache.clk_domain,
             ruby_system=self._ruby_system,
+            pmem_address_range=pmem_address_range,
         )
         cluster.dcache.sequencer = RubySequencer(
             version=host_id,
@@ -165,6 +171,7 @@ class CHI_Host(SubSystem):
             deadlock_threshold=1_000_000,
             clk_domain=cluster.dcache.clk_domain,
             ruby_system=self._ruby_system,
+            pmem_address_range=pmem_address_range,
         )
 
         # cluster.dcache.upstream_sequencers = [cluster.dcache.sequencer]

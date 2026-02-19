@@ -116,6 +116,10 @@ class RubySequencer(RubyPort):
     # 99 is the dummy default value
     coreid = Param.Int(99, "CorePair core id")
 
+    pmem_address_range = Param.AddrRange(
+        AddrRange(0, size=0), "Physical address range for PMEM (uncacheable)"
+    )
+
     def connectCpuPorts(self, cpu):
         """
         Helper for connecting all cpu memory request output ports to this

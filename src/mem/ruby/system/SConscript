@@ -65,3 +65,5 @@ Source('Sequencer.cc')
 if env['CONF']['BUILD_GPU']:
     Source('VIPERCoalescer.cc')
     Source('VIPERSequencer.cc')
+
+DebugFlag('RubyBypass')

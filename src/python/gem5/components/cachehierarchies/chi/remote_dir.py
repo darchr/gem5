@@ -58,6 +58,7 @@ class CHI_3_Level_Remote_Dir(AbstractRubyCacheHierarchy):
         slc_intlv_size: str = "128B",
         num_hosts: int = 2,
         directory_remote_latency: int = 250,
+        pmem_address_range: AddrRange = None,
         # system_network_cls: Type[BaseSystemNetwork] = BaseSystemNetwork,
     ) -> None:
         """ """
@@ -70,6 +71,7 @@ class CHI_3_Level_Remote_Dir(AbstractRubyCacheHierarchy):
         self._slc_intlv_size = slc_intlv_size
         self._num_hosts = num_hosts
         self._directory_remote_latency = directory_remote_latency
+        self._pmem_address_range = pmem_address_range
         # self._system_network_cls = system_network_cls
 
     def _intlv_memory_for_hosts(
@@ -158,6 +160,7 @@ class CHI_3_Level_Remote_Dir(AbstractRubyCacheHierarchy):
                 self._l1i_size,
                 self._l1d_size,
                 self._l2_size,
+                pmem_address_range=self._pmem_address_range,
                 # clk_domain=board.get_clock_domain(),
             )
             # host.host_number = i

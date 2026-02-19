@@ -196,6 +196,11 @@ bool RubyPort::MemRequestPort::recvTimingResp(PacketPtr pkt)
         safe_cast<RubyPort::SenderState *>(pkt->popSenderState());
     MemResponsePort *port = senderState->port;
     assert(port != NULL);
+
+    if (senderState->issueTime != 0) {
+        owner.recordPmemLatency(curTick() - senderState->issueTime);
+    }
+
     delete senderState;
 
     // In FS mode, ruby memory will receive pio responses from devices
@@ -321,41 +326,48 @@ RubyPort::MemResponsePort::recvTimingReq(PacketPtr pkt)
 Tick
 RubyPort::MemResponsePort::recvAtomic(PacketPtr pkt)
 {
+    return owner.recvAtomic(pkt);
+}
+
+Tick
+RubyPort::recvAtomic(PacketPtr pkt)
+{
     // Only atomic_noncaching mode supported!
-    if (!owner.system->bypassCaches()) {
+    if (!system->bypassCaches()) {
         panic("Ruby supports atomic accesses only in noncaching mode\n");
     }
-
-    RubySystem *rs = owner.m_ruby_system;
 
     // Check for pio requests and directly send them to the dedicated
     // pio port.
     if (pkt->cmd != MemCmd::MemSyncReq) {
-        if (!isPhysMemAddress(pkt)) {
-            assert(owner.memRequestPort.isConnected());
+        if (!memResponsePort.isPhysMemAddress(pkt)) {
+            assert(memRequestPort.isConnected());
             DPRINTF(RubyPort, "Request address %#x assumed to be a "
                     "pio address\n", pkt->getAddr());
 
             // Save the port in the sender state object to be used later to
             // route the response
-            pkt->pushSenderState(new SenderState(this));
+            pkt->pushSenderState(new SenderState(&memResponsePort));
 
             // send next cycle
-            Tick req_ticks = owner.memRequestPort.sendAtomic(pkt);
-            return owner.ticksToCycles(req_ticks);
+            Tick req_ticks = memRequestPort.sendAtomic(pkt);
+            return ticksToCycles(req_ticks);
         }
 
-        assert(owner.getOffset(pkt->getAddr()) + pkt->getSize() <=
-               rs->getBlockSizeBytes());
+        assert(getOffset(pkt->getAddr()) + pkt->getSize() <=
+               m_ruby_system->getBlockSizeBytes());
     }
 
     // Find the machine type of memory controller interface
     static int mem_interface_type = -1;
     if (mem_interface_type == -1) {
-        if (rs->m_abstract_controls[MachineType_Directory].size() != 0) {
+    if (mem_interface_type == -1) {
+        if (m_ruby_system->m_abstract_controls[
+            MachineType_Directory].size() != 0) {
             mem_interface_type = MachineType_Directory;
         }
-        else if (rs->m_abstract_controls[MachineType_Memory].size() != 0) {
+        else if (m_ruby_system->m_abstract_controls[
+            MachineType_Memory].size() != 0) {
             mem_interface_type = MachineType_Memory;
         }
         else {
@@ -364,13 +376,13 @@ RubyPort::MemResponsePort::recvAtomic(PacketPtr pkt)
     }
 
     // Find the controller for the target address
-    MachineID id = owner.m_controller->mapAddressToMachine(
+    MachineID id = m_controller->mapAddressToMachine(
                     pkt->getAddr(), (MachineType)mem_interface_type);
     AbstractController *mem_interface =
-        rs->m_abstract_controls[mem_interface_type][id.getNum()];
+        m_ruby_system->m_abstract_controls[mem_interface_type][id.getNum()];
     Tick latency = mem_interface->recvAtomic(pkt);
-    if (access_backing_store)
-        rs->getPhysMem()->access(pkt);
+    if (memResponsePort.access_backing_store)
+        m_ruby_system->getPhysMem()->access(pkt);
     return latency;
 }
 
