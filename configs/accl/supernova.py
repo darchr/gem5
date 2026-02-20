@@ -404,6 +404,20 @@ class GPT(SubSystem):
         )
         return e["total_energy"]
 
+    def getTemporalMemoryPowerAndArea(self):
+        p = get_temporal_memory_power()
+        print(f"[TemporalMemory] Dynamic power: {p['dynamic_power']:.15f} W")
+        print(f"[TemporalMemory] Static power:  {p['static_power']:.15f} W")
+        print(f"[TemporalMemory] Total power:   {p['total_power']:.15f} W")
+        return p
+
+    def getTemporalMemoryEnergy(self, time_ticks: int):
+        e = get_temporal_memory_energy(time_ticks)
+        print(
+            f"[TemporalMemory] Energy for {time_ticks} ticks: total {e['total_energy']:.15f} J"
+        )
+        return e["total_energy"]
+
 
 class EdgeMemory(SubSystem):
     def __init__(self, size: str):
