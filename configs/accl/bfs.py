@@ -131,6 +131,7 @@ if __name__ == "__m5_main__":
         system.create_bfs_visited_workload(init_addr, init_value)
     else:
         system.create_bfs_workload(init_addr, init_value)
+    end_time = 0
     if sample:
         while True:
             exit_event = m5.simulate(50000000)
@@ -138,6 +139,7 @@ if __name__ == "__m5_main__":
                 f"Exited simulation at tick {m5.curTick()} "
                 + f"because {exit_event.getCause()}"
             )
+            end_time = m5.curTick()
             if exit_event.getCause() == "simulate() limit reached":
                 m5.stats.dump()
                 m5.stats.reset()
@@ -152,9 +154,20 @@ if __name__ == "__m5_main__":
                 f"Exited simulation at tick {m5.curTick()} "
                 + f"because {exit_event.getCause()}"
             )
+            end_time = m5.curTick()
             if exit_event.getCause() == "Done with all the slices.":
                 break
             if exit_event.getCause() == "no update left to process.":
                 break
+
+    gpt_powers_mw = system.get_all_gpt_power_mw()
+    total_power_mw = sum(gpt_powers_mw)
+    elapsed_seconds = end_time * 1e-12
+    total_energy_mj = total_power_mw * elapsed_seconds
+
+    print(f"Per-GPT power usage (mW): {gpt_powers_mw}")
+    print(f"Total power usage (mW): {total_power_mw}")
+    print(f"Estimated total energy usage (mJ): {total_energy_mj}")
+
     if verify:
         system.print_answer()

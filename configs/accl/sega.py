@@ -28,6 +28,78 @@ from math import log
 from m5.objects import *
 
 
+GPN_RESOURCE_ALLOCATIONS = {
+    "MPU": {
+        "luts": 6032,
+        "ffs": 7472,
+        "brams": 16,
+        "urams": 24,
+        "power_mw": 1120,
+    },
+    "VMU": {
+        "luts": 5160,
+        "ffs": 5560,
+        "brams": 64,
+        "urams": 64,
+        "power_mw": 1396,
+    },
+    "MGU": {
+        "luts": 1640,
+        "ffs": 4840,
+        "brams": 16,
+        "urams": 8,
+        "power_mw": 752,
+    },
+    "NoC": {
+        "luts": 3,
+        "ffs": 145,
+        "brams": 0,
+        "urams": 0,
+        "power_mw": 6,
+    },
+}
+
+EXPECTED_GPN_TOTALS = {
+    "power_mw": 3274,
+    "luts": 12835,
+    "ffs": 18017,
+    "brams": 96,
+    "urams": 96,
+}
+
+
+def _get_gpn_totals():
+    return {
+        "power_mw": sum(
+            module["power_mw"] for module in GPN_RESOURCE_ALLOCATIONS.values()
+        ),
+        "luts": sum(
+            module["luts"] for module in GPN_RESOURCE_ALLOCATIONS.values()
+        ),
+        "ffs": sum(
+            module["ffs"] for module in GPN_RESOURCE_ALLOCATIONS.values()
+        ),
+        "brams": sum(
+            module["brams"] for module in GPN_RESOURCE_ALLOCATIONS.values()
+        ),
+        "urams": sum(
+            module["urams"] for module in GPN_RESOURCE_ALLOCATIONS.values()
+        ),
+    }
+
+
+def validate_gpn_resource_allocations():
+    totals = _get_gpn_totals()
+    assert totals["power_mw"] == EXPECTED_GPN_TOTALS["power_mw"]
+    assert totals["luts"] == EXPECTED_GPN_TOTALS["luts"]
+    assert totals["ffs"] == EXPECTED_GPN_TOTALS["ffs"]
+    assert totals["brams"] == EXPECTED_GPN_TOTALS["brams"]
+    assert totals["urams"] == EXPECTED_GPN_TOTALS["urams"]
+
+
+validate_gpn_resource_allocations()
+
+
 def interleave_addresses(plain_range, num_channels, cache_line_size):
     intlv_low_bit = log(cache_line_size, 2)
     intlv_bits = log(num_channels, 2)
@@ -106,6 +178,18 @@ class GPT(SubSystem):
 
     def set_vertex_range(self, vertex_range):
         self.vertex_mem_ctrl.range = vertex_range
+
+    def get_gpn_resource_allocations(self):
+        return {
+            "modules": {
+                module_name: dict(module_alloc)
+                for module_name, module_alloc in GPN_RESOURCE_ALLOCATIONS.items()
+            },
+            "totals": dict(_get_gpn_totals()),
+        }
+
+    def get_power_mw(self):
+        return _get_gpn_totals()["power_mw"]
 
 
 class EdgeMemory(SubSystem):
@@ -262,8 +346,11 @@ class SEGA(System):
     def create_bc_workload(self, init_addr, init_value):
         self.ctrl.controller.createBCWorkload(init_addr, init_value)
 
-    def create_spmv_workload(self, vector):
-        self.ctrl.controller.createSPMVWorkload(vector)
-
     def print_answer(self):
         self.ctrl.controller.printAnswerToHostSimout()
+
+    def get_gpt_power_mw(self, gpt_index):
+        return self.gpts[gpt_index].get_power_mw()
+
+    def get_all_gpt_power_mw(self):
+        return [gpt.get_power_mw() for gpt in self.gpts]
