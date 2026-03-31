@@ -99,5 +99,16 @@ if __name__ == "__m5_main__":
             f"Exited simulation at tick {m5.curTick()} "
             + f"because {exit_event.getCause()}"
         )
+    gpt_powers_mw = system.get_all_gpt_power_mw()
+    total_power_mw = sum(gpt_powers_mw)
+    # Use m5.curTick() as end_time, as in bfs.py
+    end_time = m5.curTick()
+    elapsed_seconds = end_time * 1e-12
+    total_energy_mj = total_power_mw * elapsed_seconds
+
+    print(f"Per-GPT power usage (mW): {gpt_powers_mw}")
+    print(f"Total power usage (mW): {total_power_mw}")
+    print(f"Estimated total energy usage (mJ): {total_energy_mj}")
+
     if verify:
         system.print_answer()
