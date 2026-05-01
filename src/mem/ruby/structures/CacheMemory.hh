@@ -253,6 +253,9 @@ class CacheMemory : public SimObject
           statistics::Scalar m_prefetch_misses;
           statistics::Formula m_prefetch_accesses;
 
+          statistics::Scalar m_remote_load_hits;
+          statistics::Scalar m_remote_invalidation_hits;
+
           statistics::Vector m_accessModeType;
       } cacheMemoryStats;
 
@@ -263,6 +266,9 @@ class CacheMemory : public SimObject
       void profileDemandMiss();
       void profilePrefetchHit();
       void profilePrefetchMiss();
+
+      void profileRemoteLoadHit();
+      void profileRemoteInvalidationHit();
 };
 
 std::ostream& operator<<(std::ostream& out, const CacheMemory& obj);

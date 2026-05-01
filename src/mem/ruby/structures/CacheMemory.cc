@@ -572,6 +572,9 @@ CacheMemoryStats::CacheMemoryStats(statistics::Group *parent)
       ADD_STAT(m_prefetch_misses, "Number of cache prefetch misses"),
       ADD_STAT(m_prefetch_accesses, "Number of cache prefetch accesses",
                m_prefetch_hits + m_prefetch_misses),
+      ADD_STAT(m_remote_load_hits, "Number of cache remote load hits"),
+      ADD_STAT(m_remote_invalidation_hits,
+               "Number of cache remote invalidation hits"),
       ADD_STAT(m_accessModeType, "")
 {
     numDataArrayReads
@@ -625,6 +628,12 @@ CacheMemoryStats::CacheMemoryStats(statistics::Group *parent)
         .flags(statistics::nozero);
 
     m_prefetch_accesses
+        .flags(statistics::nozero);
+
+    m_remote_load_hits
+        .flags(statistics::nozero);
+
+    m_remote_invalidation_hits
         .flags(statistics::nozero);
 
     m_accessModeType
@@ -817,6 +826,18 @@ void
 CacheMemory::profilePrefetchMiss()
 {
     cacheMemoryStats.m_prefetch_misses++;
+}
+
+void
+CacheMemory::profileRemoteLoadHit()
+{
+    cacheMemoryStats.m_remote_load_hits++;
+}
+
+void
+CacheMemory::profileRemoteInvalidationHit()
+{
+    cacheMemoryStats.m_remote_invalidation_hits++;
 }
 
 } // namespace ruby

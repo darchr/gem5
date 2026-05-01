@@ -491,7 +491,7 @@ action(Initiate_ReadShared_HitUpstream, desc="") {
   tbe.actions.push(Event:ReadMissPipe);
   // MYSTUFF
   if (is_HN && (!hasLocalSharer(tbe.requestor, getDirEntry(address).sharers))) {
-    tbe.actions.push(Event:DelayRemoteHit);
+    tbe.actions.push(Event:DelayRemoteLoadHit);
   }
   // FFUTSYM
   if (tbe.use_DCT) {
@@ -510,7 +510,7 @@ action(Initiate_ReadShared_HitUpstream_NoOwner, desc="") {
   tbe.actions.push(Event:ReadMissPipe);
   // MYSTUFF
   if (is_HN && (!hasLocalSharer(tbe.requestor, getDirEntry(address).sharers))) {
-    tbe.actions.push(Event:DelayRemoteHit);
+    tbe.actions.push(Event:DelayRemoteLoadHit);
   }
   // FFUTSYM
   if (tbe.use_DCT) {
@@ -602,7 +602,7 @@ action(Initiate_ReadOnce_HitUpstream, desc="") {
   tbe.actions.push(Event:ReadMissPipe);
   // MYSTUFF
   if (is_HN && (!hasLocalSharer(tbe.requestor, getDirEntry(address).sharers))) {
-    tbe.actions.push(Event:DelayRemoteHit);
+    tbe.actions.push(Event:DelayRemoteLoadHit);
   }
   // FFUTSYM
   if (tbe.use_DCT) {
@@ -698,7 +698,7 @@ action(Initiate_ReadUnique_HitUpstream, desc="") {
   tbe.actions.push(Event:ReadMissPipe);
   // MYSTUFF
   if (is_HN && (!hasLocalSharer(tbe.requestor, getDirEntry(address).sharers))) {
-    tbe.actions.push(Event:DelayRemoteHit);
+    tbe.actions.push(Event:DelayRemoteLoadHit);
   }
   // FFUTSYM
   // SnpUniqueFwd can be used only if the line is cached at a single
@@ -770,6 +770,12 @@ action(Finish_MakeReadUnique, desc="") {
 
 action(Initiate_CleanUnique, desc="") {
   tbe.actions.push(Event:ReadMissPipe); // TODO need another latency pipe ??
+
+  // MYSTUFF, added by Will, check with Mahyar
+  if (is_HN && (!hasLocalSharer(tbe.requestor, getDirEntry(address).sharers))) {
+    tbe.actions.push(Event:DelayRemoteInvalidationHit);
+  }
+  // FFUTSYM
 
   // invalidates everyone except requestor
   if (tbe.dir_sharers.count() > 1) {
@@ -4157,8 +4163,15 @@ action(Profile_OutgoingEnd_DVM, desc="") {
 }
 
 // MYSTUFF
-action(DelayRemoteHit, desc="") {
+action(DelayRemoteLoadHit, desc="") {
   assert(is_valid(tbe));
   tbe.delayNextAction := curTick() + cyclesToTicks(remote_hit_delay);
+  cache.profileRemoteLoadHit();
+}
+
+action(DelayRemoteInvalidationHit, desc="") {
+  assert(is_valid(tbe));
+  tbe.delayNextAction := curTick() + cyclesToTicks(remote_hit_delay);
+  cache.profileRemoteInvalidationHit();
 }
 // FFUTSYM

@@ -1810,9 +1810,15 @@ transition(DvmExtOp_Finished, Final, I) {
 }
 
 // MYSTUFF
-transition({BUSY_INTR,BUSY_BLKD}, DelayRemoteHit) {
+transition({BUSY_INTR,BUSY_BLKD}, DelayRemoteLoadHit) {
   Pop_TriggerQueue;
-  DelayRemoteHit;
+  DelayRemoteLoadHit;
+  ProcessNextState_ClearPending;
+}
+
+transition({BUSY_INTR,BUSY_BLKD}, DelayRemoteInvalidationHit) {
+  Pop_TriggerQueue;
+  DelayRemoteInvalidationHit;
   ProcessNextState_ClearPending;
 }
 // FFUTSYM

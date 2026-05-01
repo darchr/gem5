@@ -361,7 +361,6 @@ RubyPort::recvAtomic(PacketPtr pkt)
     // Find the machine type of memory controller interface
     static int mem_interface_type = -1;
     if (mem_interface_type == -1) {
-    if (mem_interface_type == -1) {
         if (m_ruby_system->m_abstract_controls[
             MachineType_Directory].size() != 0) {
             mem_interface_type = MachineType_Directory;

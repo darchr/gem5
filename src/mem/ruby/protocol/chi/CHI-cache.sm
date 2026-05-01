@@ -568,7 +568,8 @@ machine(MachineType:Cache, "Cache coherency protocol") :
     WriteZero, desc="Stall a trigger action because until finish handling snoop hazard";
 
     // MYSTUFF
-    DelayRemoteHit, desc="Model Extra Delay for Remote Hits.";
+    DelayRemoteLoadHit, desc="Model Extra Delay for Remote Load Hits.";
+    DelayRemoteInvalidationHit, desc="Model Extra Delay for Remote Invalidation Hits.";
     // FFUTSYM
 
     // This is triggered once a transaction doesn't have
