@@ -39,10 +39,15 @@ class CXLHostPort: public ClockedObject
 
     bool recvTimingReq(PacketPtr pkt);
     Tick recvAtomic(PacketPtr pkt);
-    void recvFunctional(PacketPtr pkt); //{ panic("CXLHostPort doesn't expect functional requests. Request: %s.\n", pkt->print()); }
+    void recvFunctional(PacketPtr pkt);
 
     virtual Port &getPort(const std::string &if_name, PortID idx=InvalidPortID) override;
 
+    // This function is called by the compiled SLICC controller to connect it
+    // to this simObject which is necessary for sending messages to ruby
+    // (in the C++ version). To see where this is called either look at the
+    // generated code in the build directory or at
+    // src/mem/slicc/symbols/StateMachine.py:733
     void setController(AbstractController* controller)
     {
         rubyController = controller;
@@ -54,10 +59,10 @@ class CXLHostPort: public ClockedObject
     RubySystem* rubySystemPtr;
 
     void initiateMemoryRequest(PacketPtr pkt);
-    
+
     std::unordered_map<Addr, PacketPtr> outstandingRequests;
 
-    class HostSidePort : public ResponsePort 
+    class HostSidePort : public ResponsePort
     {
       private:
         CXLHostPort* owner;
@@ -113,7 +118,7 @@ class CXLHostPort: public ClockedObject
             return (current_time - insertionTimes.front()) >= latency;
         }
 
-        Tick firstReadyTime() 
+        Tick firstReadyTime()
         {
           if (empty()) {
             return MaxTick;
@@ -142,7 +147,7 @@ class CXLHostPort: public ClockedObject
     EventFunctionWrapper responseEvent;
     void scheduleNextProcessResponseEvent(Tick when);
     void processResponseEvent();
-  
+
 };
 
 } // namespace CXL

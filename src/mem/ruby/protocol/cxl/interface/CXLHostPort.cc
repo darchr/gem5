@@ -70,14 +70,15 @@ CXLHostPort::initiateMemoryRequest(PacketPtr pkt)
     } else {
         panic("CXLHostPort doesn't expect %s requests\n", pkt->print());
     }
-    
-    rubyController->getMandatoryQueue()->enqueue(cxl_pkt, clockEdge(), 1, false, false);
+
+    rubyController->getMandatoryQueue()->enqueue(cxl_pkt, clockEdge(),
+                                                    1, false, false);
 
     // need to return whether the request was sent or not
 }
 
 bool
-CXLHostPort::recvTimingReq(PacketPtr pkt) 
+CXLHostPort::recvTimingReq(PacketPtr pkt)
 {
     if (requests.size() < reqQueueSize) {
         requests.push(pkt, curTick());
@@ -119,7 +120,7 @@ CXLHostPort::processRequestEvent()
         }
         DPRINTF(CXLHostPort, "Initiating Request %s\n", requests.front());
         initiateMemoryRequest(requests.front());
-        // NOTE: We can pop this because initiateMemoryRequest tracks this 
+        // NOTE: We can pop this because initiateMemoryRequest tracks this
         // value in a separate map.
         requests.pop();
     }
@@ -147,9 +148,12 @@ Tick
 CXLHostPort::recvAtomic(PacketPtr pkt)
 {
     // Find the controller for the target address
-    MachineID id = rubyController->mapAddressToMachine(pkt->getAddr(), MachineType_CXLDevice);
-    
-    AbstractController *mem_interface = rubySystemPtr->m_abstract_controls[MachineType_CXLDevice][id.getNum()];
+    MachineID id = rubyController->mapAddressToMachine(pkt->getAddr(),
+                                                        MachineType_CXLDevice);
+
+    AbstractController *mem_interface =
+        rubySystemPtr->m_abstract_controls[MachineType_CXLDevice][id.getNum()];
+
     Tick latency = mem_interface->recvAtomic(pkt);
     // if (access_backing_store)
     //     rs->getPhysMem()->access(pkt);
@@ -231,20 +235,24 @@ CXLHostPort::getPort(const std::string &if_name, PortID idx)
 void
 CXLHostPort::responseCallback(Addr addr, DataBlock data)
 {
-    panic_if(outstandingRequests.find(addr) == outstandingRequests.end(), "Could not find addr %#x in outstanding requests.\n", addr);
+    panic_if(outstandingRequests.find(addr) == outstandingRequests.end(),
+                "Could not find addr %#x in outstanding requests.\n", addr);
     DPRINTF(CXLHostPort, "Got response for %#x\n", addr);
     PacketPtr pkt = outstandingRequests[addr];
     // NOTE: Slight HACK: For MemCmds like WriteBackDirty. We don't expect to
-    // receive a request for these commands when using Ruby caches for 
+    // receive a request for these commands when using Ruby caches for
     // the host. AFAIK, this is only going to happen when using Classic caches.
     if (!pkt->needsResponse()) {
-        DPRINTF(CXLHostPort, "Received response for packet that doesn't need a response: %s\n", pkt->print());
+        DPRINTF(CXLHostPort, "Received response for packet that doesn't
+                                        need a response: %s\n", pkt->print());
         delete pkt;
         outstandingRequests.erase(addr);
     } else {
         DPRINTF(CXLHostPort, "Found pkt %s\n", pkt->print());
         pkt->makeResponse();
-        assert(pkt->getSize() == data.getBlockSize());
+        DPRINTF(CXLHostPort, "pkt->getSize() = %u, data.getBlockSize = %u\n",
+                                         pkt->getSize(), data.getBlockSize());
+        assert(pkt->getSize() <= data.getBlockSize());
         pkt->setData(data.getData(0, data.getBlockSize()));
         responses.push(pkt, curTick());
         // Don't need to schedule a response event if one is already scheduled
@@ -257,7 +265,8 @@ CXLHostPort::responseCallback(Addr addr, DataBlock data)
 void
 CXLHostPort::scheduleNextProcessResponseEvent(Tick when)
 {
-    panic_if(responseEvent.scheduled(), "Trying to schedule the responseEvent that has already been scheduled.\n");
+    panic_if(responseEvent.scheduled(), "Trying to schedule the responseEvent
+                                        that has already been scheduled.\n");
     Tick first_ready_time = responses.firstReadyTime();
     Tick schedule_tick = std::max(when, first_ready_time);
     if (schedule_tick != MaxTick) {
