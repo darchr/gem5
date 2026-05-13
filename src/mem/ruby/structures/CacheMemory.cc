@@ -575,6 +575,26 @@ CacheMemoryStats::CacheMemoryStats(statistics::Group *parent)
       ADD_STAT(m_remote_load_hits, "Number of cache remote load hits"),
       ADD_STAT(m_remote_invalidation_hits,
                "Number of cache remote invalidation hits"),
+      ADD_STAT(m_local_load_hits_UC, "Number of local load hits (UC)"),
+      ADD_STAT(m_local_load_hits_UD, "Number of local load hits (UD)"),
+      ADD_STAT(m_local_load_hits_SC, "Number of local load hits (SC)"),
+      ADD_STAT(m_local_load_hits_SD, "Number of local load hits (SD)"),
+      ADD_STAT(m_remote_load_hits_UC, "Number of remote load hits (UC)"),
+      ADD_STAT(m_remote_load_hits_UD, "Number of remote load hits (UD)"),
+      ADD_STAT(m_remote_load_hits_SC, "Number of remote load hits (SC)"),
+      ADD_STAT(m_remote_load_hits_SD, "Number of remote load hits (SD)"),
+      ADD_STAT(m_local_store_hits_UC, "Number of local store hits (UC)"),
+      ADD_STAT(m_local_store_hits_UD, "Number of local store hits (UD)"),
+      ADD_STAT(m_local_store_hits_SC, "Number of local store hits (SC)"),
+      ADD_STAT(m_local_store_hits_SD, "Number of local store hits (SD)"),
+      ADD_STAT(m_remote_store_hits_UC, "Number of remote store hits (UC)"),
+      ADD_STAT(m_remote_store_hits_UD, "Number of remote store hits (UD)"),
+      ADD_STAT(m_remote_store_hits_SC, "Number of remote store hits (SC)"),
+      ADD_STAT(m_remote_store_hits_SD, "Number of remote store hits (SD)"),
+      ADD_STAT(m_both_store_hits_UC, "Number of both store hits (UC)"),
+      ADD_STAT(m_both_store_hits_UD, "Number of both store hits (UD)"),
+      ADD_STAT(m_both_store_hits_SC, "Number of both store hits (SC)"),
+      ADD_STAT(m_both_store_hits_SD, "Number of both store hits (SD)"),
       ADD_STAT(m_accessModeType, "")
 {
     numDataArrayReads
@@ -838,6 +858,73 @@ void
 CacheMemory::profileRemoteInvalidationHit()
 {
     cacheMemoryStats.m_remote_invalidation_hits++;
+}
+
+void
+CacheMemory::profileLoadHit(int state_type, bool isRemote)
+{
+    if (isRemote) {
+        switch (state_type) {
+            case 0: cacheMemoryStats.m_remote_load_hits_UC++; break;
+            case 1: cacheMemoryStats.m_remote_load_hits_UD++; break;
+            case 2: cacheMemoryStats.m_remote_load_hits_SC++; break;
+            case 3: cacheMemoryStats.m_remote_load_hits_SD++; break;
+        }
+    } else {
+        switch (state_type) {
+            case 0: cacheMemoryStats.m_local_load_hits_UC++; break;
+            case 1: cacheMemoryStats.m_local_load_hits_UD++; break;
+            case 2: cacheMemoryStats.m_local_load_hits_SC++; break;
+            case 3: cacheMemoryStats.m_local_load_hits_SD++; break;
+        }
+    }
+}
+
+void
+CacheMemory::profileStoreHit(int state_type, bool hasOtherLocal,
+                             bool hasRemote)
+{
+    if (hasOtherLocal && hasRemote) {
+        switch (state_type) {
+            case 0: cacheMemoryStats.m_both_store_hits_UC++; break;
+            case 1: cacheMemoryStats.m_both_store_hits_UD++; break;
+            case 2: cacheMemoryStats.m_both_store_hits_SC++; break;
+            case 3: cacheMemoryStats.m_both_store_hits_SD++; break;
+        }
+        // User requested to also increment local and remote hits
+        switch (state_type) {
+            case 0:
+                cacheMemoryStats.m_local_store_hits_UC++;
+                cacheMemoryStats.m_remote_store_hits_UC++;
+                break;
+            case 1:
+                cacheMemoryStats.m_local_store_hits_UD++;
+                cacheMemoryStats.m_remote_store_hits_UD++;
+                break;
+            case 2:
+                cacheMemoryStats.m_local_store_hits_SC++;
+                cacheMemoryStats.m_remote_store_hits_SC++;
+                break;
+            case 3:
+                cacheMemoryStats.m_local_store_hits_SD++;
+                cacheMemoryStats.m_remote_store_hits_SD++;
+                break;
+        }
+    } else if (hasOtherLocal) {
+        switch (state_type) {
+            case 0: cacheMemoryStats.m_local_store_hits_UC++; break;
+            case 1: cacheMemoryStats.m_local_store_hits_UD++; break;
+            case 2: cacheMemoryStats.m_local_store_hits_SC++; break;
+            case 3: cacheMemoryStats.m_local_store_hits_SD++; break;
+        }
+    } else if (hasRemote) {
+        switch (state_type) {
+            case 0: cacheMemoryStats.m_remote_store_hits_UC++; break;
+            case 1: cacheMemoryStats.m_remote_store_hits_UD++; break;
+            case 2: cacheMemoryStats.m_remote_store_hits_SC++; break;
+            case 3: cacheMemoryStats.m_remote_store_hits_SD++; break;
+        }
+    }
 }
 
 } // namespace ruby

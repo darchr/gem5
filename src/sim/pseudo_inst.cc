@@ -101,6 +101,9 @@ const std::string DIST_RANK = "dist-rank";
  */
 const std::string DIST_SIZE = "dist-size";
 
+const std::string SYNC_FLAG = "mss-flag";
+
+
 } // anonymous namespace
 
 void
@@ -305,6 +308,11 @@ initParam(ThreadContext *tc, uint64_t key_str1, uint64_t key_str2)
         return DistIface::rankParam();
     else if (key == DIST_SIZE)
         return DistIface::sizeParam();
+    else if (key == SYNC_FLAG || (tc->getSystemPtr()->seenMSS()))
+    {
+        tc->getSystemPtr()->observeMSS();
+        return tc->getSystemPtr()->getMSSFlag();
+    }
     else
         panic("Unknown key for initparam pseudo instruction:\"%s\"", key_str);
 }

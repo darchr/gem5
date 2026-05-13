@@ -156,23 +156,28 @@ class CHI_Host(SubSystem):
         )
         # cluster.icache.profile_usefulness = False
 
-        cluster.icache.sequencer = RubySequencer(
-            version=host_id,
-            # dcache=NULL,
-            dcache=cluster.icache.cache,
-            clk_domain=cluster.icache.clk_domain,
-            ruby_system=self._ruby_system,
-            pmem_address_range=pmem_address_range,
-        )
-        cluster.dcache.sequencer = RubySequencer(
-            version=host_id,
-            dcache=cluster.dcache.cache,
-            # icache=NULL,
-            deadlock_threshold=1_000_000,
-            clk_domain=cluster.dcache.clk_domain,
-            ruby_system=self._ruby_system,
-            pmem_address_range=pmem_address_range,
-        )
+        icache_kwargs = {
+            "version": host_id,
+            "dcache": cluster.icache.cache,
+            "clk_domain": cluster.icache.clk_domain,
+            "ruby_system": self._ruby_system,
+        }
+        if pmem_address_range is not None:
+            icache_kwargs["pmem_address_range"] = pmem_address_range
+
+        cluster.icache.sequencer = RubySequencer(**icache_kwargs)
+
+        dcache_kwargs = {
+            "version": host_id,
+            "dcache": cluster.dcache.cache,
+            "deadlock_threshold": 1_000_000,
+            "clk_domain": cluster.dcache.clk_domain,
+            "ruby_system": self._ruby_system,
+        }
+        if pmem_address_range is not None:
+            dcache_kwargs["pmem_address_range"] = pmem_address_range
+
+        cluster.dcache.sequencer = RubySequencer(**dcache_kwargs)
 
         # cluster.dcache.upstream_sequencers = [cluster.dcache.sequencer]
 

@@ -16,6 +16,7 @@ from m5.objects import (  # UsefulDataType,
     RubyPortProxy,
     RubySequencer,
     RubySystem,
+    SimpleMemory,
 )
 
 # from gem5.configs.common import cores
@@ -189,7 +190,13 @@ class CHI_3_Level_Remote_Dir(AbstractRubyCacheHierarchy):
             # system_cache.start_index_bit = int(
             #     log(toMemorySize(self._slc_intlv_size), 2)
             # )
-            system_cache.addr_ranges = [addr_ranges[i]]
+            # WILLCHANGED
+            ranges = [addr_ranges[i]]
+            if i == 0:
+                ranges.append(AddrRange(0, size="4KiB"))
+            system_cache.addr_ranges = ranges
+
+            # DEGNAHCLLIW
             system_cache.ruby_system = self.ruby_system
             system_caches.append(system_cache)
 

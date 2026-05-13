@@ -35,12 +35,16 @@ Source('isa_fake.cc')
 Source('dma_device.cc')
 Source('dma_virt_device.cc')
 
+SimObject('CxlHardwareBuffer.py', sim_objects=['CxlHardwareBuffer'])
+Source('cxl_hw_buffer.cc')
+
 SimObject('IntPin.py', sim_objects=[])
 SimObject('ResetPort.py', sim_objects=[])
 
 DebugFlag('IntPin')
 DebugFlag('IsaFake')
 DebugFlag('DMA')
+DebugFlag('CXLBUF')
 
 SimObject('Platform.py', sim_objects=['Platform'])
 Source('platform.cc')

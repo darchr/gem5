@@ -230,8 +230,8 @@ AbstractController::wakeUpBuffers(Addr addr)
 {
     if (m_waiting_buffers.count(addr) > 0) {
         //
-        // Wake up all possible lower rank (i.e. lower priority) buffers that could
-        // be waiting on this message.
+        // Wake up all possible lower rank (i.e. lower priority)
+        // buffers that could be waiting on this message.
         //
         for (int in_port_rank = m_cur_in_port - 1;
              in_port_rank >= 0;
@@ -597,6 +597,49 @@ AbstractController::hasLocalSharer(MachineID requestor, NetDest sharers)
     }
     return ret;
 }
+
+bool AbstractController::hasRemoteSharer(
+        MachineID requestor,
+        NetDest sharers
+        ) {
+    AbstractController *requestor_ctrl =
+        m_ruby_system->getAbstractController(requestor);
+    std::vector<MachineID> sharer_ids = sharers.getAllDestofType(getType());
+
+    for (auto mach_id: sharer_ids) {
+        AbstractController *ctrl =
+            m_ruby_system->getAbstractController(mach_id);
+        // If we find a sharer with a DIFFERENT host ID,
+        // we must suffer remote latency
+        if (requestor_ctrl->hostId() != ctrl->hostId()) {
+            return true;
+        }
+    }
+    return false;
+}
+
+bool AbstractController::hasOtherLocalSharer(
+        MachineID requestor,
+        NetDest sharers
+        ) {
+    AbstractController *requestor_ctrl =
+        m_ruby_system->getAbstractController(requestor);
+    std::vector<MachineID> sharer_ids = sharers.getAllDestofType(getType());
+
+    for (auto mach_id: sharer_ids) {
+        // Skip the requestor itself
+        if (mach_id == requestor) continue;
+
+        AbstractController *ctrl =
+            m_ruby_system->getAbstractController(mach_id);
+        // If we find another sharer with the SAME host ID
+        if (requestor_ctrl->hostId() == ctrl->hostId()) {
+            return true;
+        }
+    }
+    return false;
+}
+
 // FFUTSYM
 
 AbstractController::MemoryPort::MemoryPort(const std::string &_name,

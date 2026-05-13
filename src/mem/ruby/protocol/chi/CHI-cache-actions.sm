@@ -490,9 +490,16 @@ action(Initiate_ReadShared_Hit, desc="") {
 action(Initiate_ReadShared_HitUpstream, desc="") {
   tbe.actions.push(Event:ReadMissPipe);
   // MYSTUFF
-  if (is_HN && (!hasLocalSharer(tbe.requestor, getDirEntry(address).sharers))) {
-    tbe.actions.push(Event:DelayRemoteLoadHit);
+  // WILLADDED
+  if (is_HN) {
+    if (!hasLocalSharer(tbe.requestor, getDirEntry(address).sharers)) {
+      tbe.actions.push(Event:DelayRemoteLoadHit);
+      cache.profileLoadHit(getStateAsInt(getState(tbe, getCacheEntry(address), address)), true);
+    } else {
+      cache.profileLoadHit(getStateAsInt(getState(tbe, getCacheEntry(address), address)), false);
+    }
   }
+  // DEDDALLIW
   // FFUTSYM
   if (tbe.use_DCT) {
     tbe.actions.push(Event:SendSnpSharedFwdToOwner);
@@ -509,9 +516,16 @@ action(Initiate_ReadShared_HitUpstream, desc="") {
 action(Initiate_ReadShared_HitUpstream_NoOwner, desc="") {
   tbe.actions.push(Event:ReadMissPipe);
   // MYSTUFF
-  if (is_HN && (!hasLocalSharer(tbe.requestor, getDirEntry(address).sharers))) {
-    tbe.actions.push(Event:DelayRemoteLoadHit);
+  // WILLADDED
+  if (is_HN) {
+    if (!hasLocalSharer(tbe.requestor, getDirEntry(address).sharers)) {
+      tbe.actions.push(Event:DelayRemoteLoadHit);
+      cache.profileLoadHit(getStateAsInt(getState(tbe, getCacheEntry(address), address)), true);
+    } else {
+      cache.profileLoadHit(getStateAsInt(getState(tbe, getCacheEntry(address), address)), false);
+    }
   }
+  // DEDDALLIW
   // FFUTSYM
   if (tbe.use_DCT) {
     tbe.actions.push(Event:SendSnpSharedFwdToSharer);
@@ -601,9 +615,16 @@ action(Initiate_ReadOnce_Hit, desc="") {
 action(Initiate_ReadOnce_HitUpstream, desc="") {
   tbe.actions.push(Event:ReadMissPipe);
   // MYSTUFF
-  if (is_HN && (!hasLocalSharer(tbe.requestor, getDirEntry(address).sharers))) {
-    tbe.actions.push(Event:DelayRemoteLoadHit);
+  // WILLADDED
+  if (is_HN) {
+    if (!hasLocalSharer(tbe.requestor, getDirEntry(address).sharers)) {
+      tbe.actions.push(Event:DelayRemoteLoadHit);
+      cache.profileLoadHit(getStateAsInt(getState(tbe, getCacheEntry(address), address)), true);
+    } else {
+      cache.profileLoadHit(getStateAsInt(getState(tbe, getCacheEntry(address), address)), false);
+    }
   }
+  // DEDDALLIW
   // FFUTSYM
   if (tbe.use_DCT) {
     tbe.actions.push(Event:SendSnpOnceFwd);
@@ -697,9 +718,16 @@ action(Initiate_ReadUnique_Hit, desc="") {
 action(Initiate_ReadUnique_HitUpstream, desc="") {
   tbe.actions.push(Event:ReadMissPipe);
   // MYSTUFF
-  if (is_HN && (!hasLocalSharer(tbe.requestor, getDirEntry(address).sharers))) {
-    tbe.actions.push(Event:DelayRemoteLoadHit);
+  // WILLADDED
+  if (is_HN) {
+    if (!hasLocalSharer(tbe.requestor, getDirEntry(address).sharers)) {
+      tbe.actions.push(Event:DelayRemoteLoadHit);
+      cache.profileLoadHit(getStateAsInt(getState(tbe, getCacheEntry(address), address)), true);
+    } else {
+      cache.profileLoadHit(getStateAsInt(getState(tbe, getCacheEntry(address), address)), false);
+    }
   }
+  // DEDDALLIW
   // FFUTSYM
   // SnpUniqueFwd can be used only if the line is cached at a single
   // requester; so force it off if that's the case
@@ -772,9 +800,16 @@ action(Initiate_CleanUnique, desc="") {
   tbe.actions.push(Event:ReadMissPipe); // TODO need another latency pipe ??
 
   // MYSTUFF, added by Will, check with Mahyar
-  if (is_HN && (!hasLocalSharer(tbe.requestor, getDirEntry(address).sharers))) {
-    tbe.actions.push(Event:DelayRemoteInvalidationHit);
+  // WILLADDED
+  if (is_HN) {
+    bool hasRemote := hasRemoteSharer(tbe.requestor, getDirEntry(address).sharers);
+    bool hasOtherLocal := hasOtherLocalSharer(tbe.requestor, getDirEntry(address).sharers);
+    if (hasRemote) {
+      tbe.actions.push(Event:DelayRemoteInvalidationHit);
+    }
+    cache.profileStoreHit(getStateAsInt(getState(tbe, getCacheEntry(address), address)), hasOtherLocal, hasRemote);
   }
+  // DEDDALLIW
   // FFUTSYM
 
   // invalidates everyone except requestor

@@ -41,3 +41,5 @@ bool functionalMemoryWrite(Packet *pkt);
 void dequeueMemRespQueue();
 
 bool hasLocalSharer(MachineID requestor, NetDest sharers);
+bool hasRemoteSharer(MachineID requestor, NetDest sharers);
+bool hasOtherLocalSharer(MachineID requestor, NetDest sharers);

@@ -256,6 +256,31 @@ class CacheMemory : public SimObject
           statistics::Scalar m_remote_load_hits;
           statistics::Scalar m_remote_invalidation_hits;
 
+          statistics::Scalar m_local_load_hits_UC;
+          statistics::Scalar m_local_load_hits_UD;
+          statistics::Scalar m_local_load_hits_SC;
+          statistics::Scalar m_local_load_hits_SD;
+
+          statistics::Scalar m_remote_load_hits_UC;
+          statistics::Scalar m_remote_load_hits_UD;
+          statistics::Scalar m_remote_load_hits_SC;
+          statistics::Scalar m_remote_load_hits_SD;
+
+          statistics::Scalar m_local_store_hits_UC;
+          statistics::Scalar m_local_store_hits_UD;
+          statistics::Scalar m_local_store_hits_SC;
+          statistics::Scalar m_local_store_hits_SD;
+
+          statistics::Scalar m_remote_store_hits_UC;
+          statistics::Scalar m_remote_store_hits_UD;
+          statistics::Scalar m_remote_store_hits_SC;
+          statistics::Scalar m_remote_store_hits_SD;
+
+          statistics::Scalar m_both_store_hits_UC;
+          statistics::Scalar m_both_store_hits_UD;
+          statistics::Scalar m_both_store_hits_SC;
+          statistics::Scalar m_both_store_hits_SD;
+
           statistics::Vector m_accessModeType;
       } cacheMemoryStats;
 
@@ -269,6 +294,10 @@ class CacheMemory : public SimObject
 
       void profileRemoteLoadHit();
       void profileRemoteInvalidationHit();
+
+      // state_type: 0=UC, 1=UD, 2=SC, 3=SD
+      void profileLoadHit(int state_type, bool isRemote);
+      void profileStoreHit(int state_type, bool hasOtherLocal, bool hasRemote);
 };
 
 std::ostream& operator<<(std::ostream& out, const CacheMemory& obj);

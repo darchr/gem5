@@ -249,6 +249,8 @@ class AbstractController : public ClockedObject, public Consumer
   protected:
     // MYSTUFF
     bool hasLocalSharer(MachineID requestor, NetDest sharers);
+    bool hasRemoteSharer(MachineID requestor, NetDest sharers);
+    bool hasOtherLocalSharer(MachineID requestor, NetDest sharers);
     // FFUTSYM
 
     //! Profiles original cache requests including PUTs

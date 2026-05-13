@@ -75,6 +75,9 @@ class System : public SimObject, public PCEventScope
 {
   private:
 
+    bool observedMSS;
+    uint64_t mssFlag;
+
     /**
      * Private class for the system port which is only used as a
      * requestor for debug access and for non-structural entities that do
@@ -588,6 +591,14 @@ class System : public SimObject, public PCEventScope
   public:
     std::map<std::pair<uint32_t, uint32_t>, Tick>  lastWorkItemStarted;
     std::map<uint32_t, statistics::Histogram*> workItemStats;
+
+
+    // MAHYSTUFF
+    void observeMSS() { observedMSS = true; }
+    bool seenMSS() { return observedMSS; }
+    uint64_t getMSSFlag() { return mssFlag; }
+    void setMSSFlag(uint64_t mss_flag) { mssFlag = mss_flag; }
+    // FFUTSYHAM
 
     ////////////////////////////////////////////
     //
