@@ -64,6 +64,7 @@ class ComplexGenerator(AbstractGenerator):
         max_addr: int = 32768,
         rd_perc: int = 100,
         data_limit: int = 0,
+        issue_pf: bool = False,
     ) -> None:
         """
         This function will add a linear traffic to all the cores in the
@@ -94,6 +95,7 @@ class ComplexGenerator(AbstractGenerator):
                 ranges[i][1],
                 rd_perc,
                 data_limit,
+                issue_pf,
             )
 
     def add_random(

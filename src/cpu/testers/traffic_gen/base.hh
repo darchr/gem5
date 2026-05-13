@@ -179,7 +179,9 @@ class BaseTrafficGen : public ClockedObject
     bool allocateWaitingRespSlot(PacketPtr pkt)
     {
         assert(waitingResp.find(pkt->req) == waitingResp.end());
-        assert(pkt->needsResponse());
+        if (!pkt->needsResponse())
+            return false;
+        // assert(pkt->needsResponse());
 
         waitingResp[pkt->req] = curTick();
 
@@ -264,7 +266,7 @@ class BaseTrafficGen : public ClockedObject
         Tick duration,
         Addr start_addr, Addr end_addr, Addr blocksize,
         Tick min_period, Tick max_period,
-        uint8_t read_percent, Addr data_limit);
+        uint8_t read_percent, Addr data_limit, bool issuePf);
 
     std::shared_ptr<BaseGen> createRandom(
         Tick duration,

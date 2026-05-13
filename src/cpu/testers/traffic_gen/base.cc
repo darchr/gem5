@@ -384,14 +384,16 @@ std::shared_ptr<BaseGen>
 BaseTrafficGen::createLinear(Tick duration,
                              Addr start_addr, Addr end_addr, Addr blocksize,
                              Tick min_period, Tick max_period,
-                             uint8_t read_percent, Addr data_limit)
+                             uint8_t read_percent, Addr data_limit,
+                             bool issuePf)
 {
     return std::shared_ptr<BaseGen>(new LinearGen(*this, requestorId,
                                                   duration, start_addr,
                                                   end_addr, blocksize,
                                                   system->cacheLineSize(),
                                                   min_period, max_period,
-                                                  read_percent, data_limit));
+                                                  read_percent, data_limit,
+                                                  issuePf));
 }
 
 std::shared_ptr<BaseGen>

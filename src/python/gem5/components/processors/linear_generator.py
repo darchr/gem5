@@ -45,6 +45,7 @@ class LinearGenerator(AbstractGenerator):
         max_addr: int = 32768,
         rd_perc: int = 100,
         data_limit: int = 0,
+        issue_pf: bool = False,
     ) -> None:
         super().__init__(
             cores=self._create_cores(
@@ -56,6 +57,7 @@ class LinearGenerator(AbstractGenerator):
                 max_addr=max_addr,
                 rd_perc=rd_perc,
                 data_limit=data_limit,
+                issue_pf=issue_pf,
             )
         )
         """The linear generator
@@ -92,6 +94,7 @@ class LinearGenerator(AbstractGenerator):
         max_addr: int,
         rd_perc: int,
         data_limit: int,
+        issue_pf: bool,
     ) -> List[LinearGeneratorCore]:
         """
         The helper function to create the cores for the generator, it will use

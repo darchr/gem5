@@ -86,10 +86,11 @@ class LinearGen : public StochasticGen
               Addr start_addr, Addr end_addr,
               Addr _blocksize, Addr cacheline_size,
               Tick min_period, Tick max_period,
-              uint8_t read_percent, Addr data_limit)
+              uint8_t read_percent, Addr data_limit, bool issuePf)
         : StochasticGen(obj, requestor_id, _duration, start_addr, end_addr,
                         _blocksize, cacheline_size, min_period, max_period,
                         read_percent, data_limit),
+          issuePf(issuePf),
           nextAddr(0),
           dataManipulated(0)
     { }
@@ -101,6 +102,7 @@ class LinearGen : public StochasticGen
     Tick nextPacketTick(bool elastic, Tick delay) const;
 
   private:
+    bool issuePf;
     /** Address of next request */
     Addr nextAddr;
 

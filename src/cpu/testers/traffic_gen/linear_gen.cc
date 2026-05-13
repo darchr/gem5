@@ -70,7 +70,10 @@ LinearGen::getNextPacket()
     dataManipulated += blocksize;
 
     PacketPtr pkt = getPacket(nextAddr, blocksize,
-                              isRead ? MemCmd::ReadReq : MemCmd::WriteReq);
+        isRead ? MemCmd::ReadReq :
+        (issuePf ? MemCmd::FlushReq :
+            MemCmd::WriteReq));
+
 
     // increment the address
     nextAddr += blocksize;

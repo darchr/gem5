@@ -65,6 +65,7 @@ class ComplexTrafficParams:
         max_addr: int,
         rd_perc: int,
         data_limit: int,
+        issue_pf: bool,
     ):
         """The complex traffic params class
 
@@ -80,6 +81,7 @@ class ComplexTrafficParams:
         self._max_addr = max_addr
         self._rd_perc = rd_perc
         self._data_limit = data_limit
+        self._issue_pf = issue_pf
 
 
 class ComplexGeneratorCore(AbstractGeneratorCore):
@@ -111,6 +113,7 @@ class ComplexGeneratorCore(AbstractGeneratorCore):
         max_addr: int,
         rd_perc: int,
         data_limit: int,
+        issue_pf: bool,
     ) -> None:
         """
         This function will add the params for a linear traffic to the list of
@@ -142,6 +145,7 @@ class ComplexGeneratorCore(AbstractGeneratorCore):
             max_addr,
             rd_perc,
             data_limit,
+            issue_pf,
         )
         self._traffic_params = self._traffic_params + [param]
         self._traffic_set = False
@@ -186,6 +190,7 @@ class ComplexGeneratorCore(AbstractGeneratorCore):
             max_addr,
             rd_perc,
             data_limit,
+            False,  # issue_pf is not used for random traffic
         )
         self._traffic_params = self._traffic_params + [param]
         self._traffic_set = False
@@ -248,6 +253,7 @@ class ComplexGeneratorCore(AbstractGeneratorCore):
             max_addr = param._max_addr
             rd_perc = param._rd_perc
             data_limit = param._data_limit
+            issue_pf = param._issue_pf
 
             if mode == TrafficModes.linear:
                 traffic = self._create_linear_traffic(
@@ -258,6 +264,7 @@ class ComplexGeneratorCore(AbstractGeneratorCore):
                     max_addr,
                     rd_perc,
                     data_limit,
+                    issue_pf,
                 )
                 self._traffic = self._traffic + [traffic]
 
@@ -307,6 +314,7 @@ class ComplexGeneratorCore(AbstractGeneratorCore):
         max_addr: int,
         rd_perc: int,
         data_limit: int,
+        issue_pf: bool,
     ) -> None:
         """
         This function yields (creates) a linear traffic based on the input
@@ -342,6 +350,7 @@ class ComplexGeneratorCore(AbstractGeneratorCore):
             max_period,
             rd_perc,
             data_limit,
+            issue_pf,
         )
         yield self.generator.createExit(0)
 

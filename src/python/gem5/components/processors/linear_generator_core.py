@@ -52,6 +52,7 @@ class LinearGeneratorCore(AbstractGeneratorCore):
         max_addr: int,
         rd_perc: int,
         data_limit: int,
+        issue_pf: bool,
     ) -> None:
         super().__init__()
         """ The linear generator core interface.
@@ -85,6 +86,7 @@ class LinearGeneratorCore(AbstractGeneratorCore):
         self._max_addr = max_addr
         self._rd_perc = rd_perc
         self._data_limit = data_limit
+        self._issue_pf = issue_pf
 
     @overrides(AbstractCore)
     def connect_dcache(self, port: Port) -> None:
@@ -118,6 +120,7 @@ class LinearGeneratorCore(AbstractGeneratorCore):
             max_period,
             self._rd_perc,
             self._data_limit,
+            self._issue_pf,
         )
         yield self.generator.createExit(0)
 
