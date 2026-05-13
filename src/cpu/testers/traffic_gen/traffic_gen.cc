@@ -187,6 +187,24 @@ TrafficGen::parseConfig()
                     Tick min_period;
                     Tick max_period;
                     Addr data_limit;
+                    if (mode == "LINEAR") {
+                        bool issuePf;
+                        is >> read_percent >> start_addr >> end_addr >>
+                        blocksize >> min_period >> max_period >> data_limit >>
+                        issuePf;
+
+                        DPRINTF(TrafficGen, "%s, addr %x to %x, size %d,"
+                            " period %d to %d, %d%% reads, %x issuePf\n",
+                            mode, start_addr, end_addr, blocksize, min_period,
+                            max_period, read_percent, issuePf);
+
+                        states[id] = createLinear(duration, start_addr,
+                                                  end_addr, blocksize,
+                                                  min_period, max_period,
+                                                  read_percent, data_limit,
+                                                  issuePf);
+                        DPRINTF(TrafficGen, "State: %d LinearGen\n", id);
+                    } else{
 
                     is >> read_percent >> start_addr >> end_addr >>
                         blocksize >> min_period >> max_period >> data_limit;
@@ -195,15 +213,7 @@ TrafficGen::parseConfig()
                             " period %d to %d, %d%% reads\n",
                             mode, start_addr, end_addr, blocksize, min_period,
                             max_period, read_percent);
-
-
-                    if (mode == "LINEAR") {
-                        states[id] = createLinear(duration, start_addr,
-                                                  end_addr, blocksize,
-                                                  min_period, max_period,
-                                                  read_percent, data_limit);
-                        DPRINTF(TrafficGen, "State: %d LinearGen\n", id);
-                    } else if (mode == "RANDOM") {
+                    } if (mode == "RANDOM") {
                         states[id] = createRandom(duration, start_addr,
                                                   end_addr, blocksize,
                                                   min_period, max_period,
