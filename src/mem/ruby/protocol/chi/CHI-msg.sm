@@ -126,6 +126,8 @@ structure(CHIRequestMsg, desc="", interface="Message") {
 
   MessageSizeType MessageSize, default="MessageSizeType_Control";
 
+  bool isFlush,        desc="True if this request is a Flush", default="false";
+
   // No data for functional access
   bool functionalRead(Packet *pkt) { return false; }
   bool functionalRead(Packet *pkt, WriteMask &mask) { return false; }

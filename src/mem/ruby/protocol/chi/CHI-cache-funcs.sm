@@ -460,6 +460,8 @@ TBE allocateRequestTBE(Addr addr, CHIRequestMsg in_msg), return_by_pointer="yes"
 
   tbe.hasUseTimeout := false;
 
+  tbe.is_flush := in_msg.isFlush;
+
   return tbe;
 }
 
@@ -668,6 +670,7 @@ void prepareRequest(TBE tbe, CHIRequestType type, CHIRequestMsg & out_msg) {
   out_msg.is_local_pf := false;
   out_msg.is_remote_pf := tbe.is_local_pf || tbe.is_remote_pf;
   out_msg.txnId := tbe.txnId;
+  out_msg.isFlush := tbe.is_flush;
 
   assert(tbe.txnId != static_cast(Addr, "value", -1));
 }
@@ -792,7 +795,7 @@ void printResources() {
 
 bool needCacheEntry(CHIRequestType req_type,
                     CacheEntry cache_entry, DirEntry dir_entry,
-                    bool is_prefetch) {
+                    bool is_prefetch, bool is_flush) {
   // never allocates:
   // - if entry already valid
   // - if using DMT; the request is a Read*; and dir entry is invalid
@@ -804,6 +807,12 @@ bool needCacheEntry(CHIRequestType req_type,
         (req_type == CHIRequestType:MakeReadUnique) ||
         (req_type == CHIRequestType:ReadOnce)))) {
     return false;
+   } else if (is_flush) {
+      assert((req_type == CHIRequestType:StoreLine) ||
+              (req_type == CHIRequestType:WriteUniqueFull) ||
+              (req_type == CHIRequestType:CleanUnique) ||  // Prefetching causes these requests during flush
+              (req_type == CHIRequestType:ReadUnique));
+      return false;
   } else {
     return is_prefetch ||
            (alloc_on_readshared && ((req_type == CHIRequestType:ReadShared) ||

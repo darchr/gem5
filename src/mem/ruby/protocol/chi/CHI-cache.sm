@@ -765,6 +765,9 @@ machine(MachineType:Cache, "Cache coherency protocol") :
     bool wakeup_pending_req;
     bool wakeup_pending_snp;
     bool wakeup_pending_tgr;
+
+    // Track if request is a flush
+    bool is_flush, desc="Request is a flush operation";
   }
 
   // TBE table definition

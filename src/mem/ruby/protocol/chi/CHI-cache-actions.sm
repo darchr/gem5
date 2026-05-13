@@ -165,6 +165,9 @@ action(AllocateTBE_SeqRequest, desc="") {
         out_msg.type := CHIRequestType:AtomicLoad;
       } else if (in_msg.Type == RubyRequestType:ATOMIC_NO_RETURN){
         out_msg.type := CHIRequestType:AtomicStore;
+      } else if (in_msg.Type == RubyRequestType:FLUSH) {
+        out_msg.type := CHIRequestType:StoreLine;
+        out_msg.isFlush := true;
       } else {
         error("Invalid RubyRequestType");
       }
@@ -267,7 +270,7 @@ action(Initiate_Request, desc="") {
 
   bool alloc_entry := needCacheEntry(tbe.reqType,
                                      cache_entry, dir_entry,
-                                     tbe.is_local_pf);
+                                     tbe.is_local_pf, tbe.is_flush);
   bool dealloc_entry := needDeallocCacheEntry(tbe.reqType);
   assert((alloc_entry && dealloc_entry) == false);
 
