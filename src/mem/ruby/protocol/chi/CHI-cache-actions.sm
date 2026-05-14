@@ -494,9 +494,9 @@ action(Initiate_ReadShared_HitUpstream, desc="") {
   if (is_HN) {
     if (!hasLocalSharer(tbe.requestor, getDirEntry(address).sharers)) {
       tbe.actions.push(Event:DelayRemoteLoadHit);
-      cache.profileLoadHit(getStateAsInt(getState(tbe, getCacheEntry(address), address)), true);
+      cache.profileLoadHit(State_to_string(getState(tbe, getCacheEntry(address), address)), true);
     } else {
-      cache.profileLoadHit(getStateAsInt(getState(tbe, getCacheEntry(address), address)), false);
+      cache.profileLoadHit(State_to_string(getState(tbe, getCacheEntry(address), address)), false);
     }
   }
   // DEDDALLIW
@@ -520,9 +520,9 @@ action(Initiate_ReadShared_HitUpstream_NoOwner, desc="") {
   if (is_HN) {
     if (!hasLocalSharer(tbe.requestor, getDirEntry(address).sharers)) {
       tbe.actions.push(Event:DelayRemoteLoadHit);
-      cache.profileLoadHit(getStateAsInt(getState(tbe, getCacheEntry(address), address)), true);
+      cache.profileLoadHit(State_to_string(getState(tbe, getCacheEntry(address), address)), true);
     } else {
-      cache.profileLoadHit(getStateAsInt(getState(tbe, getCacheEntry(address), address)), false);
+      cache.profileLoadHit(State_to_string(getState(tbe, getCacheEntry(address), address)), false);
     }
   }
   // DEDDALLIW
@@ -619,9 +619,9 @@ action(Initiate_ReadOnce_HitUpstream, desc="") {
   if (is_HN) {
     if (!hasLocalSharer(tbe.requestor, getDirEntry(address).sharers)) {
       tbe.actions.push(Event:DelayRemoteLoadHit);
-      cache.profileLoadHit(getStateAsInt(getState(tbe, getCacheEntry(address), address)), true);
+      cache.profileLoadHit(State_to_string(getState(tbe, getCacheEntry(address), address)), true);
     } else {
-      cache.profileLoadHit(getStateAsInt(getState(tbe, getCacheEntry(address), address)), false);
+      cache.profileLoadHit(State_to_string(getState(tbe, getCacheEntry(address), address)), false);
     }
   }
   // DEDDALLIW
@@ -722,9 +722,9 @@ action(Initiate_ReadUnique_HitUpstream, desc="") {
   if (is_HN) {
     if (!hasLocalSharer(tbe.requestor, getDirEntry(address).sharers)) {
       tbe.actions.push(Event:DelayRemoteLoadHit);
-      cache.profileLoadHit(getStateAsInt(getState(tbe, getCacheEntry(address), address)), true);
+      cache.profileLoadHit(State_to_string(getState(tbe, getCacheEntry(address), address)), true);
     } else {
-      cache.profileLoadHit(getStateAsInt(getState(tbe, getCacheEntry(address), address)), false);
+      cache.profileLoadHit(State_to_string(getState(tbe, getCacheEntry(address), address)), false);
     }
   }
   // DEDDALLIW
@@ -807,7 +807,7 @@ action(Initiate_CleanUnique, desc="") {
     if (hasRemote) {
       tbe.actions.push(Event:DelayRemoteInvalidationHit);
     }
-    cache.profileStoreHit(getStateAsInt(getState(tbe, getCacheEntry(address), address)), hasOtherLocal, hasRemote);
+    cache.profileStoreHit(State_to_string(getState(tbe, getCacheEntry(address), address)), hasOtherLocal, hasRemote);
   }
   // DEDDALLIW
   // FFUTSYM

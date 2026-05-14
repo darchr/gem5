@@ -72,22 +72,7 @@ State curTransitionNextState();
 ////////////////////////////////////////////////////////////////////////////
 // Interface functions required by SLICC
 // WILLADDED
-
-int getStateAsInt(State state) {
-  if ((state == State:UC) || (state == State:UC_RSC) || (state == State:UC_RU)) {
-    return 0; // UC
-  } else if ((state == State:UD) || (state == State:UD_RSC) || (state == State:UD_RU) || (state == State:UD_RSD) || (state == State:UD_T) || (state == State:RU) || (state == State:RUSD) || (state == State:RUSC)) {
-    return 1; // UD
-  } else if ((state == State:SC) || (state == State:SC_RSC) || (state == State:RSC)) {
-    return 2; // SC
-  } else if ((state == State:SD) || (state == State:SD_RSC) || (state == State:SD_RSD) || (state == State:RSD)) {
-    return 3; // SD
-  } else {
-    return 0; // Default or Invalid
-  }
-}
-
-//DEDDALLIW
+// DEDDALLIW
 
 CacheEntry getCacheEntry(Addr addr), return_by_pointer="yes" {
   return static_cast(CacheEntry, "pointer", cache.lookup(addr));

@@ -241,8 +241,8 @@ structure (CacheMemory, external = "yes") {
   void profileRemoteLoadHit();
   void profileRemoteInvalidationHit();
 
-  void profileLoadHit(int, bool);
-  void profileStoreHit(int, bool, bool);
+  void profileLoadHit(std::string, bool);
+  void profileStoreHit(std::string, bool, bool);
 }
 
 structure (WireBuffer, inport="yes", outport="yes", external = "yes") {
