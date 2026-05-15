@@ -30,12 +30,12 @@ from .network import (
 
 
 class CHI_Host(SubSystem):
-    _host_number = 0
+    _sequencer_count = 0
 
     @classmethod
-    def _get_host_number(cls):
-        cls._host_number += 1  # Use count for this particular type
-        return cls._host_number - 1
+    def _get_unique_version(cls):
+        cls._sequencer_count += 1
+        return cls._sequencer_count - 1
 
     def __init__(
         self,
@@ -46,6 +46,7 @@ class CHI_Host(SubSystem):
         l1i_size,
         l1d_size,
         l2_size,
+        host_id: int,
         pmem_address_range=None,
     ):
         super(SubSystem, self).__init__()
@@ -59,6 +60,7 @@ class CHI_Host(SubSystem):
         self._ruby_system = ruby_system
 
         self._network = network
+        self._host_id = host_id
 
         # NOTE: To return when shared caches need to set their upstream_sequencers.
         self._sequencers = []
@@ -131,7 +133,7 @@ class CHI_Host(SubSystem):
         """Given the core and the core number this function creates a cluster
         for the core with a split I/D cache and L2 cache
         """
-        host_id = self._get_host_number()
+        host_id = self._host_id
 
         cluster = SubSystem()
 
@@ -157,7 +159,7 @@ class CHI_Host(SubSystem):
         # cluster.icache.profile_usefulness = False
 
         icache_kwargs = {
-            "version": host_id,
+            "version": self._get_unique_version(),
             "dcache": cluster.icache.cache,
             "clk_domain": cluster.icache.clk_domain,
             "ruby_system": self._ruby_system,
@@ -168,7 +170,7 @@ class CHI_Host(SubSystem):
         cluster.icache.sequencer = RubySequencer(**icache_kwargs)
 
         dcache_kwargs = {
-            "version": host_id,
+            "version": self._get_unique_version(),
             "dcache": cluster.dcache.cache,
             "deadlock_threshold": 1_000_000,
             "clk_domain": cluster.dcache.clk_domain,

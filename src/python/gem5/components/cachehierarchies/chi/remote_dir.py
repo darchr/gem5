@@ -161,6 +161,7 @@ class CHI_3_Level_Remote_Dir(AbstractRubyCacheHierarchy):
                 self._l1i_size,
                 self._l1d_size,
                 self._l2_size,
+                host_id=i,
                 pmem_address_range=self._pmem_address_range,
                 # clk_domain=board.get_clock_domain(),
             )
@@ -176,14 +177,18 @@ class CHI_3_Level_Remote_Dir(AbstractRubyCacheHierarchy):
             sequencers.extend(host._sequencers)
 
             # for i in range(len(self.memory_controllers)):
+            # Divide total SLC size by the number of hosts to maintain constant total L3 capacity
+            per_host_slc_size = toMemorySize(self._slc_size) // self._num_hosts
+
             # Create the system cache (SLC)
             system_cache = SystemLevelCache(
-                size=self._slc_size,
+                size=f"{per_host_slc_size}B",
                 assoc=16,
                 network=self.ruby_system.network,
                 cache_line_size=board.get_cache_line_size(),
                 clk_domain=board.get_clock_domain(),
                 host_id=i,  # Pass the host number to the SystemLevelCache
+                num_hosts=self._num_hosts,  # Pass num_hosts for resource scaling
                 directory_remote_latency=self._directory_remote_latency,
             )
             # system_cache.isL3 = True
@@ -308,6 +313,7 @@ class SystemLevelCache(AbstractNode):
         cache_line_size,
         clk_domain: ClockDomain,
         host_id: int = None,  # Added host_id parameter
+        num_hosts: int = 1,  # Added num_hosts for resource scaling
         directory_remote_latency: int = 250,
     ):
         super().__init__(network, cache_line_size)
@@ -364,10 +370,16 @@ class SystemLevelCache(AbstractNode):
         self.dealloc_backinv_unique = False
         self.dealloc_backinv_shared = False
 
+        # Scale resources based on host count to prevent starvation with fewer hosts
+        # Baseline is 8 hosts with 64 TBEs each
+        scale = 8 // num_hosts
+        if scale < 1:
+            scale = 1
+
         # Some reasonable default TBE params
-        self.number_of_TBEs = 64
-        self.number_of_repl_TBEs = 64
-        self.number_of_snoop_TBEs = 8
-        self.number_of_DVM_TBEs = 16
-        self.number_of_DVM_snoop_TBEs = 4
+        self.number_of_TBEs = 64 * scale
+        self.number_of_repl_TBEs = 64 * scale
+        self.number_of_snoop_TBEs = 8 * scale
+        self.number_of_DVM_TBEs = 16 * scale
+        self.number_of_DVM_snoop_TBEs = 4 * scale
         self.unify_repl_TBEs = False
