@@ -348,7 +348,7 @@ class AbstractMemory : public ClockedObject
      *
      * @param pkt Packet performing the access
      */
-    void access(PacketPtr pkt);
+    virtual void access(PacketPtr pkt);
 
     /**
      * Perform an untimed memory read or write without changing
@@ -358,7 +358,7 @@ class AbstractMemory : public ClockedObject
      *
      * @param pkt Packet performing the access
      */
-    void functionalAccess(PacketPtr pkt);
+    virtual void functionalAccess(PacketPtr pkt);
 };
 
 } // namespace memory

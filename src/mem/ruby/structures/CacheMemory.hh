@@ -256,33 +256,11 @@ class CacheMemory : public SimObject
           statistics::Scalar m_remote_load_hits;
           statistics::Scalar m_remote_invalidation_hits;
 
-          statistics::Scalar m_local_load_hits_UC;
-          statistics::Scalar m_local_load_hits_UD;
-          statistics::Scalar m_local_load_hits_SC;
-          statistics::Scalar m_local_load_hits_SD;
-
-          statistics::Scalar m_remote_load_hits_UC;
-          statistics::Scalar m_remote_load_hits_UD;
-          statistics::Scalar m_remote_load_hits_SC;
-          statistics::Scalar m_remote_load_hits_SD;
-
-          statistics::Scalar m_local_store_hits_UC;
-          statistics::Scalar m_local_store_hits_UD;
-          statistics::Scalar m_local_store_hits_SC;
-          statistics::Scalar m_local_store_hits_SD;
-
-          statistics::Scalar m_remote_store_hits_UC;
-          statistics::Scalar m_remote_store_hits_UD;
-          statistics::Scalar m_remote_store_hits_SC;
-          statistics::Scalar m_remote_store_hits_SD;
-
-          statistics::Scalar m_both_store_hits_UC;
-          statistics::Scalar m_both_store_hits_UD;
-          statistics::Scalar m_both_store_hits_SC;
-          statistics::Scalar m_both_store_hits_SD;
-
+          statistics::Vector m_local_load_hits_by_state;
           statistics::Vector m_remote_load_hits_by_state;
+          statistics::Vector m_local_store_hits_by_state;
           statistics::Vector m_remote_store_hits_by_state;
+          statistics::Vector m_both_store_hits_by_state;
 
           statistics::Vector m_accessModeType;
           std::map<std::string, int> m_state_index_map;

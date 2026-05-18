@@ -57,7 +57,8 @@ class CHI_3_Level_Remote_Dir(AbstractRubyCacheHierarchy):
         l2_size: str = "1MiB",
         slc_size: str = "32MiB",
         slc_intlv_size: str = "128B",
-        num_hosts: int = 2,
+        num_hosts: int = 1,
+        num_hns: int = 2,
         directory_remote_latency: int = 250,
         pmem_address_range: AddrRange = None,
         # system_network_cls: Type[BaseSystemNetwork] = BaseSystemNetwork,
@@ -71,6 +72,7 @@ class CHI_3_Level_Remote_Dir(AbstractRubyCacheHierarchy):
         self._slc_size = slc_size  # toMemorySize(slc_size)
         self._slc_intlv_size = slc_intlv_size
         self._num_hosts = num_hosts
+        self._num_hns = num_hns
         self._directory_remote_latency = directory_remote_latency
         self._pmem_address_range = pmem_address_range
         # self._system_network_cls = system_network_cls
@@ -130,7 +132,15 @@ class CHI_3_Level_Remote_Dir(AbstractRubyCacheHierarchy):
         self.memory_controllers = memory_controllers
 
         cores = board.get_processor().get_cores()
-        assert (len(cores) % self._num_hosts) == 0
+        assert (
+            len(cores) % self._num_hosts
+        ) == 0, "Number of cores must be divisible by number of hosts"
+        assert (
+            self._num_hns >= self._num_hosts
+        ), "Number of home nodes must be >= number of hosts"
+        assert (
+            self._num_hns % self._num_hosts
+        ) == 0, "Number of home nodes must be divisible by number of hosts"
 
         # unsure if this is needed
         cores_per_host = int(len(cores) / self._num_hosts)
@@ -144,7 +154,7 @@ class CHI_3_Level_Remote_Dir(AbstractRubyCacheHierarchy):
         addr_ranges = self._intlv_memory_for_hosts(
             mem_range.start,
             mem_range.size(),
-            self._num_hosts,
+            self._num_hns,
             self._slc_intlv_size,
         )
 
@@ -165,39 +175,31 @@ class CHI_3_Level_Remote_Dir(AbstractRubyCacheHierarchy):
                 pmem_address_range=self._pmem_address_range,
                 # clk_domain=board.get_clock_domain(),
             )
-            # host.host_number = i
-
-            # host.core_clusters = []
-            # for j in range(cores_per_host):
-            #     core = cores[i * cores_per_host + j]
-            #     cluster = host.create_cluster(core, board)
-            #     host.core_clusters.append(cluster)
             hosts.append(host)
-
             sequencers.extend(host._sequencers)
 
-            # for i in range(len(self.memory_controllers)):
-            # Divide total SLC size by the number of hosts to maintain constant total L3 capacity
-            per_host_slc_size = toMemorySize(self._slc_size) // self._num_hosts
+        # Divide total SLC size by the number of HNs to maintain constant total L3 capacity
+        per_hn_slc_size = toMemorySize(self._slc_size) // self._num_hns
+        hns_per_host = self._num_hns // self._num_hosts
+
+        for j in range(self._num_hns):
+            # Calculate which host this HN belongs to
+            host_id_for_hn = j // hns_per_host
 
             # Create the system cache (SLC)
             system_cache = SystemLevelCache(
-                size=f"{per_host_slc_size}B",
+                size=f"{per_hn_slc_size}B",
                 assoc=16,
                 network=self.ruby_system.network,
                 cache_line_size=board.get_cache_line_size(),
                 clk_domain=board.get_clock_domain(),
-                host_id=i,  # Pass the host number to the SystemLevelCache
-                num_hosts=self._num_hosts,  # Pass num_hosts for resource scaling
+                host_id=host_id_for_hn,  # Pass the computed host_id to the SystemLevelCache
+                num_hns=self._num_hns,  # Pass num_hns for resource scaling
                 directory_remote_latency=self._directory_remote_latency,
             )
-            # system_cache.isL3 = True
-            # system_cache.start_index_bit = int(
-            #     log(toMemorySize(self._slc_intlv_size), 2)
-            # )
             # WILLCHANGED
-            ranges = [addr_ranges[i]]
-            if i == 0:
+            ranges = [addr_ranges[j]]
+            if j == 0:
                 ranges.append(AddrRange(0, size="4KiB"))
             system_cache.addr_ranges = ranges
 
@@ -313,7 +315,7 @@ class SystemLevelCache(AbstractNode):
         cache_line_size,
         clk_domain: ClockDomain,
         host_id: int = None,  # Added host_id parameter
-        num_hosts: int = 1,  # Added num_hosts for resource scaling
+        num_hns: int = 1,  # Changed to num_hns for resource scaling
         directory_remote_latency: int = 250,
     ):
         super().__init__(network, cache_line_size)
@@ -370,16 +372,22 @@ class SystemLevelCache(AbstractNode):
         self.dealloc_backinv_unique = False
         self.dealloc_backinv_shared = False
 
-        # Scale resources based on host count to prevent starvation with fewer hosts
-        # Baseline is 8 hosts with 64 TBEs each
-        scale = 8 // num_hosts
+        # Scale resources based on HN count to prevent starvation with fewer HNs
+        # Baseline is 8 HNs with 64 TBEs each
+        scale = 8 // num_hns
         if scale < 1:
             scale = 1
 
         # Some reasonable default TBE params
-        self.number_of_TBEs = 64 * scale
-        self.number_of_repl_TBEs = 64 * scale
-        self.number_of_snoop_TBEs = 8 * scale
-        self.number_of_DVM_TBEs = 16 * scale
-        self.number_of_DVM_snoop_TBEs = 4 * scale
+        self.number_of_TBEs = 64
+        self.number_of_repl_TBEs = 64
+        self.number_of_snoop_TBEs = 8
+        self.number_of_DVM_TBEs = 16
+        self.number_of_DVM_snoop_TBEs = 4
         self.unify_repl_TBEs = False
+        # self.number_of_TBEs = 64 * scale
+        # self.number_of_repl_TBEs = 64 * scale
+        # self.number_of_snoop_TBEs = 8 * scale
+        # self.number_of_DVM_TBEs = 16 * scale
+        # self.number_of_DVM_snoop_TBEs = 4 * scale
+        # self.unify_repl_TBEs = False

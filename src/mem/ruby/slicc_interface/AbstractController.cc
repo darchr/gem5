@@ -640,6 +640,14 @@ bool AbstractController::hasOtherLocalSharer(
     return false;
 }
 
+bool
+AbstractController::isRemoteMachine(MachineID requestor)
+{
+    AbstractController *requestor_ctrl = \
+        m_ruby_system->getAbstractController(requestor);
+    return requestor_ctrl->hostId() != this->hostId();
+}
+
 // FFUTSYM
 
 AbstractController::MemoryPort::MemoryPort(const std::string &_name,

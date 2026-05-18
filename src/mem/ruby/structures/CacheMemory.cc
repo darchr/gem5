@@ -575,30 +575,16 @@ CacheMemoryStats::CacheMemoryStats(statistics::Group *parent)
       ADD_STAT(m_remote_load_hits, "Number of cache remote load hits"),
       ADD_STAT(m_remote_invalidation_hits,
                "Number of cache remote invalidation hits"),
-      ADD_STAT(m_local_load_hits_UC, "Number of local load hits (UC)"),
-      ADD_STAT(m_local_load_hits_UD, "Number of local load hits (UD)"),
-      ADD_STAT(m_local_load_hits_SC, "Number of local load hits (SC)"),
-      ADD_STAT(m_local_load_hits_SD, "Number of local load hits (SD)"),
-      ADD_STAT(m_remote_load_hits_UC, "Number of remote load hits (UC)"),
-      ADD_STAT(m_remote_load_hits_UD, "Number of remote load hits (UD)"),
-      ADD_STAT(m_remote_load_hits_SC, "Number of remote load hits (SC)"),
-      ADD_STAT(m_remote_load_hits_SD, "Number of remote load hits (SD)"),
-      ADD_STAT(m_local_store_hits_UC, "Number of local store hits (UC)"),
-      ADD_STAT(m_local_store_hits_UD, "Number of local store hits (UD)"),
-      ADD_STAT(m_local_store_hits_SC, "Number of local store hits (SC)"),
-      ADD_STAT(m_local_store_hits_SD, "Number of local store hits (SD)"),
-      ADD_STAT(m_remote_store_hits_UC, "Number of remote store hits (UC)"),
-      ADD_STAT(m_remote_store_hits_UD, "Number of remote store hits (UD)"),
-      ADD_STAT(m_remote_store_hits_SC, "Number of remote store hits (SC)"),
-      ADD_STAT(m_remote_store_hits_SD, "Number of remote store hits (SD)"),
-      ADD_STAT(m_both_store_hits_UC, "Number of both store hits (UC)"),
-      ADD_STAT(m_both_store_hits_UD, "Number of both store hits (UD)"),
-      ADD_STAT(m_both_store_hits_SC, "Number of both store hits (SC)"),
-      ADD_STAT(m_both_store_hits_SD, "Number of both store hits (SD)"),
+      ADD_STAT(m_local_load_hits_by_state,
+              "Breakdown of local load hits by state"),
       ADD_STAT(m_remote_load_hits_by_state,
-               "Breakdown of remote load hits by protocol state"),
+              "Breakdown of remote load hits by state"),
+      ADD_STAT(m_local_store_hits_by_state,
+              "Breakdown of local store hits by state"),
       ADD_STAT(m_remote_store_hits_by_state,
-               "Breakdown of remote store hits by protocol state"),
+              "Breakdown of remote store hits by state"),
+      ADD_STAT(m_both_store_hits_by_state,
+               "Breakdown of both store hits by state"),
       ADD_STAT(m_accessModeType, "")
 {
     std::vector<std::string> chi_states = {
@@ -607,12 +593,18 @@ CacheMemoryStats::CacheMemoryStats(statistics::Group *parent)
         "RUSD", "RUSC", "UD_T", "UC_RU_SC", "UC_RU_SD"
     };
 
+    m_local_load_hits_by_state.init(chi_states.size());
     m_remote_load_hits_by_state.init(chi_states.size());
+    m_local_store_hits_by_state.init(chi_states.size());
     m_remote_store_hits_by_state.init(chi_states.size());
+    m_both_store_hits_by_state.init(chi_states.size());
 
     for (int i = 0; i < chi_states.size(); ++i) {
-        m_remote_load_hits_by_state.sublabel(i, chi_states[i]);
-        m_remote_store_hits_by_state.sublabel(i, chi_states[i]);
+        m_local_load_hits_by_state.subname(i, chi_states[i]);
+        m_remote_load_hits_by_state.subname(i, chi_states[i]);
+        m_local_store_hits_by_state.subname(i, chi_states[i]);
+        m_remote_store_hits_by_state.subname(i, chi_states[i]);
+        m_both_store_hits_by_state.subname(i, chi_states[i]);
         m_state_index_map[chi_states[i]] = i;
     }
 
@@ -879,44 +871,17 @@ CacheMemory::profileRemoteInvalidationHit()
     cacheMemoryStats.m_remote_invalidation_hits++;
 }
 
-int getBaseState(std::string state) {
-    // Unique Clean
-    if (state == "UC" || state == "UC_RU" || state == "UC_RSC" ||
-        state == "UC_RU_SC" || state == "UC_RU_SD") return 0;
-    // Unique Dirty
-    if (state == "UD" || state == "UD_RU" || state == "UD_RSC" ||
-        state == "UD_RSD" || state == "UD_T" || state == "RU" ||
-        state == "RUSD" || state == "RUSC") return 1;
-    // Shared Clean
-    if (state == "SC" || state == "SC_RSC" || state == "RSC") return 2;
-    // Shared Dirty
-    if (state == "SD" || state == "SD_RSC" || state == "SD_RSD" ||
-        state == "RSD") return 3;
-    return 0; // Default
-}
+
 
 void
 CacheMemory::profileLoadHit(std::string state, bool isRemote)
 {
-    int state_type = getBaseState(state);
-    if (isRemote) {
-        switch (state_type) {
-            case 0: cacheMemoryStats.m_remote_load_hits_UC++; break;
-            case 1: cacheMemoryStats.m_remote_load_hits_UD++; break;
-            case 2: cacheMemoryStats.m_remote_load_hits_SC++; break;
-            case 3: cacheMemoryStats.m_remote_load_hits_SD++; break;
-        }
-
-        auto it = cacheMemoryStats.m_state_index_map.find(state);
-        if (it != cacheMemoryStats.m_state_index_map.end()) {
+    auto it = cacheMemoryStats.m_state_index_map.find(state);
+    if (it != cacheMemoryStats.m_state_index_map.end()) {
+        if (isRemote) {
             cacheMemoryStats.m_remote_load_hits_by_state[it->second]++;
-        }
-    } else {
-        switch (state_type) {
-            case 0: cacheMemoryStats.m_local_load_hits_UC++; break;
-            case 1: cacheMemoryStats.m_local_load_hits_UD++; break;
-            case 2: cacheMemoryStats.m_local_load_hits_SC++; break;
-            case 3: cacheMemoryStats.m_local_load_hits_SD++; break;
+        } else {
+            cacheMemoryStats.m_local_load_hits_by_state[it->second]++;
         }
     }
 }
@@ -925,34 +890,16 @@ void
 CacheMemory::profileStoreHit(std::string state, bool hasOtherLocal,
                              bool hasRemote)
 {
-    int state_type = getBaseState(state);
-    if (hasOtherLocal && hasRemote) {
-        switch (state_type) {
-            case 0: cacheMemoryStats.m_both_store_hits_UC++; break;
-            case 1: cacheMemoryStats.m_both_store_hits_UD++; break;
-            case 2: cacheMemoryStats.m_both_store_hits_SC++; break;
-            case 3: cacheMemoryStats.m_both_store_hits_SD++; break;
-        }
-        // Increment both components as well
-        profileStoreHit(state, true, false);
-        profileStoreHit(state, false, true);
-    } else if (hasOtherLocal) {
-        switch (state_type) {
-            case 0: cacheMemoryStats.m_local_store_hits_UC++; break;
-            case 1: cacheMemoryStats.m_local_store_hits_UD++; break;
-            case 2: cacheMemoryStats.m_local_store_hits_SC++; break;
-            case 3: cacheMemoryStats.m_local_store_hits_SD++; break;
-        }
-    } else if (hasRemote) {
-        switch (state_type) {
-            case 0: cacheMemoryStats.m_remote_store_hits_UC++; break;
-            case 1: cacheMemoryStats.m_remote_store_hits_UD++; break;
-            case 2: cacheMemoryStats.m_remote_store_hits_SC++; break;
-            case 3: cacheMemoryStats.m_remote_store_hits_SD++; break;
-        }
-
-        auto it = cacheMemoryStats.m_state_index_map.find(state);
-        if (it != cacheMemoryStats.m_state_index_map.end()) {
+    auto it = cacheMemoryStats.m_state_index_map.find(state);
+    if (it != cacheMemoryStats.m_state_index_map.end()) {
+        if (hasOtherLocal && hasRemote) {
+            cacheMemoryStats.m_both_store_hits_by_state[it->second]++;
+            // Increment individual components too
+            cacheMemoryStats.m_local_store_hits_by_state[it->second]++;
+            cacheMemoryStats.m_remote_store_hits_by_state[it->second]++;
+        } else if (hasOtherLocal) {
+            cacheMemoryStats.m_local_store_hits_by_state[it->second]++;
+        } else if (hasRemote) {
             cacheMemoryStats.m_remote_store_hits_by_state[it->second]++;
         }
     }

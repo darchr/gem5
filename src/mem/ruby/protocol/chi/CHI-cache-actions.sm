@@ -281,6 +281,7 @@ action(Initiate_Request, desc="") {
   tbe.actions.pushNB(Event:TagArrayRead);
 
   incomingTransactionStart(address, curTransitionEvent(), initial, was_retried);
+  tbe.state := initial;
 }
 
 action(Initiate_Request_DVM, desc="") {
@@ -311,6 +312,7 @@ action(Initiate_Request_Stale, desc="") {
   }
 
   incomingTransactionStart(address, curTransitionEvent(), initial, was_retried);
+  tbe.state := initial;
 }
 
 action(Initiate_Snoop, desc="") {
@@ -327,6 +329,7 @@ action(Initiate_Snoop, desc="") {
   tbe.actions.pushNB(Event:TagArrayRead);
 
   incomingTransactionStart(address, curTransitionEvent(), initial, false);
+  tbe.state := initial;
 }
 
 action(Initiate_Snoop_Hazard, desc="") {
@@ -492,11 +495,18 @@ action(Initiate_ReadShared_HitUpstream, desc="") {
   // MYSTUFF
   // WILLADDED
   if (is_HN) {
-    if (!hasLocalSharer(tbe.requestor, getDirEntry(address).sharers)) {
-      tbe.actions.push(Event:DelayRemoteLoadHit);
-      cache.profileLoadHit(State_to_string(getState(tbe, getCacheEntry(address), address)), true);
+    bool is_remote := false;
+    if (getDirEntry(address).sharers.count() == 0) {
+      is_remote := isRemoteMachine(tbe.requestor);
     } else {
-      cache.profileLoadHit(State_to_string(getState(tbe, getCacheEntry(address), address)), false);
+      is_remote := !hasLocalSharer(tbe.requestor, getDirEntry(address).sharers);
+    }
+
+    if (is_remote) {
+      tbe.actions.push(Event:DelayRemoteLoadHit);
+      cache.profileLoadHit(Cache_State_to_string(getState(tbe, getCacheEntry(address), address)), true);
+    } else {
+      cache.profileLoadHit(Cache_State_to_string(getState(tbe, getCacheEntry(address), address)), false);
     }
   }
   // DEDDALLIW
@@ -518,11 +528,18 @@ action(Initiate_ReadShared_HitUpstream_NoOwner, desc="") {
   // MYSTUFF
   // WILLADDED
   if (is_HN) {
-    if (!hasLocalSharer(tbe.requestor, getDirEntry(address).sharers)) {
-      tbe.actions.push(Event:DelayRemoteLoadHit);
-      cache.profileLoadHit(State_to_string(getState(tbe, getCacheEntry(address), address)), true);
+    bool is_remote := false;
+    if (getDirEntry(address).sharers.count() == 0) {
+      is_remote := isRemoteMachine(tbe.requestor);
     } else {
-      cache.profileLoadHit(State_to_string(getState(tbe, getCacheEntry(address), address)), false);
+      is_remote := !hasLocalSharer(tbe.requestor, getDirEntry(address).sharers);
+    }
+
+    if (is_remote) {
+      tbe.actions.push(Event:DelayRemoteLoadHit);
+      cache.profileLoadHit(Cache_State_to_string(getState(tbe, getCacheEntry(address), address)), true);
+    } else {
+      cache.profileLoadHit(Cache_State_to_string(getState(tbe, getCacheEntry(address), address)), false);
     }
   }
   // DEDDALLIW
@@ -617,11 +634,18 @@ action(Initiate_ReadOnce_HitUpstream, desc="") {
   // MYSTUFF
   // WILLADDED
   if (is_HN) {
-    if (!hasLocalSharer(tbe.requestor, getDirEntry(address).sharers)) {
-      tbe.actions.push(Event:DelayRemoteLoadHit);
-      cache.profileLoadHit(State_to_string(getState(tbe, getCacheEntry(address), address)), true);
+    bool is_remote := false;
+    if (getDirEntry(address).sharers.count() == 0) {
+      is_remote := isRemoteMachine(tbe.requestor);
     } else {
-      cache.profileLoadHit(State_to_string(getState(tbe, getCacheEntry(address), address)), false);
+      is_remote := !hasLocalSharer(tbe.requestor, getDirEntry(address).sharers);
+    }
+
+    if (is_remote) {
+      tbe.actions.push(Event:DelayRemoteLoadHit);
+      cache.profileLoadHit(Cache_State_to_string(getState(tbe, getCacheEntry(address), address)), true);
+    } else {
+      cache.profileLoadHit(Cache_State_to_string(getState(tbe, getCacheEntry(address), address)), false);
     }
   }
   // DEDDALLIW
@@ -722,9 +746,9 @@ action(Initiate_ReadUnique_HitUpstream, desc="") {
   if (is_HN) {
     if (!hasLocalSharer(tbe.requestor, getDirEntry(address).sharers)) {
       tbe.actions.push(Event:DelayRemoteLoadHit);
-      cache.profileLoadHit(State_to_string(getState(tbe, getCacheEntry(address), address)), true);
+      cache.profileLoadHit(Cache_State_to_string(getState(tbe, getCacheEntry(address), address)), true);
     } else {
-      cache.profileLoadHit(State_to_string(getState(tbe, getCacheEntry(address), address)), false);
+      cache.profileLoadHit(Cache_State_to_string(getState(tbe, getCacheEntry(address), address)), false);
     }
   }
   // DEDDALLIW
@@ -807,7 +831,7 @@ action(Initiate_CleanUnique, desc="") {
     if (hasRemote) {
       tbe.actions.push(Event:DelayRemoteInvalidationHit);
     }
-    cache.profileStoreHit(State_to_string(getState(tbe, getCacheEntry(address), address)), hasOtherLocal, hasRemote);
+    cache.profileStoreHit(Cache_State_to_string(getState(tbe, getCacheEntry(address), address)), hasOtherLocal, hasRemote);
   }
   // DEDDALLIW
   // FFUTSYM

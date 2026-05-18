@@ -43,24 +43,27 @@ class BaseSystemNetwork(SimpleNetwork):
     #     self.dax_ports.append(new_port)
 
     def connect_hosts(self, hosts, system_caches):
-        # assert len(hosts) == len(system_caches)
         # create a router for each host that will connect to that hosts' L3 and othere hosts
         self.system_routers = [CHISwitch(self) for _ in range(len(hosts))]
         slice_links = []
-        for host, cache_slice, router in zip(
-            hosts, system_caches, self.system_routers
-        ):
+
+        # Connect hosts to their respective routers
+        for host, router in zip(hosts, self.system_routers):
+            # connects the necessary routers within the host
+            rs, els, ils = host.setup_network(self, router)
+            self._routers.extend(rs)
+            self._ext_links.extend(els)
+            self._int_links.extend(ils)
+
+        # Connect system caches (HNs) to the correct host router
+        for cache_slice in system_caches:
+            router = self.system_routers[cache_slice.host_id]
             router.ext_routing_latency = 1
             router.int_routing_latency = 1
             slice_links.append(
                 ExtLink(cache_slice, router, bandwidth_factor=128)
             )
 
-            # connects the necessary routers within the host
-            rs, els, ils = host.setup_network(self, router)
-            self._routers.extend(rs)
-            self._ext_links.extend(els)
-            self._int_links.extend(ils)
         self.slice_links = slice_links
 
         self._routers.extend(self.system_routers)
