@@ -156,18 +156,12 @@ class CHI_3_Level_Remote_Dir(AbstractRubyCacheHierarchy):
         system_caches = []
 
         if self._enable_numa:
-            hns_per_host = self._num_hns // self._num_hosts
-            mem_per_host = mem_range.size() // self._num_hosts
+            mem_per_hn = mem_range.size() // self._num_hns
             addr_ranges = []
-            for i in range(self._num_hosts):
-                host_start = mem_range.start + (i * mem_per_host)
-                host_ranges = self._intlv_memory_for_hosts(
-                    host_start,
-                    mem_per_host,
-                    hns_per_host,
-                    self._slc_intlv_size,
-                )
-                addr_ranges.extend(host_ranges)
+            for i in range(self._num_hns):
+                hn_start = mem_range.start + (i * mem_per_hn)
+                # No interleaving, just contiguous chunks for each HN (NUMA node)
+                addr_ranges.append(AddrRange(start=hn_start, size=mem_per_hn))
         else:
             addr_ranges = self._intlv_memory_for_hosts(
                 mem_range.start,
