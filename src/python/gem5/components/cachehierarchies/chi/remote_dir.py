@@ -60,6 +60,7 @@ class CHI_3_Level_Remote_Dir(AbstractRubyCacheHierarchy):
         num_hosts: int = 1,
         num_hns: int = 2,
         directory_remote_latency: int = 250,
+        enable_numa: bool = False,
         pmem_address_range: AddrRange = None,
         # system_network_cls: Type[BaseSystemNetwork] = BaseSystemNetwork,
     ) -> None:
@@ -74,6 +75,7 @@ class CHI_3_Level_Remote_Dir(AbstractRubyCacheHierarchy):
         self._num_hosts = num_hosts
         self._num_hns = num_hns
         self._directory_remote_latency = directory_remote_latency
+        self._enable_numa = enable_numa
         self._pmem_address_range = pmem_address_range
         # self._system_network_cls = system_network_cls
 
@@ -84,6 +86,8 @@ class CHI_3_Level_Remote_Dir(AbstractRubyCacheHierarchy):
         num_hosts: int,
         intlv_size: Union[int, str],
     ) -> List[AddrRange]:
+        if num_hosts == 1:
+            return [AddrRange(start=start_addr, size=mem_size)]
         intlv_size = toMemorySize(intlv_size)
         intlv_low_bit = int(log(intlv_size, 2))
         intlv_bits = int(log(num_hosts, 2))
@@ -151,12 +155,26 @@ class CHI_3_Level_Remote_Dir(AbstractRubyCacheHierarchy):
         sequencers = []
         system_caches = []
 
-        addr_ranges = self._intlv_memory_for_hosts(
-            mem_range.start,
-            mem_range.size(),
-            self._num_hns,
-            self._slc_intlv_size,
-        )
+        if self._enable_numa:
+            hns_per_host = self._num_hns // self._num_hosts
+            mem_per_host = mem_range.size() // self._num_hosts
+            addr_ranges = []
+            for i in range(self._num_hosts):
+                host_start = mem_range.start + (i * mem_per_host)
+                host_ranges = self._intlv_memory_for_hosts(
+                    host_start,
+                    mem_per_host,
+                    hns_per_host,
+                    self._slc_intlv_size,
+                )
+                addr_ranges.extend(host_ranges)
+        else:
+            addr_ranges = self._intlv_memory_for_hosts(
+                mem_range.start,
+                mem_range.size(),
+                self._num_hns,
+                self._slc_intlv_size,
+            )
 
         for i in range(self._num_hosts):
             cores_in_host = cores[
