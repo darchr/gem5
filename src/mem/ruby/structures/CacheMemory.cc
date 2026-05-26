@@ -576,15 +576,19 @@ CacheMemoryStats::CacheMemoryStats(statistics::Group *parent)
       ADD_STAT(m_remote_invalidation_hits,
                "Number of cache remote invalidation hits"),
       ADD_STAT(m_local_load_hits_by_state,
-              "Breakdown of local load hits by state"),
+                "Breakdown of local load hits by state"),
       ADD_STAT(m_remote_load_hits_by_state,
-              "Breakdown of remote load hits by state"),
+                "Breakdown of remote load hits by state"),
+      ADD_STAT(m_no_sharer_load_hits_by_state,
+                "Breakdown of no sharer load hits by state"),
       ADD_STAT(m_local_store_hits_by_state,
-              "Breakdown of local store hits by state"),
+                "Breakdown of local store hits by state"),
       ADD_STAT(m_remote_store_hits_by_state,
-              "Breakdown of remote store hits by state"),
+                "Breakdown of remote store hits by state"),
       ADD_STAT(m_both_store_hits_by_state,
-               "Breakdown of both store hits by state"),
+                "Breakdown of both store hits by state"),
+      ADD_STAT(m_no_sharer_store_hits_by_state,
+                "Breakdown of no sharer store hits by state"),
       ADD_STAT(m_accessModeType, "")
 {
     std::vector<std::string> chi_states = {
@@ -595,16 +599,20 @@ CacheMemoryStats::CacheMemoryStats(statistics::Group *parent)
 
     m_local_load_hits_by_state.init(chi_states.size());
     m_remote_load_hits_by_state.init(chi_states.size());
+    m_no_sharer_load_hits_by_state.init(chi_states.size());
     m_local_store_hits_by_state.init(chi_states.size());
     m_remote_store_hits_by_state.init(chi_states.size());
     m_both_store_hits_by_state.init(chi_states.size());
+    m_no_sharer_store_hits_by_state.init(chi_states.size());
 
     for (int i = 0; i < chi_states.size(); ++i) {
         m_local_load_hits_by_state.subname(i, chi_states[i]);
         m_remote_load_hits_by_state.subname(i, chi_states[i]);
+        m_no_sharer_load_hits_by_state.subname(i, chi_states[i]);
         m_local_store_hits_by_state.subname(i, chi_states[i]);
         m_remote_store_hits_by_state.subname(i, chi_states[i]);
         m_both_store_hits_by_state.subname(i, chi_states[i]);
+        m_no_sharer_store_hits_by_state.subname(i, chi_states[i]);
         m_state_index_map[chi_states[i]] = i;
     }
 
@@ -874,14 +882,16 @@ CacheMemory::profileRemoteInvalidationHit()
 
 
 void
-CacheMemory::profileLoadHit(std::string state, bool isRemote)
+CacheMemory::profileLoadHit(std::string state, int hit_type)
 {
     auto it = cacheMemoryStats.m_state_index_map.find(state);
     if (it != cacheMemoryStats.m_state_index_map.end()) {
-        if (isRemote) {
-            cacheMemoryStats.m_remote_load_hits_by_state[it->second]++;
-        } else {
+        if (hit_type == 0) {
             cacheMemoryStats.m_local_load_hits_by_state[it->second]++;
+        } else if (hit_type == 1) {
+            cacheMemoryStats.m_remote_load_hits_by_state[it->second]++;
+        } else if (hit_type == 2) {
+            cacheMemoryStats.m_no_sharer_load_hits_by_state[it->second]++;
         }
     }
 }
@@ -901,6 +911,8 @@ CacheMemory::profileStoreHit(std::string state, bool hasOtherLocal,
             cacheMemoryStats.m_local_store_hits_by_state[it->second]++;
         } else if (hasRemote) {
             cacheMemoryStats.m_remote_store_hits_by_state[it->second]++;
+        } else {
+            cacheMemoryStats.m_no_sharer_store_hits_by_state[it->second]++;
         }
     }
 }

@@ -258,9 +258,11 @@ class CacheMemory : public SimObject
 
           statistics::Vector m_local_load_hits_by_state;
           statistics::Vector m_remote_load_hits_by_state;
+          statistics::Vector m_no_sharer_load_hits_by_state;
           statistics::Vector m_local_store_hits_by_state;
           statistics::Vector m_remote_store_hits_by_state;
           statistics::Vector m_both_store_hits_by_state;
+          statistics::Vector m_no_sharer_store_hits_by_state;
 
           statistics::Vector m_accessModeType;
           std::map<std::string, int> m_state_index_map;
@@ -278,7 +280,8 @@ class CacheMemory : public SimObject
       void profileRemoteInvalidationHit();
 
       // state mapping handled in C++
-      void profileLoadHit(std::string state, bool isRemote);
+      // 0=Local, 1=Remote, 2=NoSharer
+      void profileLoadHit(std::string state, int hit_type);
       void profileStoreHit(std::string state,
                            bool hasOtherLocal,
                            bool hasRemote);

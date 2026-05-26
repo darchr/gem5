@@ -241,7 +241,7 @@ structure (CacheMemory, external = "yes") {
   void profileRemoteLoadHit();
   void profileRemoteInvalidationHit();
 
-  void profileLoadHit(std::string, bool);
+  void profileLoadHit(std::string, int);
   void profileStoreHit(std::string, bool, bool);
 }
 
