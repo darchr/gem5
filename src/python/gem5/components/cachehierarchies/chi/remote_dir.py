@@ -62,6 +62,10 @@ class CHI_3_Level_Remote_Dir(AbstractRubyCacheHierarchy):
         directory_remote_latency: int = 250,
         enable_numa: bool = False,
         pmem_address_range: AddrRange = None,
+        topology: str = "default",
+        num_stars: int = 1,
+        star_switch_latency: int = 10,
+        star_link_bandwidth: int = 16,
         # system_network_cls: Type[BaseSystemNetwork] = BaseSystemNetwork,
     ) -> None:
         """ """
@@ -77,6 +81,10 @@ class CHI_3_Level_Remote_Dir(AbstractRubyCacheHierarchy):
         self._directory_remote_latency = directory_remote_latency
         self._enable_numa = enable_numa
         self._pmem_address_range = pmem_address_range
+        self._topology = topology
+        self._num_stars = num_stars
+        self._star_switch_latency = star_switch_latency
+        self._star_link_bandwidth = star_link_bandwidth
         # self._system_network_cls = system_network_cls
 
     def _intlv_memory_for_hosts(
@@ -117,7 +125,12 @@ class CHI_3_Level_Remote_Dir(AbstractRubyCacheHierarchy):
 
         # Ruby's global network.
         self.ruby_system.network = MultiHostNetwork(
-            self.ruby_system, self.ruby_system.number_of_virtual_networks
+            self.ruby_system,
+            self.ruby_system.number_of_virtual_networks,
+            topology=self._topology,
+            num_stars=self._num_stars,
+            star_switch_latency=self._star_switch_latency,
+            star_link_bandwidth=self._star_link_bandwidth,
         )
 
         memory_controllers = []
