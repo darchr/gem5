@@ -186,16 +186,24 @@ class MultiHostNetwork(BaseSystemNetwork):
         self._routers.extend(self.star_routers)
 
         # Connect every host system_router to every star, bidirectionally
-        for s in self.system_routers:
-            for star in self.star_routers:
+        for i, s in enumerate(self.system_routers):
+            preferred_star_idx = i % self._num_stars
+            for j, star in enumerate(self.star_routers):
+                link_weight = 1 if j == preferred_star_idx else 10
                 system_links.append(
                     IntLink(
-                        s, star, bandwidth_factor=self._star_link_bandwidth
+                        s,
+                        star,
+                        bandwidth_factor=self._star_link_bandwidth,
+                        weight=link_weight,
                     )
                 )
                 system_links.append(
                     IntLink(
-                        star, s, bandwidth_factor=self._star_link_bandwidth
+                        star,
+                        s,
+                        bandwidth_factor=self._star_link_bandwidth,
+                        weight=link_weight,
                     )
                 )
 
@@ -204,27 +212,41 @@ class MultiHostNetwork(BaseSystemNetwork):
             for star in self.star_routers:
                 system_links.append(
                     IntLink(
-                        m, star, bandwidth_factor=self._star_link_bandwidth
+                        m,
+                        star,
+                        bandwidth_factor=self._star_link_bandwidth,
+                        weight=1,
                     )
                 )
                 system_links.append(
                     IntLink(
-                        star, m, bandwidth_factor=self._star_link_bandwidth
+                        star,
+                        m,
+                        bandwidth_factor=self._star_link_bandwidth,
+                        weight=1,
                     )
                 )
 
         # Connect DMA routers to every star, bidirectionally
         if self._has_dma:
-            for d in self.dma_routers:
-                for star in self.star_routers:
+            for i, d in enumerate(self.dma_routers):
+                preferred_star_idx = i % self._num_stars
+                for j, star in enumerate(self.star_routers):
+                    link_weight = 1 if j == preferred_star_idx else 10
                     system_links.append(
                         IntLink(
-                            d, star, bandwidth_factor=self._star_link_bandwidth
+                            d,
+                            star,
+                            bandwidth_factor=self._star_link_bandwidth,
+                            weight=link_weight,
                         )
                     )
                     system_links.append(
                         IntLink(
-                            star, d, bandwidth_factor=self._star_link_bandwidth
+                            star,
+                            d,
+                            bandwidth_factor=self._star_link_bandwidth,
+                            weight=link_weight,
                         )
                     )
 
@@ -292,9 +314,10 @@ class IntLink(SimpleIntLink):
         cls._version += 1  # Use count for this particular type
         return cls._version - 1
 
-    def __init__(self, src_node, dst_node, bandwidth_factor=16):
+    def __init__(self, src_node, dst_node, bandwidth_factor=16, weight=1):
         super().__init__()
         self.link_id = self.version_count()
         self.src_node = src_node
         self.dst_node = dst_node
         self.bandwidth_factor = bandwidth_factor
+        self.weight = weight
