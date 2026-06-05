@@ -61,11 +61,13 @@ class CHI_3_Level_Remote_Dir(AbstractRubyCacheHierarchy):
         num_hns: int = 2,
         directory_remote_latency: int = 250,
         enable_numa: bool = False,
+        numa_interleave_hns: bool = False,
         pmem_address_range: AddrRange = None,
         topology: str = "default",
         num_stars: int = 1,
         star_switch_latency: int = 10,
         star_link_bandwidth: int = 16,
+        number_of_tbes: int = 64,
         # system_network_cls: Type[BaseSystemNetwork] = BaseSystemNetwork,
     ) -> None:
         """ """
@@ -80,11 +82,13 @@ class CHI_3_Level_Remote_Dir(AbstractRubyCacheHierarchy):
         self._num_hns = num_hns
         self._directory_remote_latency = directory_remote_latency
         self._enable_numa = enable_numa
+        self._numa_interleave_hns = numa_interleave_hns
         self._pmem_address_range = pmem_address_range
         self._topology = topology
         self._num_stars = num_stars
         self._star_switch_latency = star_switch_latency
         self._star_link_bandwidth = star_link_bandwidth
+        self._number_of_tbes = number_of_tbes
         # self._system_network_cls = system_network_cls
 
     def _intlv_memory_for_hosts(
@@ -169,12 +173,28 @@ class CHI_3_Level_Remote_Dir(AbstractRubyCacheHierarchy):
         system_caches = []
 
         if self._enable_numa:
-            mem_per_hn = mem_range.size() // self._num_hns
-            addr_ranges = []
-            for i in range(self._num_hns):
-                hn_start = mem_range.start + (i * mem_per_hn)
-                # No interleaving, just contiguous chunks for each HN (NUMA node)
-                addr_ranges.append(AddrRange(start=hn_start, size=mem_per_hn))
+            if self._numa_interleave_hns:
+                mem_per_host = mem_range.size() // self._num_hosts
+                hns_per_host = self._num_hns // self._num_hosts
+                addr_ranges = []
+                for i in range(self._num_hosts):
+                    host_start = mem_range.start + (i * mem_per_host)
+                    host_ranges = self._intlv_memory_for_hosts(
+                        host_start,
+                        mem_per_host,
+                        hns_per_host,
+                        self._slc_intlv_size,
+                    )
+                    addr_ranges.extend(host_ranges)
+            else:
+                mem_per_hn = mem_range.size() // self._num_hns
+                addr_ranges = []
+                for i in range(self._num_hns):
+                    hn_start = mem_range.start + (i * mem_per_hn)
+                    # No interleaving, just contiguous chunks for each HN (NUMA node)
+                    addr_ranges.append(
+                        AddrRange(start=hn_start, size=mem_per_hn)
+                    )
         else:
             addr_ranges = self._intlv_memory_for_hosts(
                 mem_range.start,
@@ -221,6 +241,7 @@ class CHI_3_Level_Remote_Dir(AbstractRubyCacheHierarchy):
                 host_id=host_id_for_hn,  # Pass the computed host_id to the SystemLevelCache
                 num_hns=self._num_hns,  # Pass num_hns for resource scaling
                 directory_remote_latency=self._directory_remote_latency,
+                number_of_tbes=self._number_of_tbes,
             )
             # WILLCHANGED
             ranges = [addr_ranges[j]]
@@ -342,6 +363,7 @@ class SystemLevelCache(AbstractNode):
         host_id: int = None,  # Added host_id parameter
         num_hns: int = 1,  # Changed to num_hns for resource scaling
         directory_remote_latency: int = 250,
+        number_of_tbes: int = 64,
     ):
         super().__init__(network, cache_line_size)
         if host_id is not None:
@@ -404,8 +426,8 @@ class SystemLevelCache(AbstractNode):
             scale = 1
 
         # Some reasonable default TBE params
-        self.number_of_TBEs = 64
-        self.number_of_repl_TBEs = 64
+        self.number_of_TBEs = number_of_tbes
+        self.number_of_repl_TBEs = number_of_tbes
         self.number_of_snoop_TBEs = 8
         self.number_of_DVM_TBEs = 16
         self.number_of_DVM_snoop_TBEs = 4
