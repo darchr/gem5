@@ -348,6 +348,8 @@ System::serialize(CheckpointOut &cp) const
         paramOut(cp, csprintf("quiesceEndTick_%d", id), when);
     }
 
+    SERIALIZE_SCALAR(mssFlag);
+
     // also serialize the memories in the system
     physmem.serializeSection(cp, "physmem");
 }
@@ -365,6 +367,8 @@ System::unserialize(CheckpointIn &cp)
         }
         t.context->getCpuPtr()->schedule(t.resumeEvent, when);
     }
+
+    optParamIn(cp, "mssFlag", mssFlag);
 
     // also unserialize the memories in the system
     physmem.unserializeSection(cp, "physmem");
