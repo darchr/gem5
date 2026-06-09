@@ -4,16 +4,29 @@
 #include <map>
 #include <vector>
 
-#include "dev/io_device.hh"
+#include "mem/simple_mem.hh"
 #include "params/CxlHardwareBuffer.hh"
 #include "sim/eventq.hh"
 
 namespace gem5
 {
 
-class KvmVM;
-
-class CxlHardwareBuffer : public BasicPioDevice
+/**
+ * CXL Hardware Buffer: A memory device that intercepts writes to
+ * translate SPSC (sender) writes into MPSC (receiver) slots,
+ * modeling a hardware message routing buffer.
+ *
+ * Inherits from SimpleMemory so that:
+ *  - It registers with PhysicalMemory (isMemAddr returns true)
+ *  - KVM memory mapping is automatic (kvmMap)
+ *  - It provides a standard ResponsePort for the memory hierarchy
+ *  - The backing store (pmemAddr) is managed by PhysicalMemory
+ *
+ * The routing logic is applied in the overridden access() method,
+ * which is called for every cache-line access that reaches the
+ * memory controller.
+ */
+class CxlHardwareBuffer : public memory::SimpleMemory
 {
   private:
     const Tick transferLatency;
@@ -23,13 +36,14 @@ class CxlHardwareBuffer : public BasicPioDevice
     const size_t mpscSize;
 
     // The status flag indicating a message is fully written
+    // This is used to communicate with the software
+    // Receiving process will poll a flag until it sees this value
+    // This will need to be back invalidated when we push to cache
     static const uint8_t FLAG_COMPLETE = 2;
+
     // Offset within a message slot where the flags byte is located
     // 4 bytes rank + 4 bytes padding + 8 bytes pointer + 1 byte tag = 17 bytes
-    static const uint32_t FLAG_OFFSET = 17;
-
-    // Backing simple memory
-    std::vector<uint8_t> backingMemory;
+    static const uint32_t FLAG_OFFSET = 25;
 
     // State tracking
     std::vector<uint32_t> mpsc_tails;
@@ -47,7 +61,18 @@ class CxlHardwareBuffer : public BasicPioDevice
     // Value: map<spsc_slot_idx, mpsc_offset>
     std::map<uint32_t, std::map<uint32_t, uint32_t>> activeMappings;
 
+    // Track in-flight transfers so they survive checkpoint/restore.
+    // Each entry is a (receiver, mpsc_offset) pair for a transfer that
+    // has been scheduled but not yet completed.
+    struct PendingTransfer
+    {
+        uint32_t receiver;
+        uint32_t mpsc_offset;
+    };
+    std::vector<PendingTransfer> pendingTransfers;
+
     // Event to handle delayed transfer completion
+    // Transfers from the SPSC virtual queue to and actual MPSC queue
     class TransferEvent : public Event
     {
       private:
@@ -67,21 +92,30 @@ class CxlHardwareBuffer : public BasicPioDevice
     void completeTransfer(uint32_t receiver, uint32_t mpsc_offset);
     void discoverRanksFromMemory();
 
+    /**
+     * Apply SPSC->MPSC write routing logic.
+     * Called from access() for write packets in routing mode.
+     * Returns true if the write was handled (routed), false if
+     * the caller should fall through to normal memory access.
+     */
+    bool handleRoutedWrite(PacketPtr pkt, Addr offset, unsigned size);
+
   public:
-    typedef CxlHardwareBufferParams Params;
+    PARAMS(CxlHardwareBuffer);
     CxlHardwareBuffer(const Params &p);
 
     /**
-     * Register the backing memory with KVM so the guest can access it
-     * as real RAM during KVM execution (avoiding MMIO VM-exit overhead
-     * and supporting atomic/exclusive instructions).
+     * Override AbstractMemory::access() to intercept writes
+     * and apply SPSC->MPSC routing before they hit the backing store.
      */
+    void access(PacketPtr pkt) override;
+
+    /** Checkpoint serialization support */
+    void serialize(CheckpointOut &cp) const override;
+    void unserialize(CheckpointIn &cp) override;
+
+    /** Re-schedule pending transfers after restore */
     void startup() override;
-
-    Tick read(PacketPtr pkt) override;
-    Tick write(PacketPtr pkt) override;
-
-    AddrRangeList getAddrRanges() const override;
 };
 
 } // namespace gem5
