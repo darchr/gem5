@@ -39,6 +39,17 @@ class CxlHardwareBuffer(SimpleMemory):
         "1MB", "Size of the MPSC central queue region"
     )
 
+    # Hardware Backing Store Parameters
+    backing_size = Param.MemorySize(
+        "1GB", "Size of the internal hardware backing store for MPSC overflow"
+    )
+    backing_chunk_size = Param.MemorySize(
+        "32MB", "Size of the macro chunks for scatter-gather overflow tracking"
+    )
+    backing_latency = Param.Latency(
+        "80ns", "Latency of accessing the backing memory"
+    )
+
     # deprecated since adding checkpoint restore support
     rank_offsets = VectorParam.Addr(
         [],

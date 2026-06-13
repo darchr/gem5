@@ -2,6 +2,7 @@
 #define __DEV_CXL_HW_BUFFER_HH__
 
 #include <map>
+#include <queue>
 #include <vector>
 
 #include "mem/simple_mem.hh"
@@ -42,7 +43,8 @@ class CxlHardwareBuffer : public memory::SimpleMemory
     static const uint8_t FLAG_COMPLETE = 2;
 
     // Offset within a message slot where the flags byte is located
-    // 4 bytes rank + 4 bytes padding + 8 bytes pointer + 1 byte tag = 17 bytes
+    // 8 bytes (next) + 4 bytes (sender) + 4 bytes (pad)
+    // + 8 bytes (frag) + 1 byte (tag) = 25 bytes
     static const uint32_t FLAG_OFFSET = 25;
 
     // State tracking
@@ -68,8 +70,27 @@ class CxlHardwareBuffer : public memory::SimpleMemory
     {
         uint32_t receiver;
         uint32_t mpsc_offset;
+        uint32_t spsc_offset;
     };
     std::vector<PendingTransfer> pendingTransfers;
+
+    // Hardware Backing Store for MPSC Overflow
+    uint64_t backingSize;
+    uint32_t backingChunkSize;
+    Tick backingLatency;
+    std::vector<uint8_t> overflowBackingStore;
+    std::queue<uint32_t> freeChunks;
+
+    struct ReceiverOverflowState
+    {
+        // The 32MB chunks currently owned by this receiver
+        std::queue<uint32_t> chunks;
+        // Read pointer inside the FIRST chunk (chunks.front())
+        uint32_t headOffset;
+        // Write pointer inside the LAST chunk (chunks.back())
+        uint32_t tailOffset;
+    };
+    std::vector<ReceiverOverflowState> overflowStates;
 
     // Event to handle delayed transfer completion
     // Transfers from the SPSC virtual queue to and actual MPSC queue
@@ -79,17 +100,21 @@ class CxlHardwareBuffer : public memory::SimpleMemory
         CxlHardwareBuffer *device;
         uint32_t receiver;
         uint32_t mpsc_offset;
+        uint32_t spsc_offset;
       public:
-        TransferEvent(CxlHardwareBuffer *d, uint32_t rec, uint32_t off)
-            : Event(), device(d), receiver(rec), mpsc_offset(off) {}
+        TransferEvent(CxlHardwareBuffer *d, uint32_t rec,
+                      uint32_t off, uint32_t spsc_off)
+            : Event(), device(d), receiver(rec),
+              mpsc_offset(off), spsc_offset(spsc_off) {}
         void process() override {
-            device->completeTransfer(receiver, mpsc_offset);
+            device->completeTransfer(receiver, mpsc_offset, spsc_offset);
         }
     };
 
     // Helper functions
     uint32_t getRankFromOffset(Addr offset);
-    void completeTransfer(uint32_t receiver, uint32_t mpsc_offset);
+    void completeTransfer(uint32_t receiver, uint32_t mpsc_offset,
+                          uint32_t spsc_offset);
     void discoverRanksFromMemory();
 
     /**

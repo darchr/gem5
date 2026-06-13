@@ -19,8 +19,19 @@ CxlHardwareBuffer::CxlHardwareBuffer(const Params &p)
       segmentSize(p.segment_size),
       slotSize(p.slot_size),
       mpscSize(p.mpsc_size),
-      allRanksInitialized(false)
+      allRanksInitialized(false),
+      backingSize(p.backing_size),
+      backingChunkSize(p.backing_chunk_size),
+      backingLatency(p.backing_latency)
 {
+    // Initialize Hardware Backing Store
+    overflowBackingStore.resize(backingSize);
+    uint32_t num_chunks = backingSize / backingChunkSize;
+    for (uint32_t i = 0; i < num_chunks; ++i) {
+        freeChunks.push(i);
+    }
+    overflowStates.resize(numEndpoints);
+
     // Initialize MPSC tails
     mpsc_tails.resize(numEndpoints, slotSize);
     // start at slotSize just like hw_emu.c
@@ -221,9 +232,132 @@ CxlHardwareBuffer::handleRoutedWrite(PacketPtr pkt, Addr offset,
     // Is this a write into an SPSC queue?
     // SPSC queues start after the MPSC (which is mpscSize).
     if (segment_offset < mpscSize) {
-        // Not an SPSC write — it's a illegal write to the MPSC directly
-        // or some other region (e.g. control metadata).
-        return false;
+        // This is a write to the MPSC queue by the receiver
+        // (e.g. clearing a flag).
+        // We intercept flag-clear writes to drain overflow messages.
+        uint8_t *data = pkt->getPtr<uint8_t>();
+        uint32_t slot_internal_offset = segment_offset % slotSize;
+
+        bool is_flag_clear = false;
+        if (slot_internal_offset <= FLAG_OFFSET &&
+            (slot_internal_offset + size) > FLAG_OFFSET) {
+            uint8_t flag_val = data[FLAG_OFFSET - slot_internal_offset];
+            if (flag_val == 0) {
+                is_flag_clear = true;
+            }
+        }
+
+        // Apply the write to memory first so the flag becomes 0
+        memory::AbstractMemory::access(pkt);
+
+        if (is_flag_clear) {
+            auto &state = overflowStates[receiver];
+            bool has_complete_message = false;
+
+            if (state.chunks.size() > 1) {
+                has_complete_message = true;
+            } else if (state.chunks.size() == 1 &&
+                       state.headOffset < state.tailOffset) {
+                has_complete_message = true;
+            }
+
+            if (has_complete_message) {
+                // We have a backlog! We need to place the overflow
+                // message into an MPSC slot the receiver will actually
+                // reach. Read the receiver's fifo_head from the FIFO
+                // control block (stored at offset 0 of the segment as
+                // a 64-bit value) and scan forward to find the first
+                // free slot.
+                int64_t receiver_head = 0;
+                std::memcpy(&receiver_head, &pmemAddr[base], sizeof(int64_t));
+
+                // Sanitize: fifo_head should be a multiple of slotSize
+                // within [slotSize, mpscSize)
+                if (receiver_head < (int64_t)slotSize ||
+                    receiver_head >= (int64_t)mpscSize) {
+                    receiver_head = slotSize;
+                }
+
+                // Scan forward from the receiver's head to find the
+                // first free slot it will reach
+                uint32_t drain_mpsc_offset = (uint32_t)receiver_head;
+                bool found_free = false;
+                uint32_t max_slots = mpscSize / slotSize;
+                for (uint32_t attempts = 0; attempts < max_slots;
+                     ++attempts) {
+                    Addr check_flag =
+                        base + drain_mpsc_offset + FLAG_OFFSET;
+                    if (pmemAddr[check_flag] == 0) {
+                        found_free = true;
+                        break;
+                    }
+                    drain_mpsc_offset += slotSize;
+                    if (drain_mpsc_offset >= mpscSize) {
+                        drain_mpsc_offset = slotSize;
+                    }
+                }
+
+                if (found_free) {
+                    uint32_t source_chunk = state.chunks.front();
+                    uint32_t read_offset = state.headOffset;
+
+                    uint64_t backing_addr =
+                        (uint64_t)source_chunk * backingChunkSize +
+                        read_offset;
+
+                    // Clear the flag in the source buffer temporarily so
+                    // we don't copy it
+                    uint8_t complete_flag =
+                        overflowBackingStore[backing_addr + FLAG_OFFSET];
+                    overflowBackingStore[backing_addr + FLAG_OFFSET] = 0;
+
+                    // Copy the entire slot (with the flag cleared)
+                    std::memcpy(&pmemAddr[base + drain_mpsc_offset],
+                                &overflowBackingStore[backing_addr], slotSize);
+
+                    // Write the flag last to ensure memory ordering
+                    pmemAddr[base + drain_mpsc_offset + FLAG_OFFSET] =
+                        complete_flag;
+
+                    DPRINTF(CXLBUF, "CXL Hardware Buffer: Draining overflow "
+                            "message to Receiver %d MPSC offset 0x%x "
+                            "(receiver_head=0x%x)\n",
+                            receiver, drain_mpsc_offset,
+                            (uint32_t)receiver_head);
+
+                    // Update mpsc_tails to stay ahead of the drain
+                    // position so direct messages don't overwrite it
+                    uint32_t next_after_drain = drain_mpsc_offset + slotSize;
+                    if (next_after_drain >= mpscSize) {
+                        next_after_drain = slotSize;
+                    }
+                    // Only advance mpsc_tails if drain is ahead of it
+                    // (circular comparison)
+                    mpsc_tails[receiver] = next_after_drain;
+
+                    // Advance head pointer in the overflow queue
+                    state.headOffset += slotSize;
+
+                    // Check for chunk exhaustion
+                    if (state.chunks.size() > 1 &&
+                        state.headOffset == backingChunkSize) {
+                        freeChunks.push(source_chunk);
+                        state.chunks.pop();
+                        state.headOffset = 0;
+                    } else if (state.chunks.size() == 1 &&
+                               state.headOffset == state.tailOffset) {
+                        freeChunks.push(source_chunk);
+                        state.chunks.pop();
+                        state.headOffset = 0;
+                        state.tailOffset = 0;
+                        DPRINTF(CXLBUF, "CXL_HW_BUFFER: Receiver %d "
+                                "overflow queue fully drained.\n", receiver);
+                    }
+                }
+            }
+        }
+
+        return true; // We handled the MPSC write completely
     }
 
     uint8_t *data = pkt->getPtr<uint8_t>();
@@ -279,86 +413,164 @@ CxlHardwareBuffer::handleRoutedWrite(PacketPtr pkt, Addr offset,
         }
 
         // Allocate a new MPSC slot on the RECEIVER's MPSC queue!
+        // But first, check if the target slot is still unread (overflow!)
         uint32_t new_mpsc_offset = mpsc_tails[receiver];
-        activeMappings[key][slot_idx] = new_mpsc_offset;
+        Addr dest_mpsc_flag_addr =
+            rankBaseOffsets[receiver] + new_mpsc_offset + FLAG_OFFSET;
+        bool is_slot_full = (pmemAddr[dest_mpsc_flag_addr] == FLAG_COMPLETE);
+        auto &state = overflowStates[receiver];
 
-        DPRINTF(CXLBUF, "CXL Hardware Buffer: Allocated MPSC slot at "
-                "offset 0x%x for Sender %d -> Receiver %d "
-                "(SPSC slot %d)\n",
-                new_mpsc_offset, sender, receiver, slot_idx);
+        if (is_slot_full || !state.chunks.empty()) {
+            // OVERFLOW: The MPSC slot is full or we have a backlog.
+            // Do NOT allocate an MPSC slot. Instead, mark this SPSC slot
+            // as "overflow-bound" so we route to backing store on
+            // FLAG_COMPLETE. We use a special sentinel value in
+            // activeMappings to indicate overflow.
+            activeMappings[key][slot_idx] = 0xFFFFFFFF; // sentinel
 
-        // Advance the MPSC tail for future allocations
-        uint32_t next_tail = new_mpsc_offset + slotSize;
-        if (next_tail >= mpscSize) {
-            next_tail = slotSize; // wrap around, skipping slot 0
+            DPRINTF(CXLBUF, "CXL Hardware Buffer: OVERFLOW! MPSC slot full "
+                    "for Receiver %d. Sender %d SPSC slot %d -> "
+                    "backing store\n", receiver, sender, slot_idx);
+        } else {
+            activeMappings[key][slot_idx] = new_mpsc_offset;
+
+            DPRINTF(CXLBUF, "CXL Hardware Buffer: Allocated MPSC slot at "
+                    "offset 0x%x for Sender %d -> Receiver %d "
+                    "(SPSC slot %d)\n",
+                    new_mpsc_offset, sender, receiver, slot_idx);
+
+            // Advance the MPSC tail for future allocations
+            uint32_t next_tail = new_mpsc_offset + slotSize;
+            if (next_tail >= mpscSize) {
+                next_tail = slotSize; // wrap around, skipping slot 0
+            }
+            mpsc_tails[receiver] = next_tail;
         }
-        mpsc_tails[receiver] = next_tail;
     }
 
     uint32_t dest_mpsc_offset = activeMappings[key][slot_idx];
+    bool is_overflow = (dest_mpsc_offset == 0xFFFFFFFF);
 
-    // Validate destination is in bounds
-    if (rankBaseOffsets.find(receiver) == rankBaseOffsets.end()) {
+    // Validate destination is in bounds (skip for overflow)
+    if (!is_overflow &&
+        rankBaseOffsets.find(receiver) == rankBaseOffsets.end()) {
         warn("CXL Hardware Buffer: No base offset for receiver %d. "
              "Writing to backing memory directly.\n", receiver);
         return false;
     }
 
-    // Translate the write directly to the allocated MPSC slot
-    Addr final_write_offset = rankBaseOffsets[receiver] +
-                               dest_mpsc_offset + slot_internal_offset;
+    // Always write to the SPSC queue (sender's local copy)
+    std::memcpy(&pmemAddr[offset], data, size);
 
-    // Final bounds check on the translated address
-    if (final_write_offset + size > range.size()) {
-        warn("CXL Hardware Buffer: Translated write out of bounds "
-             "(0x%lx + %d > 0x%lx). Writing to original offset.\n",
-             final_write_offset, size, range.size());
-        return false;
-    }
+    if (!is_overflow) {
+        // Normal path: also write to the allocated MPSC slot
+        Addr final_write_offset = rankBaseOffsets[receiver] +
+                                   dest_mpsc_offset + slot_internal_offset;
 
-    bool is_complete_flag_write = false;
+        // Final bounds check on the translated address
+        if (final_write_offset + size > range.size()) {
+            warn("CXL Hardware Buffer: Translated write out of bounds "
+                 "(0x%lx + %d > 0x%lx). Writing to original offset.\n",
+                 final_write_offset, size, range.size());
+            return false;
+        }
 
-    // Check if this write encompasses the FLAG_OFFSET
-    if (slot_internal_offset <= FLAG_OFFSET &&
-        (slot_internal_offset + size) > FLAG_OFFSET) {
-        uint8_t flag_val = data[FLAG_OFFSET - slot_internal_offset];
+        bool is_complete_flag_write = false;
 
-        DPRINTF(CXLBUF, "FLAG WRITE TRACE: sender=%d, receiver=%d, "
-                "slot=%d, offset=%d, size=%d, extracted_flag=%02x\n",
-                sender, receiver, slot_idx, slot_internal_offset,
-                size, flag_val);
+        // Check if this write encompasses the FLAG_OFFSET
+        if (slot_internal_offset <= FLAG_OFFSET &&
+            (slot_internal_offset + size) > FLAG_OFFSET) {
+            uint8_t flag_val = data[FLAG_OFFSET - slot_internal_offset];
 
-        if (flag_val == FLAG_COMPLETE) {
-            is_complete_flag_write = true;
-            // DO NOT write the complete flag into backing memory yet!
-            // We will schedule an event to write it later.
-            for (unsigned i = 0; i < size; ++i) {
-                if ((slot_internal_offset + i) != FLAG_OFFSET) {
-                    pmemAddr[final_write_offset + i] = data[i];
+            DPRINTF(CXLBUF, "FLAG WRITE TRACE: sender=%d, receiver=%d, "
+                    "slot=%d, offset=%d, size=%d, extracted_flag=%02x\n",
+                    sender, receiver, slot_idx, slot_internal_offset,
+                    size, flag_val);
+
+            if (flag_val == FLAG_COMPLETE) {
+                is_complete_flag_write = true;
+                // DO NOT write the complete flag into backing memory yet!
+                // We will schedule an event to write it later.
+                for (unsigned i = 0; i < size; ++i) {
+                    if ((slot_internal_offset + i) != FLAG_OFFSET) {
+                        pmemAddr[final_write_offset + i] = data[i];
+                    }
                 }
+            } else {
+                std::memcpy(&pmemAddr[final_write_offset], data, size);
             }
         } else {
             std::memcpy(&pmemAddr[final_write_offset], data, size);
         }
+
+        if (is_complete_flag_write) {
+            DPRINTF(CXLBUF, "CXL Hardware Buffer: COMPLETE flag detected! "
+                    "Scheduling normal transfer for Receiver %d at "
+                    "MPSC offset 0x%x\n",
+                    receiver, dest_mpsc_offset);
+
+            // Remove mapping since it's complete
+            activeMappings[key].erase(slot_idx);
+
+            // Normal Transfer
+            pendingTransfers.push_back(
+                {receiver, dest_mpsc_offset, (uint32_t)offset});
+            Event* e = new TransferEvent(
+                this, receiver, dest_mpsc_offset, (uint32_t)offset);
+            schedule(e, curTick() + transferLatency);
+        }
     } else {
-        std::memcpy(&pmemAddr[final_write_offset], data, size);
-    }
+        // OVERFLOW path: write data to SPSC only (already done above).
+        // When FLAG_COMPLETE arrives, copy full slot to backing store.
+        bool is_complete_flag_write = false;
+        if (slot_internal_offset <= FLAG_OFFSET &&
+            (slot_internal_offset + size) > FLAG_OFFSET) {
+            uint8_t flag_val = data[FLAG_OFFSET - slot_internal_offset];
+            if (flag_val == FLAG_COMPLETE) {
+                is_complete_flag_write = true;
+            }
+        }
 
-    if (is_complete_flag_write) {
-        DPRINTF(CXLBUF, "CXL Hardware Buffer: COMPLETE flag detected! "
-                "Scheduling hardware transfer for Receiver %d at "
-                "MPSC offset 0x%x\n",
-                receiver, dest_mpsc_offset);
+        if (is_complete_flag_write) {
+            DPRINTF(CXLBUF, "CXL Hardware Buffer: COMPLETE flag on "
+                    "OVERFLOW slot! Copying Sender %d -> Receiver %d to "
+                    "backing store\n", sender, receiver);
 
-        // Remove mapping since it's complete
-        activeMappings[key].erase(slot_idx);
+            // Remove mapping since it's complete
+            activeMappings[key].erase(slot_idx);
 
-        // Track this transfer so it survives checkpoint/restore
-        pendingTransfers.push_back({receiver, dest_mpsc_offset});
+            auto &state = overflowStates[receiver];
 
-        // Schedule the event to finalize the message
-        Event* e = new TransferEvent(this, receiver, dest_mpsc_offset);
-        schedule(e, curTick() + transferLatency);
+            // Allocate a new chunk if needed
+            if (state.chunks.empty() || state.tailOffset == backingChunkSize) {
+                if (freeChunks.empty()) {
+                    fatal("CXL Hardware Buffer: Out of Backing Memory!");
+                }
+                state.chunks.push(freeChunks.front());
+                freeChunks.pop();
+                state.tailOffset = 0;
+                if (state.chunks.size() == 1) {
+                    state.headOffset = 0;
+                }
+            }
+
+            uint32_t target_chunk = state.chunks.back();
+            uint64_t backing_addr =
+                (uint64_t)target_chunk * backingChunkSize + state.tailOffset;
+
+            // Copy the FULL slot payload from the SPSC queue
+            uint32_t spsc_slot_base = offset - slot_internal_offset;
+            std::memcpy(&overflowBackingStore[backing_addr],
+                        &pmemAddr[spsc_slot_base], slotSize);
+
+            // Ensure the flag in the backing store is set
+            overflowBackingStore[backing_addr + FLAG_OFFSET] = FLAG_COMPLETE;
+
+            state.tailOffset += slotSize;
+
+            // Clear the SPSC flag so the sender can reuse it
+            pmemAddr[spsc_slot_base + FLAG_OFFSET] = 0;
+        }
     }
 
 
@@ -455,13 +667,44 @@ CxlHardwareBuffer::discoverRanksFromMemory()
 }
 
 void
-CxlHardwareBuffer::completeTransfer(uint32_t receiver, uint32_t mpsc_offset)
+CxlHardwareBuffer::completeTransfer(uint32_t receiver,
+                                    uint32_t mpsc_offset,
+                                    uint32_t spsc_offset)
 {
-    // Write the COMPLETE flag into the receiver's MPSC slot
-    Addr final_write_offset = rankBaseOffsets[receiver] + mpsc_offset +
-                                FLAG_OFFSET;
+    Addr final_write_offset =
+        rankBaseOffsets[receiver] + mpsc_offset + FLAG_OFFSET;
+
     if (final_write_offset < range.size()) {
         pmemAddr[final_write_offset] = FLAG_COMPLETE;
+
+        // Also clear the flag in the sender's SPSC queue
+        if (spsc_offset < range.size()) {
+            pmemAddr[spsc_offset] = 0;
+        }
+
+        // To find the sender, we just use the spsc_offset directly.
+        // spsc_offset is relative to the device range.
+        uint32_t sender = getRankFromOffset(spsc_offset);
+
+        Addr base = rankBaseOffsets[sender];
+
+        // The spsc_offset points to the flag byte inside the slot.
+        // To get the slot index, we need the start of the slot.
+        // The slot start is at (spsc_offset - FLAG_OFFSET).
+        uint32_t slot_start_offset = spsc_offset - FLAG_OFFSET;
+
+        // The segment offset is the slot start relative to the rank's base
+        uint32_t segment_offset = slot_start_offset - base;
+
+        // The SPSC slot index is the segment offset minus the MPSC
+        // region size, divided by slot size
+        uint32_t slot_idx = (segment_offset - mpscSize) / slotSize;
+
+        uint32_t key = (sender << 16) | receiver;
+
+        // Remove mapping since it's complete
+        activeMappings[key].erase(slot_idx);
+
         DPRINTF(CXLBUF, "CXL Hardware Buffer: Transfer completed. "
                 "Receiver %d MPSC slot at 0x%x is now visible.\n",
                 receiver, mpsc_offset);
@@ -516,12 +759,15 @@ CxlHardwareBuffer::serialize(CheckpointOut &cp) const
     SERIALIZE_SCALAR(num_pending);
     std::vector<uint32_t> pt_receivers;
     std::vector<uint32_t> pt_offsets;
+    std::vector<uint32_t> pt_spsc_offsets;
     for (const auto& pt : pendingTransfers) {
         pt_receivers.push_back(pt.receiver);
         pt_offsets.push_back(pt.mpsc_offset);
+        pt_spsc_offsets.push_back(pt.spsc_offset);
     }
     SERIALIZE_CONTAINER(pt_receivers);
     SERIALIZE_CONTAINER(pt_offsets);
+    SERIALIZE_CONTAINER(pt_spsc_offsets);
 }
 
 void
@@ -565,10 +811,18 @@ CxlHardwareBuffer::unserialize(CheckpointIn &cp)
     if (num_pending > 0) {
         std::vector<uint32_t> pt_receivers;
         std::vector<uint32_t> pt_offsets;
+        std::vector<uint32_t> pt_spsc_offsets;
         UNSERIALIZE_CONTAINER(pt_receivers);
         UNSERIALIZE_CONTAINER(pt_offsets);
+        // Handle backwards compatibility with older checkpoints
+        if (cp.sectionExists(gem5::csprintf("%s.pt_spsc_offsets", name()))) {
+            UNSERIALIZE_CONTAINER(pt_spsc_offsets);
+        } else {
+            pt_spsc_offsets.resize(num_pending, 0);
+        }
         for (uint32_t i = 0; i < num_pending; ++i) {
-            pendingTransfers.push_back({pt_receivers[i], pt_offsets[i]});
+            pendingTransfers.push_back(
+                {pt_receivers[i], pt_offsets[i], pt_spsc_offsets[i]});
         }
     }
 
@@ -591,7 +845,7 @@ CxlHardwareBuffer::startup()
         // Copy the vector since completeTransfer modifies it
         auto pending_copy = pendingTransfers;
         for (const auto& pt : pending_copy) {
-            completeTransfer(pt.receiver, pt.mpsc_offset);
+            completeTransfer(pt.receiver, pt.mpsc_offset, pt.spsc_offset);
         }
     }
 }
