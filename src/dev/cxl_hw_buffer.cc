@@ -12,8 +12,18 @@
 namespace gem5
 {
 
+CxlHardwareBuffer::CxlHardwareBufferStats::CxlHardwareBufferStats(
+    statistics::Group *parent)
+    : statistics::Group(parent),
+      ADD_STAT(mpscOccupancy, statistics::units::Count::get(),
+               "Histogram of MPSC slot occupancy when a new slot is allocated")
+{
+    mpscOccupancy.init(256); // 1MB MPSC / 4KB slots = 256
+}
+
 CxlHardwareBuffer::CxlHardwareBuffer(const Params &p)
     : memory::SimpleMemory(p),
+      stats(this),
       transferLatency(p.transfer_latency),
       numEndpoints(p.num_endpoints),
       segmentSize(p.segment_size),
@@ -74,6 +84,14 @@ CxlHardwareBuffer::access(PacketPtr pkt)
     // circular buffer
     if (!pkt->isWrite() || !pkt->hasData()) {
         if (allRanksInitialized && pkt->isRead()) {
+            static uint64_t num_reads = 0;
+            num_reads++;
+            if (num_reads % 100000 == 0) {
+                DPRINTF(CXLBUF, "CXL Hardware Buffer: Processed %llu reads "
+                        "so far (polling active)\n",
+                        (unsigned long long)num_reads);
+            }
+
             Addr offset = pkt->getAddr() - range.start();
             uint32_t rank = getRankFromOffset(offset);
             if (rank < numEndpoints) {
@@ -324,16 +342,31 @@ CxlHardwareBuffer::handleRoutedWrite(PacketPtr pkt, Addr offset,
                             "(receiver_head=0x%x)\n",
                             receiver, drain_mpsc_offset,
                             (uint32_t)receiver_head);
+                    DPRINTF(CXLBUF, "[CXLBUF-HW-DEBUG] OVERFLOW DRAIN -> "
+                            "RECEIVER %d | MPSC offset=0x%x "
+                            "(receiver_head=0x%x)\n",
+                            receiver, drain_mpsc_offset,
+                            (uint32_t)receiver_head);
 
-                    // Update mpsc_tails to stay ahead of the drain
-                    // position so direct messages don't overwrite it
+                    // Only advance mpsc_tails if drain is ahead of it
+                    // (circular comparison)
+                    uint32_t tail = mpsc_tails[receiver];
+                    uint32_t head = receiver_head;
+
                     uint32_t next_after_drain = drain_mpsc_offset + slotSize;
                     if (next_after_drain >= mpscSize) {
                         next_after_drain = slotSize;
                     }
-                    // Only advance mpsc_tails if drain is ahead of it
-                    // (circular comparison)
-                    mpsc_tails[receiver] = next_after_drain;
+
+                    // Distance from head to drain is the 'age' of the
+                    // drain slot
+                    uint32_t drain_dist =
+                        (drain_mpsc_offset + mpscSize - head) % mpscSize;
+                    uint32_t tail_dist = (tail + mpscSize - head) % mpscSize;
+
+                    if (drain_dist >= tail_dist) {
+                        mpsc_tails[receiver] = next_after_drain;
+                    }
 
                     // Advance head pointer in the overflow queue
                     state.headOffset += slotSize;
@@ -378,12 +411,8 @@ CxlHardwareBuffer::handleRoutedWrite(PacketPtr pkt, Addr offset,
     uint32_t slot_internal_offset = (spsc_region_offset % mpscSize) %
                                      slotSize;
 
-    // slot_idx=0 is the control block (cxlbuf_fifo_t). It should not be
-    // routed to the MPSC queue as a message, otherwise it consumes the
-    // first MPSC slot!
-    if (slot_idx == 0) {
-        return false;
-    }
+    // SPSC queues do NOT have a control block. They are purely raw buffers
+    // starting at slot_idx=0. Do not drop slot 0!
 
     if (slot_idx <= 2) {
         DPRINTF(CXLBUF, "SPSC WRITE: sender=%d, receiver=%d, slot_idx=%d, "
@@ -420,6 +449,34 @@ CxlHardwareBuffer::handleRoutedWrite(PacketPtr pkt, Addr offset,
         bool is_slot_full = (pmemAddr[dest_mpsc_flag_addr] == FLAG_COMPLETE);
         auto &state = overflowStates[receiver];
 
+        // Start of block for stat
+
+        // Sample the MPSC occupancy histogram!
+        int64_t receiver_head = 0;
+        Addr base = rankBaseOffsets[receiver];
+        std::memcpy(&receiver_head, &pmemAddr[base], sizeof(int64_t));
+
+        // Sanitize receiver_head in case it's uninitialized
+        if (receiver_head < (int64_t)slotSize ||
+            receiver_head >= (int64_t)mpscSize) {
+            receiver_head = slotSize;
+        }
+
+        uint32_t tail = new_mpsc_offset;
+        uint32_t head = (uint32_t)receiver_head;
+        uint32_t slots_in_use = 0;
+
+        if (is_slot_full) {
+            // It's completely full (minus control block)
+            slots_in_use = (mpscSize / slotSize) - 1;
+        } else {
+            // Distance from head to tail
+            uint32_t dist = (tail + mpscSize - head) % mpscSize;
+            slots_in_use = dist / slotSize;
+        }
+        stats.mpscOccupancy.sample(slots_in_use);
+        // End of block for stat
+
         if (is_slot_full || !state.chunks.empty()) {
             // OVERFLOW: The MPSC slot is full or we have a backlog.
             // Do NOT allocate an MPSC slot. Instead, mark this SPSC slot
@@ -431,6 +488,10 @@ CxlHardwareBuffer::handleRoutedWrite(PacketPtr pkt, Addr offset,
             DPRINTF(CXLBUF, "CXL Hardware Buffer: OVERFLOW! MPSC slot full "
                     "for Receiver %d. Sender %d SPSC slot %d -> "
                     "backing store\n", receiver, sender, slot_idx);
+            DPRINTF(CXLBUF, "[CXLBUF-HW-DEBUG] OVERFLOW: SENDER %d -> "
+                    "RECEIVER %d | spsc_slot_idx=%d "
+                    "goes to backing store\n",
+                    sender, receiver, slot_idx);
         } else {
             activeMappings[key][slot_idx] = new_mpsc_offset;
 
@@ -508,6 +569,9 @@ CxlHardwareBuffer::handleRoutedWrite(PacketPtr pkt, Addr offset,
                     "Scheduling normal transfer for Receiver %d at "
                     "MPSC offset 0x%x\n",
                     receiver, dest_mpsc_offset);
+            DPRINTF(CXLBUF, "[CXLBUF-HW-DEBUG] SENDER %d -> RECEIVER %d | "
+                    "spsc_slot_idx=%d | dest_mpsc_offset=0x%x\n",
+                    sender, receiver, slot_idx, dest_mpsc_offset);
 
             // Remove mapping since it's complete
             activeMappings[key].erase(slot_idx);
@@ -535,6 +599,10 @@ CxlHardwareBuffer::handleRoutedWrite(PacketPtr pkt, Addr offset,
             DPRINTF(CXLBUF, "CXL Hardware Buffer: COMPLETE flag on "
                     "OVERFLOW slot! Copying Sender %d -> Receiver %d to "
                     "backing store\n", sender, receiver);
+            DPRINTF(CXLBUF, "[CXLBUF-HW-DEBUG] SENDER %d -> RECEIVER %d | "
+                    "spsc_slot_idx=%d | "
+                    "FLAG_COMPLETE for OVERFLOW chunk\n",
+                    sender, receiver, slot_idx);
 
             // Remove mapping since it's complete
             activeMappings[key].erase(slot_idx);
@@ -682,25 +750,23 @@ CxlHardwareBuffer::completeTransfer(uint32_t receiver,
             pmemAddr[spsc_offset] = 0;
         }
 
-        // To find the sender, we just use the spsc_offset directly.
-        // spsc_offset is relative to the device range.
-        uint32_t sender = getRankFromOffset(spsc_offset);
-
-        Addr base = rankBaseOffsets[sender];
+        // The SPSC queue sits inside the RECEIVER's segment.
+        Addr base = rankBaseOffsets[receiver];
 
         // The spsc_offset points to the flag byte inside the slot.
-        // To get the slot index, we need the start of the slot.
-        // The slot start is at (spsc_offset - FLAG_OFFSET).
         uint32_t slot_start_offset = spsc_offset - FLAG_OFFSET;
 
-        // The segment offset is the slot start relative to the rank's base
+        // The segment offset is the slot start relative to the receiver's base
         uint32_t segment_offset = slot_start_offset - base;
 
-        // The SPSC slot index is the segment offset minus the MPSC
-        // region size, divided by slot size
-        uint32_t slot_idx = (segment_offset - mpscSize) / slotSize;
+        // Calculate the true sender based on the SPSC region offset
+        uint32_t spsc_region_offset = segment_offset - mpscSize;
+        uint32_t true_sender = spsc_region_offset / mpscSize;
 
-        uint32_t key = (sender << 16) | receiver;
+        // The SPSC slot index
+        uint32_t slot_idx = (spsc_region_offset % mpscSize) / slotSize;
+
+        uint32_t key = (true_sender << 16) | receiver;
 
         // Remove mapping since it's complete
         activeMappings[key].erase(slot_idx);
@@ -708,6 +774,9 @@ CxlHardwareBuffer::completeTransfer(uint32_t receiver,
         DPRINTF(CXLBUF, "CXL Hardware Buffer: Transfer completed. "
                 "Receiver %d MPSC slot at 0x%x is now visible.\n",
                 receiver, mpsc_offset);
+        DPRINTF(CXLBUF, "[CXLBUF-HW-DEBUG] RECEIVER %d <- SENDER %d | "
+                "MPSC Transfer Complete at 0x%x\n",
+                receiver, true_sender, mpsc_offset);
     } else {
         warn("CXL Hardware Buffer: completeTransfer out of bounds for "
              "receiver %d at offset 0x%x\n", receiver, mpsc_offset);

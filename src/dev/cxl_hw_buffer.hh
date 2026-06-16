@@ -5,6 +5,7 @@
 #include <queue>
 #include <vector>
 
+#include "base/statistics.hh"
 #include "mem/simple_mem.hh"
 #include "params/CxlHardwareBuffer.hh"
 #include "sim/eventq.hh"
@@ -45,6 +46,7 @@ class CxlHardwareBuffer : public memory::SimpleMemory
     // Offset within a message slot where the flags byte is located
     // 8 bytes (next) + 4 bytes (sender) + 4 bytes (pad)
     // + 8 bytes (frag) + 1 byte (tag) = 25 bytes
+    // changed to 17? didnt work, changing back to 25
     static const uint32_t FLAG_OFFSET = 25;
 
     // State tracking
@@ -124,6 +126,12 @@ class CxlHardwareBuffer : public memory::SimpleMemory
      * the caller should fall through to normal memory access.
      */
     bool handleRoutedWrite(PacketPtr pkt, Addr offset, unsigned size);
+
+    struct CxlHardwareBufferStats : public statistics::Group
+    {
+        CxlHardwareBufferStats(statistics::Group *parent);
+        statistics::Histogram mpscOccupancy;
+    } stats;
 
   public:
     PARAMS(CxlHardwareBuffer);
