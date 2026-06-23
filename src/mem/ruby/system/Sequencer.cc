@@ -957,6 +957,26 @@ Sequencer::empty() const
 RequestStatus
 Sequencer::makeRequest(PacketPtr pkt)
 {
+    // ---- restore-bypass diagnostic (remove after debugging) ----
+
+        static int dbg_seen = 0;
+        bool in_pmem = false;
+        for (const auto &r : m_pmem_address_ranges) {
+            if (r.contains(pkt->getAddr())) { in_pmem = true; break; }
+        }
+        // Always log in-range hits; also log the first 40 of anything so we
+        // can see what the cores are touching right after release.
+        if (in_pmem || dbg_seen < 40) {
+            DPRINTF(RubyBypass,
+                "PMEM-DIAG: seq=%s nranges=%d addr=%#llx %s in_pmem=%d\n",
+                name(), (int)m_pmem_address_ranges.size(),
+                (unsigned long long)pkt->getAddr(),
+                pkt->isWrite() ? "WR" : "RD", in_pmem ? 1 : 0);
+            dbg_seen++;
+        }
+
+    // ---- end diagnostic ----
+
     // HTM abort signals must be allowed to reach the Sequencer
     // the same cycle they are issued. They cannot be retried.
     if ((m_outstanding_count >= m_max_outstanding_requests) &&

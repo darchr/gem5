@@ -129,7 +129,7 @@ AbstractController::init()
           << params().downstream_destinations.size() << "\n";
 
     for (auto abs_cntrl : params().downstream_destinations) {
-        std::cout << "in For loop:  " << "\n";
+        // std::cout << "in For loop:  " << "\n";
         MachineID mid = abs_cntrl->getMachineID();
 
         const AddrRangeList &ranges = abs_cntrl->getAddrRanges();
