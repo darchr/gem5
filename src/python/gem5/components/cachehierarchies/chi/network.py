@@ -42,13 +42,16 @@ class BaseSystemNetwork(SimpleNetwork):
     # def append_dax_ports(new_port):
     #     self.dax_ports.append(new_port)
 
-    def connect_hosts(self, hosts, system_caches):
-        # create a router for each host that will connect to that hosts' L3 and othere hosts
-        self.system_routers = [CHISwitch(self) for _ in range(len(hosts))]
+    def connect_hosts(self, compute_hosts, system_caches, hosts_wrapper):
+        # create a router for each host (compute AND 0-core)
+        self.system_routers = [
+            CHISwitch(self) for _ in range(hosts_wrapper.num_hosts)
+        ]
         slice_links = []
 
-        # Connect hosts to their respective routers
-        for host, router in zip(hosts, self.system_routers):
+        # Connect compute hosts to their respective routers
+        for host in compute_hosts:
+            router = self.system_routers[host._host_id]
             # connects the necessary routers within the host
             rs, els, ils = host.setup_network(self, router)
             self._routers.extend(rs)
@@ -127,24 +130,26 @@ class MultiHostNetwork(BaseSystemNetwork):
         self,
         ruby_system,
         vnets,
+        hosts_wrapper,
         topology="default",
         num_stars=1,
         star_switch_latency=10,
         star_link_bandwidth=16,
     ):
         super().__init__(ruby_system, vnets)
+        self._hosts_wrapper = hosts_wrapper
         self._topology = topology
         self._num_stars = num_stars
         self._star_switch_latency = star_switch_latency
         self._star_link_bandwidth = star_link_bandwidth
 
-    def build_system_network(self, hosts):
+    def build_system_network(self, compute_hosts):
         if self._topology == "multi-star":
-            self._build_multi_star_network(hosts)
+            self._build_multi_star_network(compute_hosts)
         else:
-            self._build_default_network(hosts)
+            self._build_default_network(compute_hosts)
 
-    def _build_default_network(self, hosts):
+    def _build_default_network(self, compute_hosts):
         """Default fully-connected mesh: all system routers connected
         to each other and to all memory routers."""
         system_links = []
@@ -169,26 +174,40 @@ class MultiHostNetwork(BaseSystemNetwork):
             f"{len(self.system_links)}"
         )
 
-    def _build_multi_star_network(self, hosts):
+    def _build_multi_star_network(self, compute_hosts):
         """Multi-Star topology (CXL 3.0 Unified Switch Model):
-        All host system_routers and memory_routers connect ONLY
-        through centralized star switches.  No direct host-to-host
-        or host-to-memory links exist.
+        We use the 0-core hosts (memory pools) as the central star switches.
+        All compute host system_routers connect ONLY through these memory pool routers.
         """
         system_links = []
 
-        # Create the star routers
-        self.star_routers = [CHISwitch(self) for _ in range(self._num_stars)]
-        for star in self.star_routers:
+        # Identify star routers (routers of 0-core hosts)
+        pool_hosts = self._hosts_wrapper.memory_pools
+        if not pool_hosts:
+            print(
+                "WARNING: No 0-core memory pool hosts found! Falling back to compute hosts as stars."
+            )
+            self._star_routers = self.system_routers[: self._num_stars]
+        else:
+            self._star_routers = [
+                self.system_routers[p.host_id] for p in pool_hosts
+            ]
+
+        # The star routers are already in self._routers via connect_hosts
+        # We just adjust their latencies
+        for star in self._star_routers:
             star.int_routing_latency = self._star_switch_latency
             star.ext_routing_latency = self._star_switch_latency
 
-        self._routers.extend(self.star_routers)
+        compute_host_routers = [
+            self.system_routers[c.host_id]
+            for c in self._hosts_wrapper.compute_hosts
+        ]
 
-        # Connect every host system_router to every star, bidirectionally
-        for i, s in enumerate(self.system_routers):
-            preferred_star_idx = i % self._num_stars
-            for j, star in enumerate(self.star_routers):
+        # Connect every compute host router to every star, bidirectionally
+        for i, s in enumerate(compute_host_routers):
+            preferred_star_idx = i % len(self._star_routers)
+            for j, star in enumerate(self._star_routers):
                 link_weight = 1 if j == preferred_star_idx else 10
                 system_links.append(
                     IntLink(
@@ -209,7 +228,7 @@ class MultiHostNetwork(BaseSystemNetwork):
 
         # Connect every memory_router to every star, bidirectionally
         for m in self.memory_routers:
-            for star in self.star_routers:
+            for star in self._star_routers:
                 system_links.append(
                     IntLink(
                         m,
@@ -230,8 +249,8 @@ class MultiHostNetwork(BaseSystemNetwork):
         # Connect DMA routers to every star, bidirectionally
         if self._has_dma:
             for i, d in enumerate(self.dma_routers):
-                preferred_star_idx = i % self._num_stars
-                for j, star in enumerate(self.star_routers):
+                preferred_star_idx = i % len(self._star_routers)
+                for j, star in enumerate(self._star_routers):
                     link_weight = 1 if j == preferred_star_idx else 10
                     system_links.append(
                         IntLink(

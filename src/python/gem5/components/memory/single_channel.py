@@ -69,6 +69,16 @@ def SingleChannelDDR4_2400(
     return ChanneledMemory(DDR4_2400_8x8, 1, 64, size=size)
 
 
+def SingleChannelDDR4_2400_mem_lat(
+    size: Optional[str] = None,
+    mem_lat: Optional[int] = 10,
+) -> AbstractMemorySystem:
+    """
+    A single channel memory system using DDR4_2400_8x8 based DIMM.
+    """
+    return ChanneledMemory(DDR4_2400_8x8, 1, 64, size=size, mem_lat=mem_lat)
+
+
 def SingleChannelLPDDR3_1600(
     size: Optional[str] = None,
 ) -> AbstractMemorySystem:

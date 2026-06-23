@@ -43,6 +43,7 @@ from gem5.utils.override import overrides
 from gem5.utils.requires import requires
 
 from .host import CHI_Host
+from .hosts_wrapper import HostsWrapper
 from .network import (
     BaseSystemNetwork,
     MultiHostNetwork,
@@ -52,15 +53,13 @@ from .network import (
 class CHI_3_Level_Remote_Dir(AbstractRubyCacheHierarchy):
     def __init__(
         self,
+        hosts_wrapper: HostsWrapper,
         l1i_size: str = "64KiB",
         l1d_size: str = "64KiB",
         l2_size: str = "1MiB",
         slc_size: str = "32MiB",
         slc_intlv_size: str = "128B",
-        num_hosts: int = 1,
-        num_hns: int = 2,
         directory_remote_latency: int = 250,
-        enable_numa: bool = False,
         numa_interleave_hns: bool = False,
         pmem_address_range: AddrRange = None,
         topology: str = "default",
@@ -68,20 +67,19 @@ class CHI_3_Level_Remote_Dir(AbstractRubyCacheHierarchy):
         star_switch_latency: int = 10,
         star_link_bandwidth: int = 16,
         number_of_tbes: int = 64,
+        pool_interleave_hns: bool = False,
         # system_network_cls: Type[BaseSystemNetwork] = BaseSystemNetwork,
     ) -> None:
         """ """
         super().__init__()
         # super(AbstractCacheHierarchy, self).__init__()
+        self._hosts_wrapper = hosts_wrapper
         self._l1i_size = l1i_size
         self._l1d_size = l1d_size
         self._l2_size = l2_size
         self._slc_size = slc_size  # toMemorySize(slc_size)
         self._slc_intlv_size = slc_intlv_size
-        self._num_hosts = num_hosts
-        self._num_hns = num_hns
         self._directory_remote_latency = directory_remote_latency
-        self._enable_numa = enable_numa
         self._numa_interleave_hns = numa_interleave_hns
         self._pmem_address_range = pmem_address_range
         self._topology = topology
@@ -89,6 +87,7 @@ class CHI_3_Level_Remote_Dir(AbstractRubyCacheHierarchy):
         self._star_switch_latency = star_switch_latency
         self._star_link_bandwidth = star_link_bandwidth
         self._number_of_tbes = number_of_tbes
+        self._pool_interleave_hns = pool_interleave_hns
         # self._system_network_cls = system_network_cls
 
     def _intlv_memory_for_hosts(
@@ -131,6 +130,7 @@ class CHI_3_Level_Remote_Dir(AbstractRubyCacheHierarchy):
         self.ruby_system.network = MultiHostNetwork(
             self.ruby_system,
             self.ruby_system.number_of_virtual_networks,
+            self._hosts_wrapper,
             topology=self._topology,
             num_stars=self._num_stars,
             star_switch_latency=self._star_switch_latency,
@@ -153,105 +153,88 @@ class CHI_3_Level_Remote_Dir(AbstractRubyCacheHierarchy):
         self.memory_controllers = memory_controllers
 
         cores = board.get_processor().get_cores()
-        assert (
-            len(cores) % self._num_hosts
-        ) == 0, "Number of cores must be divisible by number of hosts"
-        assert (
-            self._num_hns >= self._num_hosts
-        ), "Number of home nodes must be >= number of hosts"
-        assert (
-            self._num_hns % self._num_hosts
-        ) == 0, "Number of home nodes must be divisible by number of hosts"
-
-        # unsure if this is needed
-        cores_per_host = int(len(cores) / self._num_hosts)
-
-        mem_range = board.get_memory().get_uninterleaved_range()[0]
+        core_idx = 0
 
         hosts = []
         sequencers = []
         system_caches = []
 
-        if self._enable_numa:
-            if self._numa_interleave_hns:
-                mem_per_host = mem_range.size() // self._num_hosts
-                hns_per_host = self._num_hns // self._num_hosts
-                addr_ranges = []
-                for i in range(self._num_hosts):
-                    host_start = mem_range.start + (i * mem_per_host)
-                    host_ranges = self._intlv_memory_for_hosts(
-                        host_start,
-                        mem_per_host,
-                        hns_per_host,
-                        self._slc_intlv_size,
-                    )
-                    addr_ranges.extend(host_ranges)
+        # Process each HostConfig
+        for host_config in self._hosts_wrapper.hosts:
+            if not host_config.is_cxl_pool:
+                # Get the cores for this host
+                cores_in_host = cores[
+                    core_idx : core_idx + host_config.num_cores
+                ]
+                core_idx += host_config.num_cores
+
+                host = CHI_Host(
+                    cores_in_host,
+                    board,
+                    self.ruby_system.network,
+                    self.ruby_system,
+                    self._l1i_size,
+                    self._l1d_size,
+                    self._l2_size,
+                    host_id=host_config.host_id,
+                    pmem_address_range=self._pmem_address_range,
+                )
+                hosts.append(host)
+                sequencers.extend(host._sequencers)
+
+            # Now setup the Home Nodes for this host
+            mem_size = host_config.mem_range.size()
+
+            do_interleave = False
+            if host_config.is_cxl_pool:
+                if self._pool_interleave_hns:
+                    do_interleave = True
             else:
-                mem_per_hn = mem_range.size() // self._num_hns
+                if self._numa_interleave_hns:
+                    do_interleave = True
+
+            if do_interleave and host_config.num_hns > 1:
+                addr_ranges = self._intlv_memory_for_hosts(
+                    host_config.mem_range.start,
+                    mem_size,
+                    host_config.num_hns,
+                    self._slc_intlv_size,
+                )
+            else:
+                mem_per_hn = mem_size // host_config.num_hns
                 addr_ranges = []
-                for i in range(self._num_hns):
-                    hn_start = mem_range.start + (i * mem_per_hn)
-                    # No interleaving, just contiguous chunks for each HN (NUMA node)
+                for i in range(host_config.num_hns):
+                    hn_start = host_config.mem_range.start + (i * mem_per_hn)
                     addr_ranges.append(
                         AddrRange(start=hn_start, size=mem_per_hn)
                     )
-        else:
-            addr_ranges = self._intlv_memory_for_hosts(
-                mem_range.start,
-                mem_range.size(),
-                self._num_hns,
-                self._slc_intlv_size,
+
+            per_hn_slc_size = (
+                toMemorySize(self._slc_size) // host_config.num_hns
             )
 
-        for i in range(self._num_hosts):
-            cores_in_host = cores[
-                i * cores_per_host : (i + 1) * cores_per_host
-            ]
+            for j in range(host_config.num_hns):
+                system_cache = SystemLevelCache(
+                    size=f"{per_hn_slc_size}B",
+                    assoc=16,
+                    network=self.ruby_system.network,
+                    cache_line_size=board.get_cache_line_size(),
+                    clk_domain=board.get_clock_domain(),
+                    host_id=host_config.host_id,
+                    num_hns=host_config.num_hns,
+                    directory_remote_latency=self._directory_remote_latency,
+                    number_of_tbes=self._number_of_tbes,
+                )
+                # WILLCHANGED
+                ranges = [addr_ranges[j]]
+                # Keep the dummy range for the very first HN (host 0, hn 0)
+                if host_config.host_id == 0 and j == 0:
+                    ranges.append(AddrRange(0, size="4KiB"))
+                system_cache.addr_ranges = ranges
 
-            host = CHI_Host(
-                cores_in_host,
-                board,
-                self.ruby_system.network,
-                self.ruby_system,
-                self._l1i_size,
-                self._l1d_size,
-                self._l2_size,
-                host_id=i,
-                pmem_address_range=self._pmem_address_range,
-                # clk_domain=board.get_clock_domain(),
-            )
-            hosts.append(host)
-            sequencers.extend(host._sequencers)
-
-        # Divide total SLC size by the number of HNs to maintain constant total L3 capacity
-        per_hn_slc_size = toMemorySize(self._slc_size) // self._num_hns
-        hns_per_host = self._num_hns // self._num_hosts
-
-        for j in range(self._num_hns):
-            # Calculate which host this HN belongs to
-            host_id_for_hn = j // hns_per_host
-
-            # Create the system cache (SLC)
-            system_cache = SystemLevelCache(
-                size=f"{per_hn_slc_size}B",
-                assoc=16,
-                network=self.ruby_system.network,
-                cache_line_size=board.get_cache_line_size(),
-                clk_domain=board.get_clock_domain(),
-                host_id=host_id_for_hn,  # Pass the computed host_id to the SystemLevelCache
-                num_hns=self._num_hns,  # Pass num_hns for resource scaling
-                directory_remote_latency=self._directory_remote_latency,
-                number_of_tbes=self._number_of_tbes,
-            )
-            # WILLCHANGED
-            ranges = [addr_ranges[j]]
-            if j == 0:
-                ranges.append(AddrRange(0, size="4KiB"))
-            system_cache.addr_ranges = ranges
-
-            # DEGNAHCLLIW
-            system_cache.ruby_system = self.ruby_system
-            system_caches.append(system_cache)
+                # DEGNAHCLLIW
+                system_cache.ruby_system = self.ruby_system
+                system_caches.append(system_cache)
 
         self.hosts = hosts
         self.system_caches = system_caches
@@ -282,7 +265,9 @@ class CHI_3_Level_Remote_Dir(AbstractRubyCacheHierarchy):
 
         # connect everything here
 
-        self.ruby_system.network.connect_hosts(self.hosts, self.system_caches)
+        self.ruby_system.network.connect_hosts(
+            self.hosts, self.system_caches, self._hosts_wrapper
+        )
         self.ruby_system.network.connect_memory_controllers(
             self.memory_controllers
         )
