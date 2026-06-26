@@ -26,13 +26,33 @@
 
 Import('*')
 
+# SimObject('DualPort.py', sim_objects=['DualPort'])
+# SimObject('SimpleBlockingPort.py', sim_objects=['SimpleBlockingPort'])
+# SimObject('SimplePort.py', sim_objects=['SimplePort'])
 SimObject('FlatTables.py', sim_objects=['FlatTables'])
+# SimObject('Mondrian.py', sim_objects=['Mondrian'])
+# SimObject('MyUIODevice.py', sim_objects=['MyUIODevice'])
 
+# Source('dual_port.cc')
+# Source('simple_blocking_port.cc')
+# Source('simple_port.cc')
 Source('flat_tables.cc')
+# Source('mondrain.cc')
+# Source('my_uio_device.cc')
+
+# SimObject('MyPCIDevice.py', sim_objects=['MyPCIDevice'])
+# Source('my_pci_device.cc')
+
 
 # Here are the debug flags used in the source code.
 # DebugFlag('DualPort', "Making sure everything works!")
 # DebugFlag('PermissionTable', "Making sure that the permission table works!")
+# # DebugFlag('SimpleBlockingPort', "The other implementation")
+# # DebugFlag('SimplePort', "The simple implementation")
+# DebugFlag('MondrianDebug', "For the latency memory object")
+
+# DebugFlag('MyUIODevice', "For the MyUIODevice SimObject")
+
 DebugFlag('PermissionTableEvent', "Making sure that the permission table works!")
 DebugFlag('FlatTablesDebug', "For the latency memory object")
 DebugFlag('RemoteAddress', "For debugging if packets go to the remote memory")

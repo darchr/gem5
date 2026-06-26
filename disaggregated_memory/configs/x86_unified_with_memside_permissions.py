@@ -353,6 +353,8 @@ if args.permission == "space-control" or args.permission == "mondrian":
                 (int(
                     args.remote_memory_end, 16) - int(
                                     args.remote_memory_start, 16)) / 0x1000)
+elif args.permission == "none":
+    print("no permissions")
 else:
     # This is either flat-tables or deact. The number of entries will be
     # computed at the simobject.
@@ -614,6 +616,53 @@ else:
         board.get_permission_table().number_of_entries = args.number_of_entries # int(
                                                     # 0x400000000 / 0x1000)
         board.get_permission_table().segment_size = 64
+    elif args.permission == "mondrian":
+        board = X86SpaceControlBoard(
+            clk_freq=core_freq,
+            processor=processor,
+            cache_hierarchy=cache_hierarchy,
+            local_memory=local_memory,
+            remote_memory=remote_memory,
+            remote_memory_address_range=remote_memory_range
+        )
+        # setup the permissions on the board instead of the caches
+        # Cache type will be overridden by the type of permission table
+        warn("The cache is overridden with flat tables cache") 
+        board.get_permission_table().model_name = "mondrain"
+
+
+        # flat tables consume a lot of storage. this needs to be modeled correctly.
+        # The host is needed to be specified to figure our where is the repeated entry
+        board.get_permission_table().host_id = args.instance
+
+        # configure the permission table for flat tables control
+        board.get_permission_table().enable_permission_check = True
+        board.get_permission_table().simulate_binary_search = use_binary_search
+
+        # We'll get to this later.
+        board.get_permission_table().use_dedicated_caching = \
+                                                        use_permission_cache
+        board.get_permission_table().cache_size = args.permission_cache_entries
+        # make sure that the permission parameters are setup correctly.
+        board.get_permission_table().permission_base_addr = 0x8C0000000 # 35 GiB
+        board.get_permission_table().remote_memory_start = 0x500000000
+        board.get_permission_table().local_memory_start =  0x100000000
+        board.get_permission_table().local_memory_end =  0x500000000
+
+        # Number of entries is used to override the class contructor.
+        # cache_hierarchy.get_permission_table().number_of_entries = (0x800000000 / (2 ** 12))
+
+        board.get_permission_table().binary_search = True
+        board.get_permission_table().simulate_binary_search = use_binary_search
+        # using parameters from the driver. After the cacheline version is finished,
+        # this latency is drastically reduced!
+        board.get_permission_table().permission_entry_size = 64
+
+        board.get_permission_table().total_memory_size = 0x400000000
+        board.get_permission_table().mshr_count = 1024
+        board.get_permission_table().number_of_entries = args.number_of_entries # int(
+                                                    # 0x400000000 / 0x1000)
+        board.get_permission_table().segment_size = 16
     
     elif args.permission == "flat-table":
         board = X86SpaceControlBoard(
@@ -730,6 +779,10 @@ board.set_workload(workload)
 # after displaying numastat information on the terminal, which can be viewed
 # from board.terminal.
 board._pre_instantiate()
+if args.permission == "mondrian":
+   # mondrain cannot handle so many outgoing packets to the remote memory
+   # to manage paermission
+   board.extra_bar.max_routing_table_size = 2 ** 20
 root = Root(full_system=True, board=board)
 board._post_instantiate()
 

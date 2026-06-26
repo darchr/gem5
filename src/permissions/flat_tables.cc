@@ -351,56 +351,125 @@ FlatTables::processPendingResponse() {
         }
         // if i have all my responses back or cached, i can send the packet
         // upstream.
-        if (permission_response_tracker[pkt->getAddr()] == local_max_search || all_cached[pkt->getAddr()]) {
-            // now i have a response for this pending packet in the queue.
-            PacketId id = pkt->id;
-            if (cpuSidePorts[portMap[id]].sendTimingResp(pkt)) {
-                // real response sent!
-                // The comparison latency is added once when the actual compar-
-                // -ison is done.
-                Tick comparison_latency = 1;
-                schedule(new EventFunctionWrapper([this, pkt]{ },
-                    name() + ".accessEvent", true),
-                    clockEdge(static_cast<Cycles>(comparison_latency)));
-                response_packets.pop();
-                // reset the response tracker
-                permission_response_tracker[pkt->getAddr()] = 0;
-                // if using dedicated caching, reset the max_search_attempts_map
-                // max_search_attempt_map[pkt->getAddr()] = 0;
-                // finally sample the buffering time
-                // so sample the buffering time for stats.
-                stats.stallTime.sample(gem5::curTick() - stall_time[pkt->getAddr()]);
-                stall_time.erase(pkt->getAddr());
-                // so, all permission stuff is done and this packet is ready to
-                // be sampled
-                stats.packetLatency.sample(
+        // extending the code wihtout breaking anything else
+        if (model_state == gem5::model::MONDRIAN) {
+            // mondi never has caches
+            if (permission_response_tracker[pkt->getAddr()] != 0 && permission_response_tracker[pkt->getAddr()] % local_max_search == 0) {
+                // not i have response for this pending packet in the queue
+                PacketId id = pkt->id;
+                // memory gating? send this packet only if you're not waiting
+                // for the cpu to free up
+                if (!waiting_for_permission_retry && !waiting_for_mem_retry) {
+                    if (cpuSidePorts[portMap[id]].sendTimingResp(pkt)) {
+                        Tick comparison_latency = 1;
+                        schedule(new EventFunctionWrapper([this, pkt]{ },
+                            name() + ".accessEvent", true),
+                            clockEdge(static_cast<Cycles>(comparison_latency)));
+                        response_packets.pop();
+                        // reset the response tracker
+                        if (permission_response_tracker[pkt->getAddr()] > local_max_search) {
+                            // there are multiple outstanding packets
+                            permission_response_tracker[pkt->getAddr()] -= local_max_search;
+                        }
+                        else
+                            permission_response_tracker[pkt->getAddr()] = 0;
+                        // if using dedicated caching, reset the max_search_attempts_map
+                        // max_search_attempt_map[pkt->getAddr()] = 0;
+                        // finally sample the buffering time
+                        // so sample the buffering time for stats.
+                        stats.stallTime.sample(
+                                    gem5::curTick() - stall_time[pkt->getAddr()]);
+                        stall_time.erase(pkt->getAddr());
+                        // so, all permission stuff is done and this packet is ready to
+                        // be sampled
+                        stats.packetLatency.sample(
                                     gem5::curTick() - outstanding_packets[pkt]);
-                outstanding_packets.erase(pkt);
-                // Notify the user
-                DPRINTF(PermissionResponses, "Finally sent waiting packet %#x\n",
-                                                pkt->getAddr());
-                // since i dont need the all_Cached, remove it
-                all_cached[pkt->getAddr()] = false;
+                        outstanding_packets.erase(pkt);
+                        // Notify the user
+                        DPRINTF(FlatTablesDebug,
+                            "id %d, Finally sent waiting response upstream %#x\n",
+                            hostID, pkt->getAddr());
+                        // since i dont need the all_Cached, remove it
+                        all_cached[pkt->getAddr()] = false;
+                    }
+                    else {
+                        // sending packet upstream failed
+                        DPRINTF(PermissionResponses, "Failed to send waiting packet %#x\n",
+                                                        pkt->getAddr());
+                        // we accepted this packet but the cpu cannot handle
+                        // another packet at this moment.
+                        waiting_for_permission_retry = true;
+                    }
+                }
             }
             else {
-                // packet sending failed!
-                // waiting_for_remote_mem_retry = true;
-                // dont worry, a new event will be automatically be added!
-            }
-            
+                // not all responses have arrived.
+                DPRINTF(PermissionResponses, "id: %d, Still couldn't send resp pkt: %#x "
+                            "because not all responses are received! "
+                            "tracker (%d, %d)\n",
+                            hostID,
+                            pkt->getAddr(),
+                            permission_request_tracker[pkt->getAddr()],
+                            permission_response_tracker[pkt->getAddr()]);
+            } 
         }
         else {
-            DPRINTF(PermissionResponses, "Still couldn't send resp pkt: %#x "
-                                "because not all responses are received! "
-                                "tracker (%d, %d)\n",
-                                pkt->getAddr(),
-                                permission_request_tracker[pkt->getAddr()],
-                                permission_response_tracker[pkt->getAddr()]);
+            // if i have all my responses back or cached, i can send the packet
+            // upstream.
+            if (permission_response_tracker[pkt->getAddr()] == local_max_search || all_cached[pkt->getAddr()]) {
+                // now i have a response for this pending packet in the queue.
+                PacketId id = pkt->id;
+                if (cpuSidePorts[portMap[id]].sendTimingResp(pkt)) {
+                    // real response sent!
+                    // The comparison latency is added once when the actual compar-
+                    // -ison is done.
+                    Tick comparison_latency = 1;
+                    schedule(new EventFunctionWrapper([this, pkt]{ },
+                        name() + ".accessEvent", true),
+                        clockEdge(static_cast<Cycles>(comparison_latency)));
+                    response_packets.pop();
+                    // reset the response tracker
+                    permission_response_tracker[pkt->getAddr()] = 0;
+                    // if using dedicated caching, reset the max_search_attempts_map
+                    // max_search_attempt_map[pkt->getAddr()] = 0;
+                    // finally sample the buffering time
+                    // so sample the buffering time for stats.
+                    stats.stallTime.sample(gem5::curTick() - stall_time[pkt->getAddr()]);
+                    stall_time.erase(pkt->getAddr());
+                    // so, all permission stuff is done and this packet is ready to
+                    // be sampled
+                    stats.packetLatency.sample(
+                                        gem5::curTick() - outstanding_packets[pkt]);
+                    outstanding_packets.erase(pkt);
+                    // Notify the user
+                    DPRINTF(PermissionResponses, "Finally sent waiting packet %#x\n",
+                                                    pkt->getAddr());
+                    // since i dont need the all_Cached, remove it
+                    all_cached[pkt->getAddr()] = false;
+                }
+                else {
+                    // packet sending failed!
+                    // waiting_for_remote_mem_retry = true;
+                    // dont worry, a new event will be automatically be added!
+                }
+            }
+            else {
+
+                DPRINTF(PermissionResponses, "id: %d, Still couldn't send resp pkt: %#x "
+                            "because not all responses are received! "
+                            "tracker (%d, %d)\n",
+                            hostID,
+                            pkt->getAddr(),
+                            permission_request_tracker[pkt->getAddr()],
+                            permission_response_tracker[pkt->getAddr()]);
+            }
         }
     }
-    // else {
-    //     DPRINTF(PermissionResponses, "Waiting for mem retry\n");
-    // }
+    else {
+        // XXX: dobby is finally free!
+        //
+        // there are no items to process
+    }
     // If I couldn't clear the queue this time, then schedule another event
     if (!response_packets.empty())
         if (!event.scheduled())
@@ -436,6 +505,12 @@ FlatTables::processPermissionRequest() {
                                 permission_response_tracker[originalAddr],
                                 max_search_attempt_map[originalAddr]);
 
+            DPRINTF(FlatPermissionTables, "id %d, req: Sent permission pkt %#x for %#x, "
+                                        "tracker (%d, %d), search %d\n",
+                                hostID, pkt->getAddr(), originalAddr,
+                                permission_request_tracker[originalAddr] + 1,
+                                permission_response_tracker[originalAddr],
+                                max_search_attempts);
             permission_request_tracker[originalAddr]++;
             int local_max_search = max_search_attempts;
             if (useDedicatedCaching || simulateBinarySearch) {
@@ -452,9 +527,28 @@ FlatTables::processPermissionRequest() {
                 assert(max_search_attempt_map[originalAddr] > 0);
                 local_max_search = max_search_attempt_map[originalAddr];
             }
-            if (permission_request_tracker[originalAddr] == local_max_search) {
-                mshrs_occupied++;
-                stats.maxPermissionMSHROcuppied.sample(mshrs_occupied);
+            // To not break anything else, I am creating another if condition
+            // here.
+            if (model_state == gem5::model::DEACT || model_state == gem5::model::MONDRIAN) {
+                // there are multiple packets on the same address.
+                if (permission_request_tracker[originalAddr] % local_max_search == 0) {
+                    DPRINTF(FlatPermissionTables,
+                        "id: %d, Occupied an MSHR by %#x. Must be bitmap %#x. count %d\n",
+                            hostID, originalAddr, pkt->getAddr(), mshrs_occupied + 1);
+                    mshrs_occupied++;
+                    stats.maxPermissionMSHROcuppied.sample(mshrs_occupied);
+                }
+                // if all the packets aren't sent, dont really do anything else
+            }
+            else {
+                if (permission_request_tracker[originalAddr] == local_max_search) {
+                    DPRINTF(FlatPermissionTables,
+                        "id: %d, Occupied an MSHR by %#x. Must be bitmap %#x. count %d\n",
+                            hostID, originalAddr, pkt->getAddr(), mshrs_occupied + 1);
+                    mshrs_occupied++;
+                    stats.maxPermissionMSHROcuppied.sample(mshrs_occupied);
+                }
+                // same here.
             }
 
             permission_packets.pop();
@@ -552,27 +646,40 @@ FlatTables::getMondrianAddress(Addr addr) {
     // entries
     if (!worst_case) {
         // there is just one 16B entry in the entire table. Each entry is defined
-        // by the segmentSize.
-        return baseAddrPermissionTable + (hostID * 16);
+        // by the segmentSize. The birst 64 MiB is for the shared memory
+        if (isInRemoteRange(addr))
+            return baseAddrPermissionTable;
+        // else this is in the local memory. each host needs to have a local
+        // memory region.
+        else {
+            // we assume 64 MiB are reserved for each local memory. why 64? it
+            // takes exactly 64 MiB to store permissions for 16 GiB of memory
+            Addr base = baseAddrPermissionTable + ((hostID + 1) * 64 * 1024 * 1024);
+        // I don't want any unforseen consequences
+        assert(isInPermissionRange(base));
+        return base;
+        }
     }
     else {
-        // make sure that the permission table is always stored in the remote
-        // memory. for local addresses, just return the base address
-        if (!isInRemoteRange(addr)) {
-            // Estimation
-            return baseAddrPermissionTable + (hostID * 16);
-        }
-        // based on the host, we first get first index
-        // each table size = (total_entries / segmentSize)
-        Addr base = baseAddrPermissionTable +                   // base
-                    (hostID * (total_entries * segmentSize)) +  // which table
+        // finally i ran into this. We need to assume that there are two
+        // tables: one for the local memory and the other for the remote
+        // memory.
+        // each mondi table is 64 MiB long for 16 gib of memory.
+        Addr base;
+        if (isInRemoteRange(addr)) {
+            // simple: the addr is in the first 64 MiB range.
+            base = baseAddrPermissionTable + 
                     ((addr - remoteMemoryStart) / PPN_MASK) * segmentSize;
-                    // entry in the table
-        // The exact offset (since there are 4x16Bytes in one cache line)
-        // since each entry is cache aligned, you should not send the
-        // offset.
-        // Addr offset = (((addr - remoteMemoryStart) / PPN_MASK) * segmentSize)
-        //                 % (CACHE_LINE / segmentSize);
+        }
+        else {
+            // this address is a local memory address. each host has its own
+            // mondi table. local addresses start at 
+            base = baseAddrPermissionTable + 
+                        ((hostID + 1) * 64 * 1024 * 1024) +
+                        ((addr - localMemoryStart)/ PPN_MASK) * segmentSize;
+
+        }
+
         // I don't want any unforseen consequences
         assert(isInPermissionRange(base));
         return base;
@@ -657,6 +764,69 @@ FlatTables::getBinarySearchAddress(Addr target_permission_addr) {
 
 }
 
+
+std::vector<gem5::Addr>
+FlatTables::getBinarySearchAddressForMondrian(Addr target_permission_addr) {
+    // Given an address, find the set of addresses that led to the right
+    // address.
+    std::vector<gem5::Addr> return_vector;
+    // if worst case is simulated, only then go through the entire pain!
+    if (!worst_case) {
+        assert(false && "worst case must be true\n");
+        return_vector.push_back(target_permission_addr);
+        return return_vector;
+    }
+
+    // Search over indices [0, numPages - 1], mapping index -> entry address.
+    Addr loIdx = 0;
+    Addr hiIdx = total_entries - 1;
+    Addr start_addr;
+    if (isInRemoteRange(target_permission_addr)) {
+        // simple: the addr is in the first 64 MiB range.
+        start_addr = baseAddrPermissionTable;
+    }
+    else {
+        // this address is a local memory address. each host has its own
+        // mondi table. local addresses start at 
+        start_addr = baseAddrPermissionTable + 
+                    ((hostID + 1) * 64 * 1024 * 1024);
+
+    }
+
+    // Optional: show hex with base
+    // std::cout << std::hex << std::showbase;
+
+    // bool found = false;
+    while (loIdx <= hiIdx) {
+        const Addr midIdx  = loIdx + (hiIdx - loIdx) / 2;
+        const Addr midAddr = start_addr + midIdx * segmentSize;
+
+        assert(isInPermissionRange(midAddr));
+
+        return_vector.push_back(midAddr);
+        // DPRINTF(PermissionTableDebug, "target=" << targetEntryAddr
+        //           << " loIdx=" << loIdx << " midIdx=" << midIdx << " hiIdx=" << hiIdx
+        //           << " | lo=" << (baseAddrPermissionTable + loIdx * SEGMENT_SIZE)
+        //           << " mid=" << midAddr
+        //           << " hi=" << (baseAddrPermissionTable + hiIdx * SEGMENT_SIZE)
+        //           << '\n');
+
+        if (midAddr == target_permission_addr) {
+            // found = true;
+            break;
+        } else if (midAddr < target_permission_addr) {
+            loIdx = midIdx + 1; // move right
+        } else {
+            hiIdx = midIdx - 1; // move left
+        }
+    }
+
+    // assert(found && "Binary search didn't find the requested address");
+    return return_vector;
+
+}
+
+
 bool
 FlatTables::recvTimingReqMondrian(PacketPtr pkt, uint64_t packet_id) {
     // we're going with the simple logic
@@ -674,7 +844,7 @@ FlatTables::recvTimingReqMondrian(PacketPtr pkt, uint64_t packet_id) {
             if (simulateBinarySearch) {    
                 // now get the binary search address list =
                 std::vector<gem5::Addr> addresses =
-                                getBinarySearchAddress(permission_addr);
+                                getBinarySearchAddressForMondrian(permission_addr);
                 assert(addresses.size() > 0);
                 max_search_attempt_map[pkt->getAddr()] = addresses.size();
                 stats.binarySearchAttempts.sample(addresses.size());
@@ -917,6 +1087,7 @@ FlatTables::recvTimingReqDeACT(PacketPtr pkt, uint64_t packet_id) {
                 // keep the time on when this packet was sent from the permission
                 // checker to the memory. this is only true for real packets with
                 // permission checks
+                // how many outstanding_packets do we have?
                 if (isInRemoteRange(pkt->getAddr()))
                     outstanding_packets[pkt] = gem5::curTick();
 
@@ -1377,7 +1548,7 @@ FlatTables::recvReqRetry() {
                 retry_queue.pop();
                 // retry_queue.unset(id);
                 DPRINTF(FlatTablesDebug,
-                                    "Found the retry Issue! Port %lu\n", id);
+                    "id %d, Found the retry Issue! Port %lu\n", hostID, id);
             }
 
             // schedule an event for the permission packets too
@@ -1427,9 +1598,9 @@ FlatTables::getBinarySearchPermissionTableAddr(int attempt) {
 
 void
 FlatTables::recvRespRetry(const PortID id) {
-    DPRINTF(FlatTablesDebug, "recvRespRetry Found the issue!"
+    DPRINTF(FlatTablesDebug, "id %d, recvRespRetry Found the issue!"
                         "Retry called for port %lu by local memory %d\n",
-                        id, waiting_for_mem_retry);
+                        hostID, id, waiting_for_mem_retry);
     // cpuside says its ready to accept new packets. event will see if there
     // are pending responses.
     if (!response_packets.empty()) {
@@ -1437,11 +1608,24 @@ FlatTables::recvRespRetry(const PortID id) {
             schedule(event, clockEdge(Cycles(1)));
     }
     // what if this is a local memory retry?
-    if (waiting_for_mem_retry == true) {
-        waiting_for_mem_retry = false;
-        // here is the final piece of the fix. do not call this as i am
-        // buffering all the remote incoming packets.
-        memSidePort.sendRetryResp();
+    if (model_state == gem5::model::MONDRIAN) {
+        if (waiting_for_mem_retry) {
+            waiting_for_mem_retry = false;
+            memSidePort.sendRetryResp();
+        }
+        if (waiting_for_permission_retry)
+            waiting_for_permission_retry = false;
+    }
+    else {
+        if (waiting_for_mem_retry == true) {
+            waiting_for_mem_retry = false;
+            // here is the final piece of the fix. do not call this as i am
+            // buffering all the remote incoming packets.
+            //
+            // don't call this wehn model state is mondrian
+            // if (model_state != gem5::model::MONDRIAN)
+            //     memSidePort.sendRetryResp();
+        }
     }
 }
 
@@ -1520,7 +1704,7 @@ FlatTables::recvTimingRespMondrian(PacketPtr pkt) {
  
     // if this is a remote memory packet then there must be a comparison
     // with the ACM
-    if (isInMemoryRange(pkt->getAddr())) {
+    if (isInMemoryRange(pkt->getAddr()) && (pkt->isRead() || pkt->isWrite())) {
         // enforcement is done in processpendingresponses
 
         // if (all_cached[originalAddr] == true) {
@@ -1541,9 +1725,9 @@ FlatTables::recvTimingRespMondrian(PacketPtr pkt) {
                 // ++error_margin. just tell the memsideport to send this packet
                 // again?
                 // waiting_for_mem_retry = true;
-                DPRINTF(PermissionResponses, "Response received before all "
+                DPRINTF(FlatTablesDebug, "id %d, Response received before all "
                     " permission packets were sent for addr %#x with count %d!"
-                    " -- req count %lu\n", pkt->getAddr(),
+                    " -- req count %lu\n", hostID, pkt->getAddr(),
                                     permission_response_tracker[pkt->getAddr()],
                                     permission_request_tracker[pkt->getAddr()]);
             }
@@ -1616,6 +1800,10 @@ FlatTables::recvTimingRespDeACT(PacketPtr pkt) {
             else
                 fatal("Sender state cannot be null\n");
         }
+        DPRINTF(FlatPermissionTables, "id: %d, Got response for pkt %#x and permission"
+                                    " pkt %#x and count %d\n",hostID, originalAddr,
+                                                                pkt->getAddr(),
+                                    permission_response_tracker[originalAddr]);
         DPRINTF(PermissionResponses, "Got response for pkt %#x and permission"
                                     " pkt %#x and count %d\n", originalAddr,
                                                                 pkt->getAddr(),
@@ -1632,7 +1820,7 @@ FlatTables::recvTimingRespDeACT(PacketPtr pkt) {
 
             // so sample the buffering time for stats.
             // there is just one access coming in from the permission table.
-            if (permission_response_tracker[originalAddr] == max_search_attempts) {
+            if (permission_response_tracker[originalAddr] % max_search_attempts == 0) {
                 stats.stallTime.sample(gem5::curTick() - stall_time[originalAddr]);
                 stall_time.erase(originalAddr);
             
@@ -1643,6 +1831,20 @@ FlatTables::recvTimingRespDeACT(PacketPtr pkt) {
                 // Release the MSHR
                 // sample occupied mshr count here before decrementing
                 stats.maxPermissionMSHROcuppied.sample(mshrs_occupied);
+        DPRINTF(FlatPermissionTables,
+                "id: %d, "
+                "num oustanding packets: %d, "
+                "mshr_count %d, "
+                "perm addr %#x, "
+                "pkt addr %#x. "
+                "req, resp (%d, %d)\n",
+                hostID,
+                outstanding_packets.size(),
+                mshrs_occupied,
+                pkt->getAddr(),
+                originalAddr,
+                permission_request_tracker[originalAddr], 
+                permission_response_tracker[originalAddr]);
                 fatal_if(mshrs_occupied-- == 0, "Cannot have -ve MSHRs!");
             }
 

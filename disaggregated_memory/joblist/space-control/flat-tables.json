@@ -5,9 +5,9 @@
             "experiment": "flat-tables-allocator",
             "checkpoint": "",
             "maxtics": "",
-            "max-time": "2s",
+            "max-time": "1s",
             "parallel-eff": "",
-            "permission": "none"
+            "permission": "flat-tables"
         },
         "cpu": {
             "ff-core": "kvm",
@@ -30,7 +30,7 @@
         "remote-memory": {
             "size": "",
             "shared": "true",
-            "latency": "250ns",
+            "latency": "170ns",
             "start": "0x500000000",
             "end": "0x900000000"
         },
@@ -38,10 +38,10 @@
             "cmd": [
                     "echo '12345' | sudo -S ndctl create-namespace -f -enamespace0.0 -m devdax;",
                     "echo \"exp: flat tables gapbs :: allocator !;\"\n",
-                    "echo '12345' | sudo -S /home/gem5/shared-gapbs/allocator -x 0 -S 16 -g 22;",
+                    "echo '12345' | sudo -S /home/gem5/shared-gapbs-v3/allocator -x 0 -S 12 -g 25;",
                     "m5 exit;",
                     "m5 exit;"],
-            "disk": "/home/kaustavg/projects/kg-resources-2/src/shared-gapbs/x86-disk-image-24-04/x86-ubuntu",
+            "disk": "/home/kaustavg/projects/kg-resources-2/src/shared-gapbs/x86-disk-image-24-04/x86-ubuntu-2",
             "kernel": "/home/kaustavg/kernel/x86/linux-6.9.9/vmlinux",
             "bootloader": ""
         }
@@ -75,7 +75,7 @@
         "remote-memory": {
             "size": "",
             "shared": "true",
-            "latency": "250ns",
+            "latency": "170ns",
             "start": "0x500000000",
             "end": "0x900000000"
         },
@@ -83,10 +83,10 @@
             "cmd": [
                     "echo '12345' | sudo -S ndctl create-namespace -f -enamespace0.0 -m devdax;",
                     "echo \"exp: flat tables :: bfs!;\"\n",
-                    "m5 exit;",
-                    "echo '12345' | sudo -S /home/gem5/shared-gapbs/bfs -x 1 -S 16 -g 22;",
+                    "echo '12345' | sudo -S /home/gem5/shared-gapbs-v3/allocator -x 0 -S 12 -g 25;",
+                    "echo '12345' | sudo -S /home/gem5/shared-gapbs-v3/bfs -x 1 -S 12 -g 25;",
                     "m5 exit;"],
-            "disk": "/home/kaustavg/projects/kg-resources-2/src/shared-gapbs/x86-disk-image-24-04/x86-ubuntu",
+            "disk": "/home/kaustavg/projects/kg-resources-2/src/shared-gapbs/x86-disk-image-24-04/x86-ubuntu-2",
             "kernel": "/home/kaustavg/kernel/x86/linux-6.9.9/vmlinux",
             "bootloader": ""
         }
@@ -120,7 +120,7 @@
         "remote-memory": {
             "size": "",
             "shared": "true",
-            "latency": "250ns",
+            "latency": "170ns",
             "start": "0x500000000",
             "end": "0x900000000"
         },
@@ -128,10 +128,10 @@
             "cmd": [
                     "echo '12345' | sudo -S ndctl create-namespace -f -enamespace0.0 -m devdax;",
                     "echo \"exp: flat tables :: bc!;\"\n",
-                    "m5 exit;",
-                    "echo '12345' | sudo -S /home/gem5/shared-gapbs/bc -x 1 -S 16 -g 22;",
+                    "echo '12345' | sudo -S /home/gem5/shared-gapbs-v3/allocator -x 0 -S 12 -g 25;",
+                    "echo '12345' | sudo -S /home/gem5/shared-gapbs-v3/bc -x 1 -S 12 -g 25;",
                     "m5 exit;"],
-            "disk": "/home/kaustavg/projects/kg-resources-2/src/shared-gapbs/x86-disk-image-24-04/x86-ubuntu",
+            "disk": "/home/kaustavg/projects/kg-resources-2/src/shared-gapbs/x86-disk-image-24-04/x86-ubuntu-2",
             "kernel": "/home/kaustavg/kernel/x86/linux-6.9.9/vmlinux",
             "bootloader": ""
         }
@@ -165,7 +165,7 @@
         "remote-memory": {
             "size": "",
             "shared": "true",
-            "latency": "250ns",
+            "latency": "170ns",
             "start": "0x500000000",
             "end": "0x900000000"
         },
@@ -173,10 +173,10 @@
             "cmd": [
                     "echo '12345' | sudo -S ndctl create-namespace -f -enamespace0.0 -m devdax;",
                     "echo \"exp: flat tables :: cc!;\"\n",
-                    "m5 exit;",
-                    "echo '12345' | sudo -S /home/gem5/shared-gapbs/cc -x 1 -S 16 -g 22;",
+                    "echo '12345' | sudo -S /home/gem5/shared-gapbs-v3/allocator -x 0 -S 12 -g 25;",
+                    "echo '12345' | sudo -S /home/gem5/shared-gapbs-v3/cc -x 1 -S 12 -g 25;",
                     "m5 exit;"],
-            "disk": "/home/kaustavg/projects/kg-resources-2/src/shared-gapbs/x86-disk-image-24-04/x86-ubuntu",
+            "disk": "/home/kaustavg/projects/kg-resources-2/src/shared-gapbs/x86-disk-image-24-04/x86-ubuntu-2",
             "kernel": "/home/kaustavg/kernel/x86/linux-6.9.9/vmlinux",
             "bootloader": ""
         }
@@ -210,7 +210,7 @@
         "remote-memory": {
             "size": "",
             "shared": "true",
-            "latency": "250ns",
+            "latency": "170ns",
             "start": "0x500000000",
             "end": "0x900000000"
         },
@@ -218,10 +218,10 @@
             "cmd": [
                     "echo '12345' | sudo -S ndctl create-namespace -f -enamespace0.0 -m devdax;",
                     "echo \"exp: flat tables :: cc_sv!;\"\n",
-                    "m5 exit;",
-                    "echo '12345' | sudo -S /home/gem5/shared-gapbs/cc_sv -x 1 -S 16 -g 22;",
+                    "echo '12345' | sudo -S /home/gem5/shared-gapbs-v3/allocator -x 0 -S 12 -g 25;",
+                    "echo '12345' | sudo -S /home/gem5/shared-gapbs-v3/cc_sv -x 1 -S 12 -g 25;",
                     "m5 exit;"],
-            "disk": "/home/kaustavg/projects/kg-resources-2/src/shared-gapbs/x86-disk-image-24-04/x86-ubuntu",
+            "disk": "/home/kaustavg/projects/kg-resources-2/src/shared-gapbs/x86-disk-image-24-04/x86-ubuntu-2",
             "kernel": "/home/kaustavg/kernel/x86/linux-6.9.9/vmlinux",
             "bootloader": ""
         }
@@ -255,7 +255,7 @@
         "remote-memory": {
             "size": "",
             "shared": "true",
-            "latency": "250ns",
+            "latency": "170ns",
             "start": "0x500000000",
             "end": "0x900000000"
         },
@@ -263,10 +263,10 @@
             "cmd": [
                     "echo '12345' | sudo -S ndctl create-namespace -f -enamespace0.0 -m devdax;",
                     "echo \"exp: flat tables :: pr!;\"\n",
-                    "m5 exit;",
-                    "echo '12345' | sudo -S /home/gem5/shared-gapbs/pr -x 1 -S 16 -g 22;",
+                    "echo '12345' | sudo -S /home/gem5/shared-gapbs-v3/allocator -x 0 -S 12 -g 25;",
+                    "echo '12345' | sudo -S /home/gem5/shared-gapbs-v3/pr -x 1 -S 12 -g 25;",
                     "m5 exit;"],
-            "disk": "/home/kaustavg/projects/kg-resources-2/src/shared-gapbs/x86-disk-image-24-04/x86-ubuntu",
+            "disk": "/home/kaustavg/projects/kg-resources-2/src/shared-gapbs/x86-disk-image-24-04/x86-ubuntu-2",
             "kernel": "/home/kaustavg/kernel/x86/linux-6.9.9/vmlinux",
             "bootloader": ""
         }
@@ -300,7 +300,7 @@
         "remote-memory": {
             "size": "",
             "shared": "true",
-            "latency": "250ns",
+            "latency": "170ns",
             "start": "0x500000000",
             "end": "0x900000000"
         },
@@ -308,10 +308,10 @@
             "cmd": [
                     "echo '12345' | sudo -S ndctl create-namespace -f -enamespace0.0 -m devdax;",
                     "echo \"exp: flat tables :: tc!;\"\n",
-                    "m5 exit;",
-                    "echo '12345' | sudo -S /home/gem5/shared-gapbs/tc -x 1 -S 16 -g 22;",
+                    "echo '12345' | sudo -S /home/gem5/shared-gapbs-v3/allocator -x 0 -S 12 -g 25;",
+                    "echo '12345' | sudo -S /home/gem5/shared-gapbs-v3/tc -x 1 -S 12 -g 25;",
                     "m5 exit;"],
-            "disk": "/home/kaustavg/projects/kg-resources-2/src/shared-gapbs/x86-disk-image-24-04/x86-ubuntu",
+            "disk": "/home/kaustavg/projects/kg-resources-2/src/shared-gapbs/x86-disk-image-24-04/x86-ubuntu-2",
             "kernel": "/home/kaustavg/kernel/x86/linux-6.9.9/vmlinux",
             "bootloader": ""
         }
@@ -345,7 +345,7 @@
         "remote-memory": {
             "size": "",
             "shared": "true",
-            "latency": "250ns",
+            "latency": "170ns",
             "start": "0x500000000",
             "end": "0x900000000"
         },
@@ -354,7 +354,7 @@
                     "echo '12345' | sudo -S ndctl create-namespace -f -enamespace0.0 -m devdax;",
                     "echo \"exp: flat tables :: nothing!\"\n",
                     "m5 exit;"],
-            "disk": "/home/kaustavg/projects/kg-resources-2/src/shared-gapbs/x86-disk-image-24-04/x86-ubuntu",
+            "disk": "/home/kaustavg/projects/kg-resources-2/src/shared-gapbs/x86-disk-image-24-04/x86-ubuntu-2",
             "kernel": "/home/kaustavg/kernel/x86/linux-6.9.9/vmlinux",
             "bootloader": ""
         }

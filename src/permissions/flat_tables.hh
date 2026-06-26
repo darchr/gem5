@@ -336,6 +336,7 @@ class FlatTables : public ClockedObject
         void recvRangeChange();
 
         bool waiting_for_mem_retry;
+        bool waiting_for_permission_retry;
 
         // gem5::EventWrapper delayEvent;
         // The permission table needs to schedule events
@@ -407,6 +408,8 @@ class FlatTables : public ClockedObject
 
         // to implement binary search correctly, here is a helper function
         std::vector<gem5::Addr> getBinarySearchAddress(gem5::Addr
+                                                    target_permission_address);
+        std::vector<gem5::Addr> getBinarySearchAddressForMondrian(gem5::Addr
                                                     target_permission_address);
 
 

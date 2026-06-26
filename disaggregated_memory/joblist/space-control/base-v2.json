@@ -2,16 +2,12 @@
     "0": {
         "metadata": {
             "comment": "This is a host allocates the graph in shared memory.",
-            "experiment": "space-control-allocator",
+            "experiment": "no-permissions-allocator",
             "checkpoint": "",
             "maxtics": "",
             "max-time": "1s",
             "parallel-eff": "",
-            "permission": "space-control",
-            "permission-cache": "true",
-            "permission-cache-entries": "512",
-            "binary-search": "true",
-            "number-of-entries": "0"
+            "permission": "none"
         },
         "cpu": {
             "ff-core": "kvm",
@@ -42,8 +38,9 @@
             "cmd": [
                     "echo '12345' | sudo -S ndctl create-namespace -f -enamespace0.0 -m devdax;",
                     "echo \"exp: flat tables gapbs :: allocator !;\"\n",
-                    "echo '12345' | sudo -S /home/gem5/shared-gapbs/allocator -x 0 -S 12 -g 25;",
-                    "m5 --addr=0xFFFF0000 exit;"],
+                    "echo '12345' | sudo -S /home/gem5/shared-gapbs/allocator -x 0 -S 16 -g 25;",
+                    "m5 exit;",
+                    "m5 exit;"],
             "disk": "/home/kaustavg/projects/kg-resources-2/src/shared-gapbs/x86-disk-image-24-04/x86-ubuntu-2",
             "kernel": "/home/kaustavg/kernel/x86/linux-6.9.9/vmlinux",
             "bootloader": ""
@@ -52,7 +49,7 @@
     "1": {
         "metadata": {
             "comment": "This is a host runs bfs",
-            "experiment": "space-control-bfs",
+            "experiment": "no-permissions-bfs",
             "checkpoint": "",
             "maxtics": "",
             "parallel-eff": ""
@@ -86,9 +83,9 @@
             "cmd": [
                     "echo '12345' | sudo -S ndctl create-namespace -f -enamespace0.0 -m devdax;",
                     "echo \"exp: flat tables :: bfs!;\"\n",
-                    "echo '12345' | sudo -S /home/gem5/shared-gapbs/allocator -x 0 -S 12 -g 25;",
-                    "echo '12345' | sudo -S /home/gem5/shared-gapbs/bfs -x 1 -S 12 -g 25;",
-                    "m5 --addr=0xFFFF0000 exit;"],
+                    "echo '12345' | sudo -S /home/gem5/shared-gapbs/allocator -x 0 -S 16 -g 25;",
+                    "echo '12345' | sudo -S /home/gem5/shared-gapbs/bfs -x 1 -S 16 -g 22;",
+                    "m5 exit;"],
             "disk": "/home/kaustavg/projects/kg-resources-2/src/shared-gapbs/x86-disk-image-24-04/x86-ubuntu-2",
             "kernel": "/home/kaustavg/kernel/x86/linux-6.9.9/vmlinux",
             "bootloader": ""
@@ -97,7 +94,7 @@
     "2": {
         "metadata": {
             "comment": "This is a host runs bc",
-            "experiment": "space-control-bc",
+            "experiment": "no-permissions-bc",
             "checkpoint": "",
             "maxtics": "",
             "parallel-eff": ""
@@ -131,9 +128,9 @@
             "cmd": [
                     "echo '12345' | sudo -S ndctl create-namespace -f -enamespace0.0 -m devdax;",
                     "echo \"exp: flat tables :: bc!;\"\n",
-                    "echo '12345' | sudo -S /home/gem5/shared-gapbs/allocator -x 0 -S 12 -g 25;",
-                    "echo '12345' | sudo -S /home/gem5/shared-gapbs/bc -x 1 -S 12 -g 25;",
-                    "m5 --addr=0xFFFF0000 exit;"],
+                    "echo '12345' | sudo -S /home/gem5/shared-gapbs/allocator -x 0 -S 16 -g 25;",
+                    "echo '12345' | sudo -S /home/gem5/shared-gapbs/bc -x 1 -S 16 -g 25;",
+                    "m5 exit;"],
             "disk": "/home/kaustavg/projects/kg-resources-2/src/shared-gapbs/x86-disk-image-24-04/x86-ubuntu-2",
             "kernel": "/home/kaustavg/kernel/x86/linux-6.9.9/vmlinux",
             "bootloader": ""
@@ -142,7 +139,7 @@
     "3": {
         "metadata": {
             "comment": "This is a host runs cc",
-            "experiment": "space-control-cc",
+            "experiment": "no-permissions-cc",
             "checkpoint": "",
             "maxtics": "",
             "parallel-eff": ""
@@ -176,9 +173,9 @@
             "cmd": [
                     "echo '12345' | sudo -S ndctl create-namespace -f -enamespace0.0 -m devdax;",
                     "echo \"exp: flat tables :: cc!;\"\n",
-                    "echo '12345' | sudo -S /home/gem5/shared-gapbs/allocator -x 0 -S 12 -g 25;",
-                    "echo '12345' | sudo -S /home/gem5/shared-gapbs/cc -x 1 -S 12 -g 25;",
-                    "m5 --addr=0xFFFF0000 exit;"],
+                    "echo '12345' | sudo -S /home/gem5/shared-gapbs/allocator -x 0 -S 16 -g 25;",
+                    "echo '12345' | sudo -S /home/gem5/shared-gapbs/cc -x 1 -S 16 -g 25;",
+                    "m5 exit;"],
             "disk": "/home/kaustavg/projects/kg-resources-2/src/shared-gapbs/x86-disk-image-24-04/x86-ubuntu-2",
             "kernel": "/home/kaustavg/kernel/x86/linux-6.9.9/vmlinux",
             "bootloader": ""
@@ -187,7 +184,7 @@
     "4": {
         "metadata": {
             "comment": "This is a host runs cc_sv",
-            "experiment": "space-control-cc_sv",
+            "experiment": "no-permissions-cc_sv",
             "checkpoint": "",
             "maxtics": "",
             "parallel-eff": ""
@@ -221,9 +218,9 @@
             "cmd": [
                     "echo '12345' | sudo -S ndctl create-namespace -f -enamespace0.0 -m devdax;",
                     "echo \"exp: flat tables :: cc_sv!;\"\n",
-                    "echo '12345' | sudo -S /home/gem5/shared-gapbs/allocator -x 0 -S 12 -g 25;",
-                    "echo '12345' | sudo -S /home/gem5/shared-gapbs/cc_sv -x 1 -S 12 -g 25;",
-                    "m5 --addr=0xFFFF0000 exit;"],
+                    "echo '12345' | sudo -S /home/gem5/shared-gapbs/allocator -x 0 -S 16 -g 25;",
+                    "echo '12345' | sudo -S /home/gem5/shared-gapbs/cc_sv -x 1 -S 16 -g 25;",
+                    "m5 exit;"],
             "disk": "/home/kaustavg/projects/kg-resources-2/src/shared-gapbs/x86-disk-image-24-04/x86-ubuntu-2",
             "kernel": "/home/kaustavg/kernel/x86/linux-6.9.9/vmlinux",
             "bootloader": ""
@@ -232,7 +229,7 @@
     "5": {
         "metadata": {
             "comment": "This is a host runs pr",
-            "experiment": "space-control-pr",
+            "experiment": "no-permissions-pr",
             "checkpoint": "",
             "maxtics": "",
             "parallel-eff": ""
@@ -266,9 +263,9 @@
             "cmd": [
                     "echo '12345' | sudo -S ndctl create-namespace -f -enamespace0.0 -m devdax;",
                     "echo \"exp: flat tables :: pr!;\"\n",
-                    "echo '12345' | sudo -S /home/gem5/shared-gapbs/allocator -x 0 -S 12 -g 25;",
-                    "echo '12345' | sudo -S /home/gem5/shared-gapbs/pr -x 1 -S 12 -g 25;",
-                    "m5 --addr=0xFFFF0000 exit;"],
+                    "echo '12345' | sudo -S /home/gem5/shared-gapbs/allocator -x 0 -S 16 -g 25;",
+                    "echo '12345' | sudo -S /home/gem5/shared-gapbs/pr -x 1 -S 16 -g 25;",
+                    "m5 exit;"],
             "disk": "/home/kaustavg/projects/kg-resources-2/src/shared-gapbs/x86-disk-image-24-04/x86-ubuntu-2",
             "kernel": "/home/kaustavg/kernel/x86/linux-6.9.9/vmlinux",
             "bootloader": ""
@@ -277,7 +274,7 @@
     "6": {
         "metadata": {
             "comment": "This is a host runs tc",
-            "experiment": "space-control-tc",
+            "experiment": "no-permissions-tc",
             "checkpoint": "",
             "maxtics": "",
             "parallel-eff": ""
@@ -311,9 +308,9 @@
             "cmd": [
                     "echo '12345' | sudo -S ndctl create-namespace -f -enamespace0.0 -m devdax;",
                     "echo \"exp: flat tables :: tc!;\"\n",
-                    "echo '12345' | sudo -S /home/gem5/shared-gapbs/allocator -x 0 -S 12 -g 25;",
-                    "echo '12345' | sudo -S /home/gem5/shared-gapbs/tc -x 1 -S 12 -g 25;",
-                    "m5 --addr=0xFFFF0000 exit;"],
+                    "echo '12345' | sudo -S /home/gem5/shared-gapbs/allocator -x 0 -S 16 -g 25;",
+                    "echo '12345' | sudo -S /home/gem5/shared-gapbs/tc -x 1 -S 16 -g 25;",
+                    "m5 exit;"],
             "disk": "/home/kaustavg/projects/kg-resources-2/src/shared-gapbs/x86-disk-image-24-04/x86-ubuntu-2",
             "kernel": "/home/kaustavg/kernel/x86/linux-6.9.9/vmlinux",
             "bootloader": ""
@@ -322,7 +319,7 @@
     "7": {
         "metadata": {
             "comment": "This is a host runs nothing",
-            "experiment": "space-control",
+            "experiment": "no-permissions",
             "checkpoint": "",
             "maxtics": "",
             "parallel-eff": ""
@@ -356,9 +353,7 @@
             "cmd": [
                     "echo '12345' | sudo -S ndctl create-namespace -f -enamespace0.0 -m devdax;",
                     "echo \"exp: flat tables :: nothing!\"\n",
-                    "sync;",
-                    "sleep 100;",
-                    "m5 --addr=0xFFFF0000 exit;"],
+                    "m5 exit;"],
             "disk": "/home/kaustavg/projects/kg-resources-2/src/shared-gapbs/x86-disk-image-24-04/x86-ubuntu-2",
             "kernel": "/home/kaustavg/kernel/x86/linux-6.9.9/vmlinux",
             "bootloader": ""

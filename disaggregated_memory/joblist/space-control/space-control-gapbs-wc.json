@@ -8,8 +8,8 @@
             "max-time": "1s",
             "parallel-eff": "",
             "permission": "space-control",
-            "permission-cache": "true",
-            "permission-cache-entries": "8192",
+            "permission-cache": "false",
+            "permission-cache-entries": "0",
             "binary-search": "true",
             "number-of-entries": "0"
         },

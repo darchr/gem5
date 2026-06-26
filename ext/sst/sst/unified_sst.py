@@ -335,7 +335,7 @@ for node in range(system_nodes):
     cpu_params = {
        "frequency" : cpu_clock_rate,
        "cmd" : " ".join(cmd),
-       "debug_flags" : "IdeAll", # ,PermissionCaching,PermissionPackets,FlatTablesDebug,PermissionResponses",
+       "debug_flags" : "IdeAll", # PermissionCaching,PermissionPackets,FlatTablesDebug,PermissionResponses",
        "ports" : " ".join(port_list)
     }
     # Each of the Gem5 node has to be separately simulated.

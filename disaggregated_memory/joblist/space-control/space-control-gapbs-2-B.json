@@ -1,12 +1,16 @@
 {
     "0": {
         "metadata": {
-            "comment": "This is a host runs pr",
+            "comment": "space control 2B WC",
             "experiment": "space-control-pr",
             "checkpoint": "",
             "maxtics": "",
             "parallel-eff": "",
-            "permission": "space-control"
+            "permission": "space-control",
+            "permission-cache": "false",
+            "permission-cache-entries": "0",
+            "binary-search": "true",
+            "number-of-entries": "0"
         },
         "cpu": {
             "ff-core": "kvm",

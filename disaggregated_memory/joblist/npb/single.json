@@ -1,0 +1,46 @@
+{
+    "0": {
+        "metadata": {
+            "comment": "This is a simple host that runs NPB bt.D remotely (11GiB).",
+            "experiment": "npb-1-node-500ms-test",
+            "checkpoint": "",
+            "maxtics": "2000000000",
+            "parallel-eff": ""
+        },
+        "cpu": {
+            "ff-core": "kvm",
+            "roi-core": "o3",
+            "isa": "arm",
+            "count": "8"
+        },
+        "cache": {
+            "type": "l1l2l3",
+            "l1i-size": "32KiB",
+            "l1d-size": "32KiB",
+            "l2-size": "512KiB",
+            "l3-size": "8MiB",
+            "l3-assoc": "16"
+        },
+        "local-memory": {
+            "type": "ddr4",
+            "size": "8GiB"
+        },
+        "remote-memory": {
+            "size": "",
+            "shared": "false",
+            "latency": "750ns",
+            "start": "0x280000000",
+            "end": "0x540000000"
+        },
+        "workitem": {
+            "cmd": ["echo \"exp: starting bt.D remotely!\"\n",
+                    "numastat;",
+                    "numactl --preferred=0 -- /home/ubuntu/NPB/NPB3.4-OMP/bin/bt.D.x;",
+                    "numastat;",
+                    "m5 --addr=0x10010000 exit;"],
+            "disk": "/home/kaustavg/disk-images/arm/arm64-hpc-2204-numa-kvm.img-20240304",
+            "kernel": "/home/kaustavg/vmlinux-5.4.49-NUMA.arm64",
+            "bootloader": "/home/kaustavg/kernel/arm/bootloader/arm64-bootloader"
+        }
+    }
+}

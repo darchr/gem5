@@ -9,7 +9,7 @@
             "parallel-eff": "",
             "permission": "space-control",
             "permission-cache": "true",
-            "permission-cache-entries": "1024",
+            "permission-cache-entries": "16384",
             "binary-search": "true",
             "number-of-entries": "0"
         },

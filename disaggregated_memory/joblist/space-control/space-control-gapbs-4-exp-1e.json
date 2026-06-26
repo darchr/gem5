@@ -10,8 +10,8 @@
             "permission": "space-control",
             "permission-cache": "false",
             "permission-cache-entries": "0",
-            "binary-search": "true",
-            "number-of-entries": "0"
+            "binary-search": "false",
+            "number-of-entries": "1"
         },
         "cpu": {
             "ff-core": "kvm",
