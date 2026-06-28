@@ -48,6 +48,7 @@ class CHI_Host(SubSystem):
         l2_size,
         host_id: int,
         pmem_address_range=None,
+        pmem_bypass_enable=True,
     ):
         super(SubSystem, self).__init__()
 
@@ -56,6 +57,7 @@ class CHI_Host(SubSystem):
         self._l2_size = l2_size
 
         self._pmem_address_range = pmem_address_range
+        self._pmem_bypass_enable = pmem_bypass_enable
 
         self._ruby_system = ruby_system
 
@@ -67,7 +69,9 @@ class CHI_Host(SubSystem):
 
         # Create one core cluster with a split I/D and L2 cache for each core
         self.core_clusters = [
-            self._create_core_clusters(core, board, pmem_address_range)
+            self._create_core_clusters(
+                core, board, pmem_address_range, pmem_bypass_enable
+            )
             for core in cores
         ]
 
@@ -129,6 +133,7 @@ class CHI_Host(SubSystem):
         core: AbstractCore,
         board: AbstractBoard,
         pmem_address_range=None,
+        pmem_bypass_enable=True,
     ) -> SubSystem:
         """Given the core and the core number this function creates a cluster
         for the core with a split I/D cache and L2 cache
@@ -166,6 +171,7 @@ class CHI_Host(SubSystem):
         }
         if pmem_address_range is not None:
             icache_kwargs["pmem_address_range"] = pmem_address_range
+            icache_kwargs["pmem_bypass_enable"] = pmem_bypass_enable
 
         cluster.icache.sequencer = RubySequencer(**icache_kwargs)
 
@@ -178,6 +184,7 @@ class CHI_Host(SubSystem):
         }
         if pmem_address_range is not None:
             dcache_kwargs["pmem_address_range"] = pmem_address_range
+            dcache_kwargs["pmem_bypass_enable"] = pmem_bypass_enable
 
         cluster.dcache.sequencer = RubySequencer(**dcache_kwargs)
 

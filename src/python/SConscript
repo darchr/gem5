@@ -73,6 +73,8 @@ PySource('gem5.components.cachehierarchies.chi',
 PySource('gem5.components.cachehierarchies.chi',
     'gem5/components/cachehierarchies/chi/remote_dir.py')
 PySource('gem5.components.cachehierarchies.chi',
+    'gem5/components/cachehierarchies/chi/hosts_wrapper.py')
+PySource('gem5.components.cachehierarchies.chi',
     'gem5/components/cachehierarchies/chi/host.py')
 PySource('gem5.components.cachehierarchies.chi',
     'gem5/components/cachehierarchies/chi/network.py')

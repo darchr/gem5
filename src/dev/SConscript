@@ -45,6 +45,9 @@ DebugFlag('IntPin')
 DebugFlag('IsaFake')
 DebugFlag('DMA')
 DebugFlag('CXLBUF')
+# ===== EXPERIMENT START: CXLBUFEARLY tracing (comment out to disable) =====
+DebugFlag('CXLBUFEARLY')
+# ===== EXPERIMENT END: CXLBUFEARLY tracing =====
 
 SimObject('Platform.py', sim_objects=['Platform'])
 Source('platform.cc')

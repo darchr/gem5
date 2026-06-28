@@ -92,6 +92,7 @@ Sequencer::Sequencer(const Params &p)
     m_runningGarnetStandalone = p.garnet_standalone;
 
     m_pmem_address_ranges.push_back(p.pmem_address_range);
+    m_pmem_bypass_enable = p.pmem_bypass_enable;
 
     m_num_pending_invs = 0;
     m_cache_inv_pkt = nullptr;
@@ -964,9 +965,9 @@ Sequencer::makeRequest(PacketPtr pkt)
         for (const auto &r : m_pmem_address_ranges) {
             if (r.contains(pkt->getAddr())) { in_pmem = true; break; }
         }
-        // Always log in-range hits; also log the first 40 of anything so we
+        // Always log in-range hits; also log the first 10000 of anything so we
         // can see what the cores are touching right after release.
-        if (in_pmem || dbg_seen < 40) {
+        if (in_pmem || dbg_seen < 100) {
             DPRINTF(RubyBypass,
                 "PMEM-DIAG: seq=%s nranges=%d addr=%#llx %s in_pmem=%d\n",
                 name(), (int)m_pmem_address_ranges.size(),
@@ -988,7 +989,10 @@ Sequencer::makeRequest(PacketPtr pkt)
     for (const auto &range : m_pmem_address_ranges) {
         if (range.contains(pkt->getAddr())) {
             std::stringstream ss;
-            ss << "PMEM request bypassing Ruby: " << pkt->cmdString()
+            ss << "PMEM request "
+               << (m_pmem_bypass_enable ? "bypassing Ruby"
+                                        : "WOULD-BYPASS (memctrl->CHI)")
+               << ": " << pkt->cmdString()
                << " Addr: 0x" << std::hex << pkt->getAddr();
             if (pkt->isWrite() && pkt->hasData()) {
                 ss << " Data: ";
@@ -999,14 +1003,20 @@ Sequencer::makeRequest(PacketPtr pkt)
             }
             DPRINTF(RubyBypass, "%s\n", ss.str());
 
-            // Schedule the request on the memRequestPort
-            // Set the issue time in the sender state
-            RubyPort::SenderState *ss_pkt =
-                safe_cast<RubyPort::SenderState *>(pkt->senderState);
-            ss_pkt->issueTime = curTick();
+            if (m_pmem_bypass_enable) {
+                // Schedule the request on the memRequestPort
+                // Set the issue time in the sender state
+                RubyPort::SenderState *ss_pkt =
+                    safe_cast<RubyPort::SenderState *>(pkt->senderState);
+                ss_pkt->issueTime = curTick();
 
-            memRequestPort.schedTimingReq(pkt, clockEdge(Cycles(1)));
-            return RequestStatus_Issued;
+                memRequestPort.schedTimingReq(pkt, clockEdge(Cycles(1)));
+                return RequestStatus_Issued;
+            }
+            // memctrl route: diagnostic only -- fall through to the normal
+            // Ruby/CHI path so the request reaches the device's memory
+            // controller instead of the iobus.
+            break;
         }
     }
 
@@ -1302,10 +1312,11 @@ Sequencer::recvAtomic(PacketPtr pkt)
     // Check if the request is in the PMEM address range
     for (const auto &range : m_pmem_address_ranges) {
         if (range.contains(pkt->getAddr())) {
-            Tick latency = memRequestPort.sendAtomic(pkt);
-
             std::stringstream ss;
-            ss << "PMEM atomic request bypassing Ruby: " << pkt->cmdString()
+            ss << "PMEM atomic request "
+               << (m_pmem_bypass_enable ? "bypassing Ruby"
+                                        : "WOULD-BYPASS (memctrl->CHI)")
+               << ": " << pkt->cmdString()
                << " Addr: 0x" << std::hex << pkt->getAddr();
             if (pkt->hasData()) {
                 ss << " Data: ";
@@ -1316,8 +1327,13 @@ Sequencer::recvAtomic(PacketPtr pkt)
             }
             DPRINTF(RubyBypass, "%s\n", ss.str());
 
-            m_pmemLatencyHist.sample(ticksToCycles(latency));
-            return latency;
+            if (m_pmem_bypass_enable) {
+                Tick latency = memRequestPort.sendAtomic(pkt);
+                m_pmemLatencyHist.sample(ticksToCycles(latency));
+                return latency;
+            }
+            // memctrl route: diagnostic only -- fall through to normal Ruby.
+            break;
         }
     }
 

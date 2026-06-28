@@ -368,6 +368,7 @@ System::unserialize(CheckpointIn &cp)
         t.context->getCpuPtr()->schedule(t.resumeEvent, when);
     }
 
+    mssFlag = 1;
     optParamIn(cp, "mssFlag", mssFlag);
 
     // also unserialize the memories in the system

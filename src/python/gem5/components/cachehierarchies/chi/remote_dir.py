@@ -62,6 +62,7 @@ class CHI_3_Level_Remote_Dir(AbstractRubyCacheHierarchy):
         directory_remote_latency: int = 250,
         numa_interleave_hns: bool = False,
         pmem_address_range: AddrRange = None,
+        pmem_bypass_enable: bool = True,
         topology: str = "default",
         num_stars: int = 1,
         star_switch_latency: int = 10,
@@ -82,6 +83,7 @@ class CHI_3_Level_Remote_Dir(AbstractRubyCacheHierarchy):
         self._directory_remote_latency = directory_remote_latency
         self._numa_interleave_hns = numa_interleave_hns
         self._pmem_address_range = pmem_address_range
+        self._pmem_bypass_enable = pmem_bypass_enable
         self._topology = topology
         self._num_stars = num_stars
         self._star_switch_latency = star_switch_latency
@@ -178,6 +180,7 @@ class CHI_3_Level_Remote_Dir(AbstractRubyCacheHierarchy):
                     self._l2_size,
                     host_id=host_config.host_id,
                     pmem_address_range=self._pmem_address_range,
+                    pmem_bypass_enable=self._pmem_bypass_enable,
                 )
                 hosts.append(host)
                 sequencers.extend(host._sequencers)

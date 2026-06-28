@@ -287,6 +287,10 @@ class Sequencer : public RubyPort
 
     std::list<AddrRange> m_pmem_address_ranges;
 
+    //! When false, pmem_address_range is used only for the would-bypass
+    //! diagnostic; the access is NOT bypassed (falls through to Ruby/CHI).
+    bool m_pmem_bypass_enable = true;
+
     //! Histogram for PMEM latency
     statistics::Histogram m_pmemLatencyHist;
 

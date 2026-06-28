@@ -120,6 +120,15 @@ class RubySequencer(RubyPort):
         AddrRange(0, size=0), "Physical address range for PMEM (uncacheable)"
     )
 
+    # When True, accesses in pmem_address_range are bypassed straight to memory
+    # (memRequestPort) -- the original behavior. When False, the range is still
+    # used for the would-bypass DIAGNOSTIC, but the access is NOT bypassed; it
+    # falls through to the normal Ruby/CHI path (used by the 'memctrl' device
+    # route, where the device is a CHI memory controller, not an iobus target).
+    pmem_bypass_enable = Param.Bool(
+        True, "Bypass pmem_address_range to memory (False = diagnostic only)"
+    )
+
     def connectCpuPorts(self, cpu):
         """
         Helper for connecting all cpu memory request output ports to this

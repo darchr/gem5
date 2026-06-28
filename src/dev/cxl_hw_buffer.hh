@@ -43,11 +43,28 @@ class CxlHardwareBuffer : public memory::SimpleMemory
     // This will need to be back invalidated when we push to cache
     static const uint8_t FLAG_COMPLETE = 2;
 
-    // Offset within a message slot where the flags byte is located
-    // 8 bytes (next) + 4 bytes (sender) + 4 bytes (pad)
-    // + 8 bytes (frag) + 1 byte (tag) = 25 bytes
-    // changed to 17? didnt work, changing back to 25
-    static const uint32_t FLAG_OFFSET = 25;
+    // offsetof(mca_btl_cxlbuf_hdr_t, flags) in the cxlbuf BTL.
+    //
+    // Current btl_cxlbuf_frag.h compiles to flags @ 17
+    // (sender_rank[0-3], pad[4-7], frag[8-15], tag[16], flags[17],
+    // len[20-23]).
+    // This MUST equal offsetof(flags) in the libmca_btl_cxlbuf.so deployed in
+    // the disk image, or the device never sees FLAG_COMPLETE and every
+    // receiver polls its MPSC queue forever (deadlock). Verify after any BTL
+    // rebuild: the device's "FLAG WRITE TRACE" shows the offset of the size-1
+    // value-2 completion store; it must match this constant.
+    //
+    // (Earlier a stale .so placed flags @ 25; the fix was to rebuild the BTL
+    // into the image so the deployed binary matches this source-derived 17.)
+    static const uint32_t FLAG_OFFSET = 17;
+
+    // The BTL writes its handshake magic (0xC0010000 | rank) at
+    // (my_segment + 8). my_segment is NOT page-aligned (opal_shmem maps it at
+    // page+8), so the device must anchor each rank's segment base at
+    // (magic_address - HANDSHAKE_MAGIC_OFFSET) instead of rounding the magic
+    // address down to a page boundary -- otherwise the base is recorded 8
+    // bytes too low and every slot field is seen +8 (flag@17 read as @25).
+    static const uint32_t HANDSHAKE_MAGIC_OFFSET = 8;
 
     // State tracking
     std::vector<uint32_t> mpsc_tails;
@@ -118,6 +135,7 @@ class CxlHardwareBuffer : public memory::SimpleMemory
     void completeTransfer(uint32_t receiver, uint32_t mpsc_offset,
                           uint32_t spsc_offset);
     void discoverRanksFromMemory();
+    void scanForPendingMessages(uint32_t receiver, Addr base);
 
     /**
      * Apply SPSC->MPSC write routing logic.
@@ -142,6 +160,16 @@ class CxlHardwareBuffer : public memory::SimpleMemory
      * and apply SPSC->MPSC routing before they hit the backing store.
      */
     void access(PacketPtr pkt) override;
+
+    // ===== EXPERIMENT START: CXLBUFEARLY tracing =====
+    /**
+     * Override functionalAccess() too: gem5 can read/write memory
+     * functionally (debugger, some DMA, KVM, fast-forward) WITHOUT going
+     * through access(), so any such traffic would bypass the routing logic
+     * and leave no CXLBUF trace. Instrumented under CXLBUFEARLY to catch it.
+     */
+    void functionalAccess(PacketPtr pkt) override;
+    // ===== EXPERIMENT END: CXLBUFEARLY tracing =====
 
     /** Checkpoint serialization support */
     void serialize(CheckpointOut &cp) const override;

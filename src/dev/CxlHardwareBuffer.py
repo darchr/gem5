@@ -27,7 +27,7 @@ class CxlHardwareBuffer(SimpleMemory):
 
     # helps us figure out offsets of SPSC queues
     segment_size = Param.MemorySize(
-        "16MB", "Size of each endpoint's memory segment"
+        "32MB", "Size of each endpoint's memory segment"
     )
 
     # size of a cell, currently static
