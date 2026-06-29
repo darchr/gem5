@@ -436,6 +436,18 @@ Sequencer::recordMissLatency(SequencerRequest* srequest, bool llscSuccess,
     m_latencyHist.sample(total_lat);
     m_typeLatencyHist[type]->sample(total_lat);
 
+    // Also profile PMEM-range latency on the normal (non-bypass) completion
+    // path so pmem_latency covers plain-memory backings (e.g. the vader pool),
+    // not only the device bypass route. Hardware-device pmem accesses bypass
+    // Ruby and never reach here, so there is no double-counting. Requires the
+    // sequencer to be given a non-empty pmem_address_range.
+    for (const auto &r : m_pmem_address_ranges) {
+        if (r.contains(srequest->pkt->getAddr())) {
+            m_pmemLatencyHist.sample(total_lat);
+            break;
+        }
+    }
+
     if (isExternalHit) {
         m_missLatencyHist.sample(total_lat);
         m_missTypeLatencyHist[type]->sample(total_lat);

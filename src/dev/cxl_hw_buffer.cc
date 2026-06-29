@@ -14,12 +14,22 @@ namespace gem5
 {
 
 CxlHardwareBuffer::CxlHardwareBufferStats::CxlHardwareBufferStats(
-    statistics::Group *parent)
+    statistics::Group *parent, unsigned num_ranks, unsigned max_slots)
     : statistics::Group(parent),
       ADD_STAT(mpscOccupancy, statistics::units::Count::get(),
-               "Histogram of MPSC slot occupancy when a new slot is allocated")
+               "Per-receiver-rank MPSC slot occupancy sampled when a new "
+               "slot is allocated (index = receiver MPI rank)"),
+      ADD_STAT(mpscResidencyCycles, statistics::units::Cycle::get(),
+               "Per-receiver-rank residency (cycles) a message spends in the "
+               "MPSC queue, enqueue->dequeue (index = receiver MPI rank)")
 {
-    mpscOccupancy.init(256); // 1MB MPSC / 4KB slots = 256
+    // One occupancy distribution per receiver MPI rank. Index i is the MPSC
+    // queue owned by rank i; occupancy ranges over [0, max_slots) slots.
+    mpscOccupancy.init(num_ranks, 0, max_slots, 1);
+    // Residency histogram per rank. The fixed range only affects bucket
+    // resolution -- ::mean is exact regardless -- so this is a tunable
+    // default; widen/narrow after a first run shows the real magnitude.
+    mpscResidencyCycles.init(num_ranks, 0, 100000, 1000);
 }
 
 CxlHardwareBuffer::CxlHardwareBuffer(const Params &p)
@@ -33,7 +43,7 @@ CxlHardwareBuffer::CxlHardwareBuffer(const Params &p)
       backingSize(p.backing_size),
       backingChunkSize(p.backing_chunk_size),
       backingLatency(p.backing_latency),
-      stats(this)
+      stats(this, p.num_endpoints, p.mpsc_size / p.slot_size)
 {
     // Initialize Hardware Backing Store
     overflowBackingStore.resize(backingSize);
@@ -42,6 +52,10 @@ CxlHardwareBuffer::CxlHardwareBuffer(const Params &p)
         freeChunks.push(i);
     }
     overflowStates.resize(numEndpoints);
+
+    // Per-receiver residency tracking (transient; rebuilt on restore).
+    mpscEnqTick.resize(numEndpoints);
+    mpscLastHead.resize(numEndpoints, 0);
 
     // Initialize MPSC tails
     mpsc_tails.resize(numEndpoints, slotSize);
@@ -472,6 +486,10 @@ CxlHardwareBuffer::handleRoutedWrite(PacketPtr pkt, Addr offset,
 
             uint32_t tail = new_mpsc_offset;
             uint32_t head = (uint32_t)receiver_head;
+
+            // The receiver's head reflects what it has consumed: sample the
+            // residency of any messages freed since we last observed it.
+            sampleMpscResidency(receiver, head);
             uint32_t slots_in_use = 0;
 
             if (is_slot_full) {
@@ -482,7 +500,7 @@ CxlHardwareBuffer::handleRoutedWrite(PacketPtr pkt, Addr offset,
                 uint32_t dist = (tail + mpscSize - head) % mpscSize;
                 slots_in_use = dist / slotSize;
             }
-            stats.mpscOccupancy.sample(slots_in_use);
+            stats.mpscOccupancy[receiver].sample(slots_in_use);
             // End of block for stat
 
             if (is_slot_full || !state.chunks.empty()) {
@@ -699,6 +717,41 @@ CxlHardwareBuffer::discoverRanksFromMemory()
 }
 
 void
+CxlHardwareBuffer::sampleMpscResidency(uint32_t receiver, uint32_t cur_head)
+{
+    if (receiver >= numEndpoints) {
+        return;
+    }
+    uint32_t &last = mpscLastHead[receiver];
+    if (last == 0) {
+        // First observation for this rank: anchor without draining (we have no
+        // enqueue baseline yet). 0 is never a valid head (slot 0 = control).
+        last = cur_head;
+        return;
+    }
+
+    // Walk the slots the receiver freed since we last looked. Head advances
+    // by slotSize and wraps over the MPSC ring; slot 0 is the control block,
+    // so it wraps back to slotSize. Bound the walk so a bogus head can't spin.
+    auto &enq = mpscEnqTick[receiver];
+    unsigned max_iters = (mpscSize / slotSize) + 1;
+    while (last != cur_head && max_iters-- > 0) {
+        auto it = enq.find(last);
+        if (it != enq.end()) {
+            Tick resid = curTick() - it->second;
+            stats.mpscResidencyCycles[receiver].sample(ticksToCycles(resid));
+            enq.erase(it);
+        }
+        last += slotSize;
+        if (last >= mpscSize) {
+            last = slotSize;
+        }
+    }
+    // Resync on a bogus/unreachable head so we don't get stuck off-grid.
+    last = cur_head;
+}
+
+void
 CxlHardwareBuffer::completeTransfer(uint32_t receiver,
                                     uint32_t mpsc_offset,
                                     uint32_t spsc_offset)
@@ -708,6 +761,12 @@ CxlHardwareBuffer::completeTransfer(uint32_t receiver,
 
     if (final_write_offset < range.size()) {
         pmemAddr[final_write_offset] = FLAG_COMPLETE;
+
+        // Message is now visible in the MPSC queue: stamp its enqueue time so
+        // sampleMpscResidency() can measure how long it sits until consumed.
+        if (receiver < numEndpoints) {
+            mpscEnqTick[receiver][mpsc_offset] = curTick();
+        }
 
         if (spsc_offset < range.size()) {
             pmemAddr[spsc_offset] = 0;

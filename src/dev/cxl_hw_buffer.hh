@@ -111,6 +111,14 @@ class CxlHardwareBuffer : public memory::SimpleMemory
     };
     std::vector<ReceiverOverflowState> overflowStates;
 
+    // Per-receiver message-residency tracking (transient; not serialized --
+    // residency across a checkpoint boundary is undefined, so post-restore we
+    // only measure messages enqueued after restore). mpscEnqTick[rank] maps an
+    // MPSC offset to the tick the message became visible (completeTransfer);
+    // mpscLastHead[rank] is the last observed receiver_head (0 = uninit).
+    std::vector<std::map<uint32_t, Tick>> mpscEnqTick;
+    std::vector<uint32_t> mpscLastHead;
+
     // Event to handle delayed transfer completion
     // Transfers from the SPSC virtual queue to and actual MPSC queue
     class TransferEvent : public Event
@@ -132,6 +140,10 @@ class CxlHardwareBuffer : public memory::SimpleMemory
 
     // Helper functions
     uint32_t getRankFromOffset(Addr offset);
+    // Detect MPSC dequeues by watching receiver_head advance, and sample the
+    // residency (enqueue->dequeue, in cycles) of each freed message.
+    void sampleMpscResidency(uint32_t receiver, uint32_t cur_head);
+
     void completeTransfer(uint32_t receiver, uint32_t mpsc_offset,
                           uint32_t spsc_offset);
     void discoverRanksFromMemory();
@@ -147,8 +159,12 @@ class CxlHardwareBuffer : public memory::SimpleMemory
 
     struct CxlHardwareBufferStats : public statistics::Group
     {
-        CxlHardwareBufferStats(statistics::Group *parent);
-        statistics::Histogram mpscOccupancy;
+        CxlHardwareBufferStats(statistics::Group *parent, unsigned num_ranks,
+                               unsigned max_slots);
+        // One occupancy distribution per receiver MPI rank (index = rank).
+        statistics::VectorDistribution mpscOccupancy;
+        // Per receiver rank: residency (cycles) a message spends in the MPSC.
+        statistics::VectorDistribution mpscResidencyCycles;
     } stats;
 
   public:
