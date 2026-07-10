@@ -295,6 +295,18 @@ Sequencer::regStats()
         .name(name() + ".pmem_latency")
         .desc("Latency of PMEM requests")
         .flags(statistics::nozero);
+
+    m_pmemReadLatencyHist
+        .init(10)
+        .name(name() + ".pmem_read_latency")
+        .desc("Latency of PMEM read requests (polling + message reads)")
+        .flags(statistics::nozero);
+
+    m_pmemWriteLatencyHist
+        .init(10)
+        .name(name() + ".pmem_write_latency")
+        .desc("Latency of PMEM write requests (message sends)")
+        .flags(statistics::nozero);
 }
 
 void Sequencer::resetStats()
@@ -444,6 +456,11 @@ Sequencer::recordMissLatency(SequencerRequest* srequest, bool llscSuccess,
     for (const auto &r : m_pmem_address_ranges) {
         if (r.contains(srequest->pkt->getAddr())) {
             m_pmemLatencyHist.sample(total_lat);
+            if (srequest->pkt->isWrite()) {
+                m_pmemWriteLatencyHist.sample(total_lat);
+            } else {
+                m_pmemReadLatencyHist.sample(total_lat);
+            }
             break;
         }
     }
@@ -1000,20 +1017,28 @@ Sequencer::makeRequest(PacketPtr pkt)
     // Check if the request is in the PMEM address range
     for (const auto &range : m_pmem_address_ranges) {
         if (range.contains(pkt->getAddr())) {
-            std::stringstream ss;
-            ss << "PMEM request "
-               << (m_pmem_bypass_enable ? "bypassing Ruby"
-                                        : "WOULD-BYPASS (memctrl->CHI)")
-               << ": " << pkt->cmdString()
-               << " Addr: 0x" << std::hex << pkt->getAddr();
-            if (pkt->isWrite() && pkt->hasData()) {
-                ss << " Data: ";
-                const uint8_t* data = pkt->getConstPtr<uint8_t>();
-                for (int i = 0; i < pkt->getSize(); ++i) {
-                    ss << std::setw(2) << std::setfill('0') << (int)data[i];
+            // Only build the (expensive) diagnostic string -- including the
+            // per-byte hex dump of write data -- when the RubyBypass trace
+            // flag is actually enabled. Device-heavy workloads issue millions
+            //  of bypassed accesses, so doing this unconditionally is a large,
+            // wasted host-time cost.
+            if (debug::RubyBypass) {
+                std::stringstream ss;
+                ss << "PMEM request "
+                   << (m_pmem_bypass_enable ? "bypassing Ruby"
+                                            : "WOULD-BYPASS (memctrl->CHI)")
+                   << ": " << pkt->cmdString()
+                   << " Addr: 0x" << std::hex << pkt->getAddr();
+                if (pkt->isWrite() && pkt->hasData()) {
+                    ss << " Data: ";
+                    const uint8_t* data = pkt->getConstPtr<uint8_t>();
+                    for (int i = 0; i < pkt->getSize(); ++i) {
+                        ss << std::setw(2) << std::setfill('0') <<
+                            (int)data[i];
+                    }
                 }
+                DPRINTF(RubyBypass, "%s\n", ss.str());
             }
-            DPRINTF(RubyBypass, "%s\n", ss.str());
 
             if (m_pmem_bypass_enable) {
                 // Schedule the request on the memRequestPort
@@ -1283,9 +1308,15 @@ Sequencer::recordRequestType(SequencerRequestType requestType) {
 }
 
 void
-Sequencer::recordPmemLatency(Tick latency)
+Sequencer::recordPmemLatency(Tick latency, bool isWrite)
 {
-    m_pmemLatencyHist.sample(ticksToCycles(latency));
+    Cycles cyc = ticksToCycles(latency);
+    m_pmemLatencyHist.sample(cyc);
+    if (isWrite) {
+        m_pmemWriteLatencyHist.sample(cyc);
+    } else {
+        m_pmemReadLatencyHist.sample(cyc);
+    }
 }
 
 void
@@ -1341,7 +1372,13 @@ Sequencer::recvAtomic(PacketPtr pkt)
 
             if (m_pmem_bypass_enable) {
                 Tick latency = memRequestPort.sendAtomic(pkt);
-                m_pmemLatencyHist.sample(ticksToCycles(latency));
+                Cycles cyc = ticksToCycles(latency);
+                m_pmemLatencyHist.sample(cyc);
+                if (pkt->isWrite()) {
+                    m_pmemWriteLatencyHist.sample(cyc);
+                } else {
+                    m_pmemReadLatencyHist.sample(cyc);
+                }
                 return latency;
             }
             // memctrl route: diagnostic only -- fall through to normal Ruby.

@@ -165,7 +165,7 @@ class Sequencer : public RubyPort
 
     virtual int functionalWrite(Packet *func_pkt) override;
 
-    void recordPmemLatency(Tick latency) override;
+    void recordPmemLatency(Tick latency, bool isWrite) override;
 
     void recordRequestType(SequencerRequestType requestType);
     statistics::Histogram& getOutstandReqHist() { return m_outstandReqHist; }
@@ -291,8 +291,14 @@ class Sequencer : public RubyPort
     //! diagnostic; the access is NOT bypassed (falls through to Ruby/CHI).
     bool m_pmem_bypass_enable = true;
 
-    //! Histogram for PMEM latency
+    //! Histogram for PMEM latency (all accesses)
     statistics::Histogram m_pmemLatencyHist;
+    //! PMEM latency split by direction: reads are dominated by polling +
+    //! message-payload reads (the receive side); writes are message sends
+    //! (the send side, typically posted). Splitting lets us attribute the
+    //! device-access cost to polling/receiving vs sending.
+    statistics::Histogram m_pmemReadLatencyHist;
+    statistics::Histogram m_pmemWriteLatencyHist;
 
     //! Histogram for number of outstanding requests per cycle.
     statistics::Histogram m_outstandReqHist;

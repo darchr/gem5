@@ -198,7 +198,11 @@ bool RubyPort::MemRequestPort::recvTimingResp(PacketPtr pkt)
     assert(port != NULL);
 
     if (senderState->issueTime != 0) {
-        owner.recordPmemLatency(curTick() - senderState->issueTime);
+        // Split by direction so we can tell polling/message reads apart from
+        // message-send writes. The response command preserves the direction:
+        // ReadResp->isWrite() is false, WriteResp->isWrite() is true.
+        owner.recordPmemLatency(curTick() - senderState->issueTime,
+                                pkt->isWrite());
     }
 
     delete senderState;

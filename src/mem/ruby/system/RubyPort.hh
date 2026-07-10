@@ -187,7 +187,7 @@ class RubyPort : public ClockedObject
 
     virtual int functionalWrite(Packet *func_pkt);
 
-    virtual void recordPmemLatency(Tick latency) {}
+    virtual void recordPmemLatency(Tick latency, bool isWrite) {}
 
     // Helper methods for commonly used functions called in common/address.hh
     Addr getOffset(Addr addr) const;

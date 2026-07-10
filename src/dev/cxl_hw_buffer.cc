@@ -35,6 +35,10 @@ CxlHardwareBuffer::CxlHardwareBufferStats::CxlHardwareBufferStats(
 CxlHardwareBuffer::CxlHardwareBuffer(const Params &p)
     : memory::SimpleMemory(p),
       transferLatency(p.transfer_latency),
+      cxlLatency(p.cxl_latency),
+      backingSurcharge(p.backing_latency > p.latency
+                       ? Tick(p.backing_latency - p.latency) : 0),
+      postedWrites(p.posted_writes),
       numEndpoints(p.num_endpoints),
       segmentSize(p.segment_size),
       slotSize(p.slot_size),
@@ -60,6 +64,11 @@ CxlHardwareBuffer::CxlHardwareBuffer(const Params &p)
     // Initialize MPSC tails
     mpsc_tails.resize(numEndpoints, slotSize);
     // start at slotSize just like hw_emu.c
+
+    // Per-rank read-poll spin detection (diagnostic). Sentinel MaxAddr so the
+    // first read of any offset counts as a fresh (non-repeat) poll.
+    lastPollOffset.resize(numEndpoints, MaxAddr);
+    pollRepeatCount.resize(numEndpoints, 0);
 
     // Populate rank offsets if provided from Python (for checkpoint restore)
     for (size_t i = 0; i < p.rank_offsets.size(); ++i) {
@@ -89,6 +98,20 @@ CxlHardwareBuffer::getRankFromOffset(Addr offset)
     return offset / segmentSize;
 }
 
+bool
+CxlHardwareBuffer::offsetIsBufferSram(Addr offset) const
+{
+    // The active buffer (SPSC/MPSC slots) lives inside a rank's segment and is
+    // modeled as on-device SRAM; outside any segment is regular DRAM. Before
+    // the handshake (no segments yet) we treat everything as DRAM.
+    for (const auto& kv : rankBaseOffsets) {
+        if (offset >= kv.second && offset < kv.second + segmentSize) {
+            return true;
+        }
+    }
+    return false;
+}
+
 void
 CxlHardwareBuffer::access(PacketPtr pkt)
 {
@@ -99,6 +122,29 @@ CxlHardwareBuffer::access(PacketPtr pkt)
             (Addr)(pkt->getAddr() - range.start()), pkt->getSize(),
             pkt->isWrite(), pkt->hasData(), pkt->isRead());
     // ===== EXPERIMENT END: CXLBUFEARLY tracing =====
+
+    // Latency model: SimpleMemory charges its static `latency` (the SRAM media
+    // floor) on every access. On TOP of that, the device adds the CXL link
+    // latency (always) plus -- only for accesses that hit backing DRAM rather
+    // than the buffer SRAM -- the backing surcharge. We add these as a
+    // response-path delay so SimpleMemory keeps a single static latency. The
+    // overflow path adds the surcharge later (a buffer write that spills).
+    //
+    // Posted writes (postedWrites): an uncacheable store the sender need not
+    // wait on. We skip the CXL link + backing latency on the RESPONSE so the
+    // store completes fast and the sender doesn't stall -- the data and
+    // routing still happen in this same access(). Reads (and non-posted
+    // writes) pay the full latency.
+    {
+        Addr lat_offset = pkt->getAddr() - range.start();
+        bool posted = postedWrites && pkt->isWrite() && !pkt->isRead();
+        if (!posted) {
+            pkt->payloadDelay += cxlLatency;
+            if (!offsetIsBufferSram(lat_offset)) {
+                pkt->payloadDelay += backingSurcharge;  // regular DRAM access
+            }
+        }
+    }
 
     // For non-write packets or packets without data, just do normal
     // memory access (reads, clean evictions, invalidations, etc.)
@@ -119,7 +165,31 @@ CxlHardwareBuffer::access(PacketPtr pkt)
             uint32_t rank = getRankFromOffset(offset);
             if (rank < numEndpoints) {
                 Addr base = rankBaseOffsets[rank];
-                [[maybe_unused]] Addr segment_offset = offset - base;
+                Addr segment_offset = offset - base;
+
+                // Rate-limited poll trace. A receiver blocked on a flag reads
+                // the same offset repeatedly; count consecutive identical
+                // reads per rank and print only every POLL_PRINT_INTERVAL of
+                // them. Normal reads touch an offset only a handful of times
+                // and never reach the threshold, so they emit nothing -- only
+                // a genuine spin shows up, and it shows the value it's stuck
+                // on.
+                if (offset == lastPollOffset[rank]) {
+                    pollRepeatCount[rank]++;
+                } else {
+                    lastPollOffset[rank] = offset;
+                    pollRepeatCount[rank] = 1;
+                }
+                if (pollRepeatCount[rank] % POLL_PRINT_INTERVAL == 0) {
+                    DPRINTF(CXLBUF, "POLL READ (spin): receiver=%d "
+                            "seg_off=0x%lx in_slot_off=0x%lx size=%u "
+                            "val=0x%02x -- polled same addr %llu times "
+                            "consecutively (flag not advancing)\n",
+                            rank, (unsigned long)segment_offset,
+                            (unsigned long)(segment_offset % slotSize),
+                            pkt->getSize(), pmemAddr[offset],
+                            (unsigned long long)pollRepeatCount[rank]);
+                }
             }
         }
         memory::AbstractMemory::access(pkt);
@@ -199,6 +269,33 @@ CxlHardwareBuffer::access(PacketPtr pkt)
         if (rankBaseOffsets.size() >= numEndpoints) {
             allRanksInitialized = true;
             inform("CXL_HW_BUFFER: All %d ranks initialized.", numEndpoints);
+
+            // Emit the physical address ranges of every rank's segment so the
+            // restore path can flip cacheability per region. The whole device
+            // is set up uncacheable at boot; on restore we want each rank's
+            // MPSC (its receive queue + per-slot flags, which the *receiver*
+            // polls/reads) to be cacheable, while the SPSC lanes (written by
+            // remote *senders* into this rank's segment) stay uncacheable.
+            //
+            // Layout inside one segment (size = segmentSize):
+            //   [base,            base + mpscSize)      -> MPSC (cacheable)
+            //   [base + mpscSize, base + segmentSize)   -> SPSC (uncacheable)
+            //
+            // ALWAYS-ON print (not gated by the debug flag): the restore
+            // config scrapes these CXL_HW_BUFFER_RANGES lines to build the
+            // cacheable/uncacheable address ranges.
+            for (const auto& kv : rankBaseOffsets) {
+                uint32_t r = kv.first;
+                Addr seg_base   = range.start() + kv.second;
+                Addr mpsc_start = seg_base;
+                Addr mpsc_end   = seg_base + mpscSize;
+                Addr spsc_start = seg_base + mpscSize;
+                Addr spsc_end   = seg_base + segmentSize;
+                inform("CXL_HW_BUFFER_RANGES: rank=%u "
+                       "MPSC_cacheable=[0x%lx-0x%lx) "
+                       "SPSC_uncacheable=[0x%lx-0x%lx)",
+                       r, mpsc_start, mpsc_end, spsc_start, spsc_end);
+            }
         }
 
         // Scan for messages that might have arrived BEFORE this
@@ -581,6 +678,52 @@ CxlHardwareBuffer::handleRoutedWrite(PacketPtr pkt, Addr offset,
                     return false;
                 }
 
+                // Content trace: dump the SPSC slot's header (sender/len/tag/
+                // flag) and first payload bytes RIGHT BEFORE the copy, to
+                // catch an incomplete/stale slot being routed -- e.g. the
+                // completion flag at byte 17 racing ahead of the length
+                // (20-23) or payload
+                // (24+) so we copy garbage. hdr_sender should equal `sender`,
+                // len should be sane, and flag should be COMPLETE here.
+                {
+                    uint32_t hdr_sender = 0, hdr_len = 0;
+                    std::memcpy(&hdr_sender,
+                                &pmemAddr[spsc_slot_base + 0],
+                                sizeof(uint32_t));
+                    std::memcpy(&hdr_len,
+                                &pmemAddr[spsc_slot_base + 20],
+                                sizeof(uint32_t));
+                    // Instead of guessing the payload offset, SCAN the slot
+                    // for the first non-zero 64-bit word past the OB1 match
+                    // header (which starts at slot+24, ~16B) to locate the
+                    // real user data, then report where it is + its value as
+                    // both a double and raw hex. first_nz_off==0 => the whole
+                    // payload past the
+                    // header is zero (upstream/app corruption); a sane double
+                    // there => the device copy is faithful and the bug is
+                    // downstream (matching/ordering/receiver read).
+                    uint32_t scan_lim = 24 + hdr_len;
+                    if (scan_lim > (uint32_t)slotSize) {
+                        scan_lim = (uint32_t)slotSize;
+                    }
+                    uint32_t first_nz_off = 0;
+                    uint64_t nz_raw = 0;
+                    for (uint32_t o = 40; o + 8 <= scan_lim; o += 8) {
+                        uint64_t wv = 0;
+                        std::memcpy(&wv, &pmemAddr[spsc_slot_base + o], 8);
+                        if (wv != 0) { first_nz_off = o; nz_raw = wv; break; }
+                    }
+                    double dnz = 0;
+                    std::memcpy(&dnz, &nz_raw, 8);
+                    DPRINTF(CXLBUF, "SPSC->MPSC COPY: sender=%d receiver=%d "
+                            "slot=%d hdr_sender=%u len=%u tag=0x%02x "
+                            "flag=0x%02x first_nz_off=%u raw=0x%016lx d=%g\n",
+                            sender, receiver, slot_idx, hdr_sender, hdr_len,
+                            pmemAddr[spsc_slot_base + 16],
+                            pmemAddr[spsc_slot_base + FLAG_OFFSET],
+                            first_nz_off, (unsigned long)nz_raw, dnz);
+                }
+
                 // Copy header + payload into the MPSC slot. Keep the MPSC
                 // completion flag CLEAR; completeTransfer() sets it after
                 // transferLatency so the receiver never observes the flag
@@ -588,6 +731,11 @@ CxlHardwareBuffer::handleRoutedWrite(PacketPtr pkt, Addr offset,
                 std::memcpy(&pmemAddr[mpsc_slot_base],
                             &pmemAddr[spsc_slot_base], slotSize);
                 pmemAddr[mpsc_slot_base + FLAG_OFFSET] = 0;
+
+                // Clear the SPSC flag immediately so the sender can reuse
+                // this slot instantly, removing the artificial pipeline limit
+                // without changing memory layouts.
+                pmemAddr[spsc_slot_base + FLAG_OFFSET] = 0;
 
                 DPRINTF(CXLBUF, "CXL Hardware Buffer: COMPLETE flag detected! "
                         "Scheduling normal transfer for Receiver %d at "
@@ -647,6 +795,15 @@ CxlHardwareBuffer::handleRoutedWrite(PacketPtr pkt, Addr offset,
                 uint64_t backing_addr =
                     (uint64_t)target_chunk * backingChunkSize +
                     state.tailOffset;
+
+                // This buffer write spilled to backing DRAM: charge the
+                // backing surcharge on top of the SRAM floor + CXL link that
+                // access() already added (so overflow = cxl + backing, not cxl
+                // + sram). Skipped for posted writes -- the sender isn't
+                // waiting on this store, so no response-path latency applies.
+                if (!postedWrites) {
+                    pkt->payloadDelay += backingSurcharge;
+                }
 
                 // Copy the FULL slot payload from the SPSC queue
                 uint32_t spsc_slot_base = offset - slot_internal_offset;
@@ -762,14 +919,21 @@ CxlHardwareBuffer::completeTransfer(uint32_t receiver,
     if (final_write_offset < range.size()) {
         pmemAddr[final_write_offset] = FLAG_COMPLETE;
 
+        // Completion trace: the scheduled transfer fired and the message is
+        // now visible to the receiver (MPSC flag set, SPSC flag about to
+        // clear). Pair this with the "Scheduling normal transfer" line -- a
+        // scheduled transfer with no matching TRANSFER COMPLETE means the
+        // event never fired (message stuck in-flight -> receiver waits
+        // forever).
+        DPRINTF(CXLBUF, "TRANSFER COMPLETE: receiver=%d mpsc_offset=0x%x "
+                "(seg_flag_off=0x%x) spsc_offset=0x%x -- MPSC flag set "
+                "visible\n", receiver, mpsc_offset,
+                mpsc_offset + FLAG_OFFSET, spsc_offset);
+
         // Message is now visible in the MPSC queue: stamp its enqueue time so
         // sampleMpscResidency() can measure how long it sits until consumed.
         if (receiver < numEndpoints) {
             mpscEnqTick[receiver][mpsc_offset] = curTick();
-        }
-
-        if (spsc_offset < range.size()) {
-            pmemAddr[spsc_offset] = 0;
         }
 
         Addr base = rankBaseOffsets[receiver];

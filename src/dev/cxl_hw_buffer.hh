@@ -32,6 +32,16 @@ class CxlHardwareBuffer : public memory::SimpleMemory
 {
   private:
     const Tick transferLatency;
+    // CXL link latency added to EVERY access (as a response-path delay, so the
+    // SimpleMemory static `latency` stays a single value = the SRAM floor).
+    const Tick cxlLatency;
+    // Extra latency over the SRAM floor for accesses that hit backing DRAM
+    // (regular memory + MPSC overflow): backing_latency - latency.
+    const Tick backingSurcharge;
+    // When true, writes are posted: their response skips the CXL/backing
+    // latency so the sender doesn't stall (uncacheable store it needn't wait
+    // on). Data + routing still happen; only the response timing is fast.
+    const bool postedWrites;
     const uint32_t numEndpoints;
     const size_t segmentSize;
     const size_t slotSize;
@@ -119,6 +129,17 @@ class CxlHardwareBuffer : public memory::SimpleMemory
     std::vector<std::map<uint32_t, Tick>> mpscEnqTick;
     std::vector<uint32_t> mpscLastHead;
 
+    // Per-rank read-poll spin detection (transient, diagnostic only). A
+    // receiver blocked waiting on a completion flag reads the SAME device
+    // offset over and over; lastPollOffset[rank] is that rank's most recent
+    // read offset and pollRepeatCount[rank] counts how many times in a row it
+    // has read it. We print a POLL READ trace only every POLL_PRINT_INTERVAL
+    // identical consecutive polls, so a tight spin is visible without flooding
+    // the log and ordinary reads (touched only a few times) stay silent.
+    std::vector<Addr> lastPollOffset;
+    std::vector<uint64_t> pollRepeatCount;
+    static constexpr uint64_t POLL_PRINT_INTERVAL = 10000;
+
     // Event to handle delayed transfer completion
     // Transfers from the SPSC virtual queue to and actual MPSC queue
     class TransferEvent : public Event
@@ -140,6 +161,10 @@ class CxlHardwareBuffer : public memory::SimpleMemory
 
     // Helper functions
     uint32_t getRankFromOffset(Addr offset);
+
+    // True if the offset is inside an active buffer segment (SPSC/MPSC slots),
+    // modeled as on-device SRAM; false => regular DRAM (backing surcharge).
+    bool offsetIsBufferSram(Addr offset) const;
     // Detect MPSC dequeues by watching receiver_head advance, and sample the
     // residency (enqueue->dequeue, in cycles) of each freed message.
     void sampleMpscResidency(uint32_t receiver, uint32_t cur_head);
