@@ -905,7 +905,20 @@ action(Initiate_LoadHit, desc="") {
 }
 
 action(Initiate_LoadMiss, desc="") {
-  if (tbe.doCacheFill) {
+  if (is_HN) {
+    // Local Load/Prefetch missing at the HN itself (e.g. an externally
+    // triggered SLC stash prefetch; upstream never generates local requests
+    // at an HN). Fetch the line from memory like the remote-read path does
+    // (Initiate_ReadShared et al. under is_HN) but fill THIS cache. DMT
+    // must be off: it would ship the data to a remote requestor instead of
+    // filling us, and Send_ReadNoSnp asserts !use_DMT for non-atomics.
+    // Deliberately no WaitCompAck/SendCompData legs -- there is no
+    // requestor to respond to.
+    tbe.use_DMT := false;
+    tbe.actions.push(Event:SendReadNoSnp);
+    tbe.actions.push(Event:CheckCacheFill);
+    tbe.actions.push(Event:TagArrayWrite);
+  } else if (tbe.doCacheFill) {
     tbe.actions.push(Event:SendReadShared);
     tbe.actions.push(Event:CheckCacheFill);
     tbe.actions.push(Event:TagArrayWrite);

@@ -13,6 +13,8 @@
 namespace gem5
 {
 
+namespace prefetch { class CxlStash; }
+
 /**
  * CXL Hardware Buffer: A memory device that intercepts writes to
  * translate SPSC (sender) writes into MPSC (receiver) slots,
@@ -76,11 +78,74 @@ class CxlHardwareBuffer : public memory::SimpleMemory
     // bytes too low and every slot field is seen +8 (flag@17 read as @25).
     static const uint32_t HANDSHAKE_MAGIC_OFFSET = 8;
 
+    // Handshake v2 (host-MPSC registration, docs/cacheable_mpsc_plan.md
+    // phase 4): the BTL writes its host ring's PHYSICAL address at
+    // (segment + 24), then the commit magic (0xC0020000 | rank) at
+    // (segment + 16). Both live in the 128-byte control-block pad after the
+    // v1 magic. Must match MCA_BTL_CXLBUF_HANDSHAKE2_* in btl_cxlbuf.h.
+    static const uint32_t HANDSHAKE2_MAGIC_OFFSET = 16;
+    static const uint32_t HANDSHAKE2_PA_OFFSET = 24;
+
     // State tracking
     std::vector<uint32_t> mpsc_tails;
 
     // Physical base offset mapping for each endpoint (Rank -> Base Offset)
     std::map<uint32_t, Addr> rankBaseOffsets;
+
+    // ---- Host-MPSC mode (docs/cacheable_mpsc_plan.md phase 4) -------------
+    // Ranks that registered a host-DRAM ring PA via handshake v2. Delivery
+    // for these ranks goes to host DRAM via coherent FUNCTIONAL writes
+    // (updates memory AND every cached copy -- the stand-in for the future
+    // prefetcher-based installation); visibility timing keeps the same
+    // two-phase payload-then-flag model gated by transferLatency. Occupancy
+    // is ring arithmetic against the receiver's head doorbell (the fifo_head
+    // word at segment+0, which stays on-device), because the device cannot
+    // see flag clears in a cacheable host ring.
+    const bool hostMpscEnable;               // param gate for v2 handshakes
+    std::vector<AddrRange> hostMpscRanges;   // optional PA sanity check
+    std::map<uint32_t, Addr> hostMpscPa;     // rank -> host ring base PA
+    std::vector<uint8_t> stageBuf;           // slotSize staging for writeBlob
+
+    // ---- Phase 5 stash prefetch (docs/cacheable_mpsc_plan.md §7) ----------
+    // On host-ring delivery, schedule a push at +prefetchPushLatency that
+    // triggers the target node's SLC prefetcher to install the message
+    // lines (models the device actively pushing into the SLC over CXL).
+    // Performance-only: the functional write remains the data channel.
+    const bool prefetchEnable;
+    const Tick prefetchPushLatency;
+    const size_t prefetchBytes;
+
+    // Ring-PA -> homing SLC stash prefetcher via the runtime registry
+    // (nullptr if none / disabled).
+    prefetch::CxlStash* prefetcherForPa(Addr pa) const;
+    // Schedule the stash push for a delivered slot (no-op if disabled).
+    void scheduleStashPush(uint32_t receiver, uint32_t mpsc_offset);
+    void doStashPush(Addr ring_pa);
+
+    class StashPushEvent : public Event
+    {
+      private:
+        CxlHardwareBuffer *device;
+        Addr ring_pa;
+      public:
+        StashPushEvent(CxlHardwareBuffer *d, Addr pa)
+            : Event(), device(d), ring_pa(pa) {}
+        void process() override { device->doStashPush(ring_pa); }
+    };
+    // ------------------------------------------------------------------------
+
+    bool isHostRank(uint32_t r) const { return hostMpscPa.count(r) != 0; }
+    // Sanitized receiver head from the on-device control block (doorbell).
+    int64_t readReceiverHead(uint32_t receiver) const;
+    // Full when advancing the tail would step onto the head (one slot is
+    // sacrificed to disambiguate full from empty).
+    bool hostRingFull(uint32_t receiver) const;
+    // Coherent functional write into the host ring.
+    void hostRingWrite(Addr pa, const uint8_t *data, size_t len);
+    // Adopt any messages already sitting in the on-device ring when a rank
+    // upgrades to a host ring (defensive: closes the init-order race).
+    void migrateDeviceRingToHost(uint32_t rank);
+    // ------------------------------------------------------------------------
 
     // Track whether all ranks have completed handshake.
     // When false, the device acts as simple passthrough memory.
@@ -190,6 +255,8 @@ class CxlHardwareBuffer : public memory::SimpleMemory
         statistics::VectorDistribution mpscOccupancy;
         // Per receiver rank: residency (cycles) a message spends in the MPSC.
         statistics::VectorDistribution mpscResidencyCycles;
+        // Per receiver rank: messages delivered into the HOST ring (v2 mode).
+        statistics::Vector hostDeliveries;
     } stats;
 
   public:

@@ -79,3 +79,40 @@ class CxlHardwareBuffer(SimpleMemory):
         "List of internal PA offsets for initialized ranks for "
         "checkpoint restore",
     )
+
+    # Host-MPSC mode (docs/cacheable_mpsc_plan.md phase 4): honor handshake-v2
+    # registrations (0xC0020000|rank + host ring PA) and deliver those ranks'
+    # messages into cacheable host DRAM via coherent functional writes instead
+    # of the on-device MPSC region. Ranks that never register keep the legacy
+    # device-resident delivery (per-rank mixed mode is allowed).
+    host_mpsc_enable = Param.Bool(
+        False, "Honor handshake-v2 host-MPSC ring registrations"
+    )
+    # Optional sanity check: the reserved per-NUMA-node pool ranges the run
+    # script carved (a registered PA outside every range only warns). Also
+    # index-aligned with `prefetchers` below: ring PA -> range index ->
+    # prefetchers[index] selects the SLC to stash into.
+    host_mpsc_ranges = VectorParam.AddrRange(
+        [], "Reserved host DRAM pool ranges the ring PAs should fall in"
+    )
+
+    # Phase 5 stash prefetch (docs/cacheable_mpsc_plan.md §7): when enabled,
+    # on each host-ring delivery the device schedules a push at
+    # +prefetch_push_latency (models the pushed data crossing the CXL link)
+    # that triggers the target node's SLC prefetcher to install the message
+    # lines. Performance-only: the functional write is still the data
+    # channel, so correctness is unaffected whether the push wins the race
+    # with the flag or not.
+    prefetch_enable = Param.Bool(
+        False, "Push delivered host-ring lines into the node's SLC prefetcher"
+    )
+    prefetch_push_latency = Param.Latency(
+        "150ns", "Delay before the stash push reaches the SLC prefetcher"
+    )
+    prefetch_bytes = Param.MemorySize(
+        "4kB", "Bytes of each delivered slot to stash (from the slot base)"
+    )
+    # The device finds the SLC stash prefetcher serving a ring PA at push
+    # time via a runtime registry (each CxlStashPrefetcher self-registers its
+    # pool range). No SimObject param here -- referencing the SLC-owned
+    # prefetchers from the device would form a config-hierarchy cycle.

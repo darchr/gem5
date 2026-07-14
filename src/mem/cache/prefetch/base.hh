@@ -47,6 +47,7 @@
 #define __MEM_CACHE_PREFETCH_BASE_HH__
 
 #include <cstdint>
+#include <functional>
 
 #include "arch/generic/tlb.hh"
 #include "base/compiler.hh"
@@ -320,6 +321,22 @@ class Base : public ClockedObject
     const bool useVirtualAddresses;
 
     /**
+     * Registered by the owner (RubyPrefetcherProxy) so an externally-driven
+     * prefetcher can ask it to poll getPacket(). Empty for demand-only
+     * prefetchers. Derived classes invoke it via issueCheck().
+     */
+    std::function<void()> issueCheckCallback;
+
+    /** Ask the owner to poll getPacket() now, if a callback is registered. */
+    void
+    issueCheck()
+    {
+        if (issueCheckCallback) {
+            issueCheckCallback();
+        }
+    }
+
+    /**
      * Determine if this access should be observed
      * @param pkt The memory request causing the event
      * @param miss whether this event comes from a cache miss
@@ -403,6 +420,20 @@ class Base : public ClockedObject
     virtual PacketPtr getPacket() = 0;
 
     virtual Tick nextPrefetchReadyTime() const = 0;
+
+    /**
+     * Hook for prefetchers that generate requests OUTSIDE the demand stream
+     * (e.g. an externally-triggered stash prefetcher). The owner
+     * (RubyPrefetcherProxy) registers a callback here; a derived prefetcher
+     * calls issueCheck() after enqueueing work so the owner polls
+     * getPacket(). Default: no-op / never registered, so ordinary
+     * demand-driven prefetchers are unaffected.
+     */
+    void
+    setIssueCheckCallback(std::function<void()> cb)
+    {
+        issueCheckCallback = std::move(cb);
+    }
 
     void
     prefetchUnused()

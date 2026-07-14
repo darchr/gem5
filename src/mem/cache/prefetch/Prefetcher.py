@@ -228,6 +228,30 @@ class TaggedPrefetcher(QueuedPrefetcher):
     degree = Param.Int(2, "Number of prefetches to generate")
 
 
+class CxlStashPrefetcher(BasePrefetcher):
+    # Dormant prefetcher for the CXL host-MPSC stash model
+    # (docs/cacheable_mpsc_plan.md phase 5). Generates NOTHING from the demand
+    # stream (notify is a no-op); the CxlHardwareBuffer device pushes lines
+    # into it via externalTrigger(base, bytes), modeling the device actively
+    # installing a delivered message into the SLC. Attached to each is_HN SLC.
+    type = "CxlStashPrefetcher"
+    cxx_class = "gem5::prefetch::CxlStash"
+    cxx_header = "mem/cache/prefetch/cxl_stash.hh"
+
+    max_pending_lines = Param.Unsigned(
+        4096,
+        "Cap on line addresses buffered awaiting issue; excess triggers "
+        "drop (performance-only, so a flooded stash just loses hints)",
+    )
+    # The reserved MPSC pool this stash serves. Self-registered in a runtime
+    # registry so the CxlHardwareBuffer device can find it by ring PA without
+    # a SimObject param (which would cycle the config hierarchy). Always set
+    # explicitly by the run script when a stash is created.
+    pool_range = Param.AddrRange(
+        "Host DRAM pool range this stash prefetcher serves"
+    )
+
+
 class IndirectMemoryPrefetcher(QueuedPrefetcher):
     type = "IndirectMemoryPrefetcher"
     cxx_class = "gem5::prefetch::IndirectMemory"

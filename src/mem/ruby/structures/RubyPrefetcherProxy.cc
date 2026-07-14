@@ -67,6 +67,10 @@ RubyPrefetcherProxy::RubyPrefetcherProxy(AbstractController* _parent,
             cacheCntrl->params().system,
             cacheCntrl->getProbeManager(),
             cacheCntrl->m_ruby_system->getBlockSizeBytes());
+        // Let an externally-triggered prefetcher (e.g. CxlStashPrefetcher)
+        // wake us to poll getPacket() when it enqueues work outside the
+        // demand stream. Demand-only prefetchers never call issueCheck().
+        prefetcher->setIssueCheckCallback([this]{ scheduleNextPrefetch(); });
     }
 }
 

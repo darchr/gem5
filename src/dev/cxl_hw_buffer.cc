@@ -6,7 +6,9 @@
 #include "base/trace.hh"
 #include "debug/CXLBUF.hh"
 #include "debug/CXLBUFEARLY.hh"
+#include "mem/cache/prefetch/cxl_stash.hh"
 #include "mem/packet_access.hh"
+#include "mem/port_proxy.hh"
 #include "sim/serialize.hh"
 #include "sim/system.hh"
 
@@ -21,8 +23,12 @@ CxlHardwareBuffer::CxlHardwareBufferStats::CxlHardwareBufferStats(
                "slot is allocated (index = receiver MPI rank)"),
       ADD_STAT(mpscResidencyCycles, statistics::units::Cycle::get(),
                "Per-receiver-rank residency (cycles) a message spends in the "
-               "MPSC queue, enqueue->dequeue (index = receiver MPI rank)")
+               "MPSC queue, enqueue->dequeue (index = receiver MPI rank)"),
+      ADD_STAT(hostDeliveries, statistics::units::Count::get(),
+               "Per-receiver-rank messages delivered into the cacheable HOST "
+               "ring (handshake-v2 ranks; index = receiver MPI rank)")
 {
+    hostDeliveries.init(num_ranks);
     // One occupancy distribution per receiver MPI rank. Index i is the MPSC
     // queue owned by rank i; occupancy ranges over [0, max_slots) slots.
     mpscOccupancy.init(num_ranks, 0, max_slots, 1);
@@ -43,12 +49,20 @@ CxlHardwareBuffer::CxlHardwareBuffer(const Params &p)
       segmentSize(p.segment_size),
       slotSize(p.slot_size),
       mpscSize(p.mpsc_size),
+      hostMpscEnable(p.host_mpsc_enable),
+      hostMpscRanges(p.host_mpsc_ranges),
+      prefetchEnable(p.prefetch_enable),
+      prefetchPushLatency(p.prefetch_push_latency),
+      prefetchBytes(p.prefetch_bytes),
       allRanksInitialized(false),
       backingSize(p.backing_size),
       backingChunkSize(p.backing_chunk_size),
       backingLatency(p.backing_latency),
       stats(this, p.num_endpoints, p.mpsc_size / p.slot_size)
 {
+    // Staging buffer for host-ring functional writes (payload assembled with
+    // the flag byte held clear before it leaves the device).
+    stageBuf.resize(slotSize);
     // Initialize Hardware Backing Store
     overflowBackingStore.resize(backingSize);
     uint32_t num_chunks = backingSize / backingChunkSize;
@@ -110,6 +124,123 @@ CxlHardwareBuffer::offsetIsBufferSram(Addr offset) const
         }
     }
     return false;
+}
+
+int64_t
+CxlHardwareBuffer::readReceiverHead(uint32_t receiver) const
+{
+    // The receiver's consume position: the fifo_head word at segment+0 of
+    // the on-device control block, kept fresh by the BTL's per-consume
+    // doorbell store. Sanitize like the drain path always has -- a stale
+    // doorbell only makes the device conservative (thinks fuller), never
+    // corrupts (it can't overwrite an unconsumed slot).
+    auto it = rankBaseOffsets.find(receiver);
+    if (it == rankBaseOffsets.end()) {
+        return slotSize;
+    }
+    int64_t head = 0;
+    std::memcpy(&head, &pmemAddr[it->second], sizeof(int64_t));
+    if (head < (int64_t)slotSize || head >= (int64_t)mpscSize ||
+        (head % slotSize) != 0) {
+        head = slotSize;
+    }
+    return head;
+}
+
+bool
+CxlHardwareBuffer::hostRingFull(uint32_t receiver) const
+{
+    // Ring arithmetic against the head doorbell: full when advancing the
+    // tail would step onto the head. One slot is sacrificed to disambiguate
+    // full/empty -- the device cannot check per-slot flags in a cacheable
+    // host ring the way the legacy path does.
+    uint32_t tail = mpsc_tails[receiver];
+    uint32_t next_tail = tail + slotSize;
+    if (next_tail >= mpscSize) {
+        next_tail = slotSize;
+    }
+    return next_tail == (uint32_t)readReceiverHead(receiver);
+}
+
+void
+CxlHardwareBuffer::hostRingWrite(Addr pa, const uint8_t *data, size_t len)
+{
+    // Coherent FUNCTIONAL write into host DRAM: updates the backing memory
+    // AND every cached copy / in-flight buffer (Ruby functionalWrite walks
+    // all controllers; classic caches update matching lines). Phase-4
+    // stand-in for the future prefetcher-based installation -- zero timing
+    // traffic; visibility timing is modeled by transferLatency at the
+    // call sites.
+    system()->physProxy.writeBlob(pa, data, len);
+}
+
+void
+CxlHardwareBuffer::migrateDeviceRingToHost(uint32_t rank)
+{
+    // Defensive: adopt messages that landed in the on-device ring before
+    // this rank's v2 registration (init-order race; normally none, because
+    // both handshakes precede the modex barrier and all sends). Offsets are
+    // identical between the device ring and the host ring, so slots move
+    // 1:1 and the receiver's head convention is unaffected.
+    Addr base = rankBaseOffsets[rank];
+    uint32_t off = (uint32_t)readReceiverHead(rank);
+    uint32_t max_slots = mpscSize / slotSize;
+    for (uint32_t i = 0; i < max_slots; ++i) {
+        if (pmemAddr[base + off + FLAG_OFFSET] != FLAG_COMPLETE) {
+            break;
+        }
+        std::memcpy(stageBuf.data(), &pmemAddr[base + off], slotSize);
+        hostRingWrite(hostMpscPa[rank] + off, stageBuf.data(), slotSize);
+        pmemAddr[base + off + FLAG_OFFSET] = 0;
+        inform("CXL_HW_BUFFER_HOSTMPSC: rank %u migrated device-ring slot "
+               "0x%x to host ring", rank, off);
+        off += slotSize;
+        if (off >= mpscSize) {
+            off = slotSize;
+        }
+    }
+}
+
+prefetch::CxlStash*
+CxlHardwareBuffer::prefetcherForPa(Addr pa) const
+{
+    // Ring PA -> homing SLC stash prefetcher via the runtime registry (each
+    // CxlStash self-registers its pool range). Avoids a SimObject param on
+    // the device, which would cycle the config hierarchy.
+    if (!prefetchEnable) {
+        return nullptr;
+    }
+    return prefetch::lookupCxlStash(pa);
+}
+
+void
+CxlHardwareBuffer::scheduleStashPush(uint32_t receiver, uint32_t mpsc_offset)
+{
+    if (!prefetchEnable || !isHostRank(receiver)) {
+        return;
+    }
+    Addr ring_pa = hostMpscPa[receiver] + mpsc_offset;
+    if (prefetcherForPa(ring_pa) == nullptr) {
+        return;  // no prefetcher homes this PA
+    }
+    // Device owns the CXL push latency: fire the trigger after the delay.
+    schedule(new StashPushEvent(this, ring_pa),
+             curTick() + prefetchPushLatency);
+}
+
+void
+CxlHardwareBuffer::doStashPush(Addr ring_pa)
+{
+    prefetch::CxlStash* pf = prefetcherForPa(ring_pa);
+    if (pf == nullptr) {
+        return;
+    }
+    // Instantaneous C++ trigger: the SLC prefetcher installs these lines.
+    // The payload was already functionally written to DRAM at routing time,
+    // so the SLC's fill reads the correct bytes.
+    pf->externalTrigger(ring_pa, prefetchBytes);
+    DPRINTF(CXLBUF, "STASH PUSH: ring_pa=0x%lx bytes=%lu -> SLC prefetcher\n",
+            ring_pa, (unsigned long)prefetchBytes);
 }
 
 void
@@ -307,6 +438,72 @@ CxlHardwareBuffer::access(PacketPtr pkt)
         return;
     }
 
+    // ================================================================
+    // HANDSHAKE V2: host-MPSC ring registration (phase 4)
+    // ================================================================
+    // The BTL writes the ring PA at (segment+24) FIRST (an ordinary write,
+    // already applied to pmemAddr by the time this magic arrives), then the
+    // commit magic (0xC0020000|rank) at (segment+16). Same probe pattern as
+    // v1; the rank must already be v1-registered so we can validate the
+    // magic sits exactly at its segment+16.
+    if (pkt->hasData()) {
+        uint8_t *data = pkt->getPtr<uint8_t>();
+        Addr page_base = offset - (offset % 4096);
+        for (Addr pgoff = 0; pgoff <= 32; pgoff += 8) {
+            Addr target_addr = page_base + pgoff;
+            if (offset > target_addr || (offset + size) < (target_addr + 4)) {
+                continue;
+            }
+            uint32_t val;
+            std::memcpy(&val, &data[target_addr - offset], 4);
+            if ((val & 0xFFFF0000) != 0xC0020000) {
+                continue;
+            }
+            uint32_t rank = val & 0xFFFF;
+            if (rank >= numEndpoints ||
+                rankBaseOffsets.find(rank) == rankBaseOffsets.end() ||
+                target_addr !=
+                    rankBaseOffsets[rank] + HANDSHAKE2_MAGIC_OFFSET) {
+                continue;
+            }
+            if (!hostMpscEnable) {
+                warn("CXL Hardware Buffer: handshake v2 from rank %u but "
+                     "host_mpsc_enable is false; keeping device-resident "
+                     "delivery for it.\n", rank);
+                break;
+            }
+            // Apply this write first so the magic persists in pmemAddr for
+            // checkpoint-restore rediscovery, then register.
+            memory::AbstractMemory::access(pkt);
+
+            Addr pa = 0;
+            std::memcpy(&pa,
+                        &pmemAddr[rankBaseOffsets[rank] +
+                                  HANDSHAKE2_PA_OFFSET],
+                        sizeof(uint64_t));
+            if (!hostMpscRanges.empty()) {
+                bool in_pool = false;
+                for (const auto &r : hostMpscRanges) {
+                    if (r.contains(pa) && r.contains(pa + mpscSize - 1)) {
+                        in_pool = true;
+                        break;
+                    }
+                }
+                if (!in_pool) {
+                    warn("CXL Hardware Buffer: rank %u host ring PA 0x%lx "
+                         "is outside every reserved MPSC pool range "
+                         "(accepting anyway).\n", rank, pa);
+                }
+            }
+            hostMpscPa[rank] = pa;
+            inform("CXL_HW_BUFFER_HOSTMPSC: rank %u registered host ring "
+                   "PA 0x%lx (deliveries for this rank now go to host "
+                   "DRAM)", rank, pa);
+            migrateDeviceRingToHost(rank);
+            return;
+        }
+    }
+
     // Try to handle via routing logic; if not applicable, do normal write
     if (!handleRoutedWrite(pkt, offset, size)) {
         DPRINTF(CXLBUFEARLY, "access(): handleRoutedWrite returned false for "
@@ -353,11 +550,14 @@ CxlHardwareBuffer::handleRoutedWrite(PacketPtr pkt, Addr offset,
     // Is this a write into an SPSC queue?
     // SPSC queues start after the MPSC (which is mpscSize).
     if (segment_offset < mpscSize) {
-        // This is a write to the MPSC queue by the receiver
-        // (e.g. clearing a flag).
-        // We intercept flag-clear writes to drain overflow messages.
+        // This is a write to the MPSC queue region by the receiver.
+        // Legacy ranks: we intercept flag-CLEAR writes (consume) to drain
+        // overflow messages. Host-MPSC ranks: flag clears happen in the
+        // cacheable host ring and never reach us -- the consume signal is
+        // the head DOORBELL (the fifo_head store into segment bytes [0,8)).
         uint8_t *data = pkt->getPtr<uint8_t>();
         uint32_t slot_internal_offset = segment_offset % slotSize;
+        const bool host_rank = isHostRank(receiver);
 
         bool is_flag_clear = false;
         if (slot_internal_offset <= FLAG_OFFSET &&
@@ -367,11 +567,12 @@ CxlHardwareBuffer::handleRoutedWrite(PacketPtr pkt, Addr offset,
                 is_flag_clear = true;
             }
         }
+        const bool is_doorbell = (segment_offset < 8);
 
-        // Apply the write to memory first so the flag becomes 0
+        // Apply the write to memory first (flag becomes 0 / head advances)
         memory::AbstractMemory::access(pkt);
 
-        if (is_flag_clear) {
+        if (host_rank ? is_doorbell : is_flag_clear) {
             auto &state = overflowStates[receiver];
             bool has_complete_message = false;
 
@@ -399,22 +600,35 @@ CxlHardwareBuffer::handleRoutedWrite(PacketPtr pkt, Addr offset,
                     receiver_head = slotSize;
                 }
 
-                // Scan forward from the receiver's head to find the
-                // first free slot it will reach
-                uint32_t drain_mpsc_offset = (uint32_t)receiver_head;
+                // Find the drain destination. Legacy: scan forward from the
+                // receiver's head for the first free (flag==0) slot. Host
+                // ring: per-slot flags are invisible to us, so the free slot
+                // is simply the current tail when ring arithmetic says there
+                // is room.
+                uint32_t drain_mpsc_offset;
                 bool found_free = false;
-                uint32_t max_slots = mpscSize / slotSize;
-                for (uint32_t attempts = 0; attempts < max_slots;
-                     ++attempts) {
-                    Addr check_flag =
-                        base + drain_mpsc_offset + FLAG_OFFSET;
-                    if (pmemAddr[check_flag] == 0) {
+                if (host_rank) {
+                    if (!hostRingFull(receiver)) {
+                        drain_mpsc_offset = mpsc_tails[receiver];
                         found_free = true;
-                        break;
+                    } else {
+                        drain_mpsc_offset = 0;
                     }
-                    drain_mpsc_offset += slotSize;
-                    if (drain_mpsc_offset >= mpscSize) {
-                        drain_mpsc_offset = slotSize;
+                } else {
+                    drain_mpsc_offset = (uint32_t)receiver_head;
+                    uint32_t max_slots = mpscSize / slotSize;
+                    for (uint32_t attempts = 0; attempts < max_slots;
+                         ++attempts) {
+                        Addr check_flag =
+                            base + drain_mpsc_offset + FLAG_OFFSET;
+                        if (pmemAddr[check_flag] == 0) {
+                            found_free = true;
+                            break;
+                        }
+                        drain_mpsc_offset += slotSize;
+                        if (drain_mpsc_offset >= mpscSize) {
+                            drain_mpsc_offset = slotSize;
+                        }
                     }
                 }
 
@@ -432,13 +646,32 @@ CxlHardwareBuffer::handleRoutedWrite(PacketPtr pkt, Addr offset,
                         overflowBackingStore[backing_addr + FLAG_OFFSET];
                     overflowBackingStore[backing_addr + FLAG_OFFSET] = 0;
 
-                    // Copy the entire slot (with the flag cleared)
-                    std::memcpy(&pmemAddr[base + drain_mpsc_offset],
-                                &overflowBackingStore[backing_addr], slotSize);
+                    if (host_rank) {
+                        // Coherent functional writes into the host ring:
+                        // payload with the flag byte clear, then the flag
+                        // (drain keeps the legacy synchronous-flag timing --
+                        // these messages already aged in the backing store).
+                        std::memcpy(stageBuf.data(),
+                                    &overflowBackingStore[backing_addr],
+                                    slotSize);
+                        stageBuf[FLAG_OFFSET] = 0;
+                        hostRingWrite(hostMpscPa[receiver] +
+                                      drain_mpsc_offset,
+                                      stageBuf.data(), slotSize);
+                        hostRingWrite(hostMpscPa[receiver] +
+                                      drain_mpsc_offset + FLAG_OFFSET,
+                                      &complete_flag, 1);
+                        stats.hostDeliveries[receiver]++;
+                    } else {
+                        // Copy the entire slot (with the flag cleared)
+                        std::memcpy(&pmemAddr[base + drain_mpsc_offset],
+                                    &overflowBackingStore[backing_addr],
+                                    slotSize);
 
-                    // Write the flag last to ensure memory ordering
-                    pmemAddr[base + drain_mpsc_offset + FLAG_OFFSET] =
-                        complete_flag;
+                        // Write the flag last to ensure memory ordering
+                        pmemAddr[base + drain_mpsc_offset + FLAG_OFFSET] =
+                            complete_flag;
+                    }
 
                     DPRINTF(CXLBUF, "CXL Hardware Buffer: Draining overflow "
                             "message to Receiver %d MPSC offset 0x%x "
@@ -562,11 +795,19 @@ CxlHardwareBuffer::handleRoutedWrite(PacketPtr pkt, Addr offset,
 
             // Allocate a new MPSC slot on the RECEIVER's MPSC queue!
             // But first, check if the target slot is still unread (overflow!)
+            // Legacy ranks: the target slot's on-device flag tells us. Host
+            // ranks: per-slot flags live in the cacheable host ring we can't
+            // see -- use ring arithmetic against the head doorbell instead.
             uint32_t new_mpsc_offset = mpsc_tails[receiver];
-            Addr dest_mpsc_flag_addr =
-                rankBaseOffsets[receiver] + new_mpsc_offset + FLAG_OFFSET;
-            bool is_slot_full =
-                (pmemAddr[dest_mpsc_flag_addr] == FLAG_COMPLETE);
+            bool is_slot_full;
+            if (isHostRank(receiver)) {
+                is_slot_full = hostRingFull(receiver);
+            } else {
+                Addr dest_mpsc_flag_addr =
+                    rankBaseOffsets[receiver] + new_mpsc_offset + FLAG_OFFSET;
+                is_slot_full =
+                    (pmemAddr[dest_mpsc_flag_addr] == FLAG_COMPLETE);
+            }
             auto &state = overflowStates[receiver];
 
             // Start of block for stat
@@ -665,12 +906,15 @@ CxlHardwareBuffer::handleRoutedWrite(PacketPtr pkt, Addr offset,
             }
 
             if (is_complete_flag_write) {
+                const bool host_rank = isHostRank(receiver);
                 uint32_t spsc_slot_base = offset - slot_internal_offset;
                 Addr mpsc_slot_base =
                     rankBaseOffsets[receiver] + dest_mpsc_offset;
 
-                // Bounds check the full-slot copy destination
-                if (mpsc_slot_base + slotSize > range.size()) {
+                // Bounds check the full-slot copy destination (device ring
+                // only; the host ring is bounded by construction:
+                // dest_mpsc_offset always lies in [slotSize, mpscSize)).
+                if (!host_rank && mpsc_slot_base + slotSize > range.size()) {
                     warn("CXL Hardware Buffer: MPSC slot copy out of bounds "
                          "(0x%lx + %lu > 0x%lx). Dropping.\n",
                          mpsc_slot_base, (unsigned long)slotSize,
@@ -727,10 +971,20 @@ CxlHardwareBuffer::handleRoutedWrite(PacketPtr pkt, Addr offset,
                 // Copy header + payload into the MPSC slot. Keep the MPSC
                 // completion flag CLEAR; completeTransfer() sets it after
                 // transferLatency so the receiver never observes the flag
-                // before the payload is present.
-                std::memcpy(&pmemAddr[mpsc_slot_base],
-                            &pmemAddr[spsc_slot_base], slotSize);
-                pmemAddr[mpsc_slot_base + FLAG_OFFSET] = 0;
+                // before the payload is present. Host ranks: coherent
+                // functional write into the host DRAM ring instead of the
+                // on-device region (same two-phase visibility).
+                if (host_rank) {
+                    std::memcpy(stageBuf.data(), &pmemAddr[spsc_slot_base],
+                                slotSize);
+                    stageBuf[FLAG_OFFSET] = 0;
+                    hostRingWrite(hostMpscPa[receiver] + dest_mpsc_offset,
+                                  stageBuf.data(), slotSize);
+                } else {
+                    std::memcpy(&pmemAddr[mpsc_slot_base],
+                                &pmemAddr[spsc_slot_base], slotSize);
+                    pmemAddr[mpsc_slot_base + FLAG_OFFSET] = 0;
+                }
 
                 // Clear the SPSC flag immediately so the sender can reuse
                 // this slot instantly, removing the artificial pipeline limit
@@ -748,12 +1002,31 @@ CxlHardwareBuffer::handleRoutedWrite(PacketPtr pkt, Addr offset,
                 // Remove mapping since it's complete
                 activeMappings[key].erase(slot_idx);
 
-                // Schedule the timed completion (sets MPSC flag, clears SPSC)
+                // Schedule the timed completion (sets MPSC flag, clears SPSC).
+                // The message must traverse CXL TWICE to become observable by
+                // the receiver: transferLatency models the SEND leg
+                // (sender -> device) and cxlLatency the RECEIVE leg
+                // (device -> receiver's node). So a host-ring message is not
+                // visible until send(1x)+receive(1x)=2x, matching cache-
+                // coherent CXL where the receiver can't avoid the round trip.
+                // (Legacy device-resident ranks keep the single
+                // transferLatency
+                // -- there is no separate host-side receive leg for them.)
+                Tick visible_delay = transferLatency;
+                if (isHostRank(receiver)) {
+                    visible_delay += cxlLatency;  // + receive-side 1x CXL
+                }
                 pendingTransfers.push_back(
                     {receiver, dest_mpsc_offset, (uint32_t)offset});
                 Event* e = new TransferEvent(
                     this, receiver, dest_mpsc_offset, (uint32_t)offset);
-                schedule(e, curTick() + transferLatency);
+                schedule(e, curTick() + visible_delay);
+
+                // Phase 5: stash-push the delivered slot into the receiver
+                // node's SLC (no-op unless prefetch_enable + host rank). The
+                // payload is already in DRAM (functional write above), so the
+                // SLC fill reads correct bytes; this races the flag write.
+                scheduleStashPush(receiver, dest_mpsc_offset);
             }
         } else {
             // OVERFLOW path: write data to SPSC only (already done above).
@@ -870,6 +1143,28 @@ CxlHardwareBuffer::discoverRanksFromMemory()
     if (discovered.size() >= numEndpoints) {
         rankBaseOffsets = discovered;
         allRanksInitialized = true;
+
+        // Recover handshake-v2 host-ring registrations the same way: the v2
+        // magic and the ring PA persist in the backing store at (base+16)
+        // and (base+24), so a boot-checkpoint restore re-derives them.
+        if (hostMpscEnable) {
+            for (const auto &kv : rankBaseOffsets) {
+                uint32_t val = 0;
+                std::memcpy(&val,
+                            &pmemAddr[kv.second + HANDSHAKE2_MAGIC_OFFSET],
+                            sizeof(uint32_t));
+                if ((val & 0xFFFF0000) == 0xC0020000 &&
+                    (val & 0xFFFF) == kv.first) {
+                    Addr pa = 0;
+                    std::memcpy(&pa,
+                                &pmemAddr[kv.second + HANDSHAKE2_PA_OFFSET],
+                                sizeof(uint64_t));
+                    hostMpscPa[kv.first] = pa;
+                    inform("CXL_HW_BUFFER_HOSTMPSC: rank %u host ring PA "
+                           "0x%lx recovered from memory", kv.first, pa);
+                }
+            }
+        }
     }
 }
 
@@ -913,11 +1208,26 @@ CxlHardwareBuffer::completeTransfer(uint32_t receiver,
                                     uint32_t mpsc_offset,
                                     uint32_t spsc_offset)
 {
+    const bool host_rank = isHostRank(receiver);
     Addr final_write_offset =
         rankBaseOffsets[receiver] + mpsc_offset + FLAG_OFFSET;
+    const bool dest_ok = host_rank
+        ? (mpsc_offset + slotSize <= mpscSize)
+        : (final_write_offset < range.size());
 
-    if (final_write_offset < range.size()) {
-        pmemAddr[final_write_offset] = FLAG_COMPLETE;
+    if (dest_ok) {
+        if (host_rank) {
+            // Delayed visibility: the payload was functionally written into
+            // the host ring at routing time with the flag clear; setting the
+            // flag now (transferLatency later) makes it visible to the
+            // receiver's cacheable poll.
+            uint8_t flag = FLAG_COMPLETE;
+            hostRingWrite(hostMpscPa[receiver] + mpsc_offset + FLAG_OFFSET,
+                          &flag, 1);
+            stats.hostDeliveries[receiver]++;
+        } else {
+            pmemAddr[final_write_offset] = FLAG_COMPLETE;
+        }
 
         // Completion trace: the scheduled transfer fired and the message is
         // now visible to the receiver (MPSC flag set, SPSC flag about to
@@ -971,6 +1281,16 @@ CxlHardwareBuffer::serialize(CheckpointOut &cp) const
     }
     SERIALIZE_CONTAINER(rbo_keys);
     SERIALIZE_CONTAINER(rbo_vals);
+
+    // Host-MPSC ring registrations (phase 4): rank -> host ring PA.
+    std::vector<uint32_t> hmp_keys;
+    std::vector<Addr> hmp_vals;
+    for (const auto& kv : hostMpscPa) {
+        hmp_keys.push_back(kv.first);
+        hmp_vals.push_back(kv.second);
+    }
+    SERIALIZE_CONTAINER(hmp_keys);
+    SERIALIZE_CONTAINER(hmp_vals);
 
     std::vector<uint32_t> am_data;
     am_data.push_back(activeMappings.size());
@@ -1060,6 +1380,18 @@ CxlHardwareBuffer::unserialize(CheckpointIn &cp)
     rankBaseOffsets.clear();
     for (size_t i = 0; i < rbo_keys.size(); ++i) {
         rankBaseOffsets[rbo_keys[i]] = rbo_vals[i];
+    }
+
+    // Host-MPSC ring registrations (absent in pre-phase-4 checkpoints).
+    hostMpscPa.clear();
+    if (cp.entryExists(Serializable::currentSection(), "hmp_keys")) {
+        std::vector<uint32_t> hmp_keys;
+        std::vector<Addr> hmp_vals;
+        UNSERIALIZE_CONTAINER(hmp_keys);
+        UNSERIALIZE_CONTAINER(hmp_vals);
+        for (size_t i = 0; i < hmp_keys.size(); ++i) {
+            hostMpscPa[hmp_keys[i]] = hmp_vals[i];
+        }
     }
 
     std::vector<uint32_t> am_data;
@@ -1216,9 +1548,20 @@ CxlHardwareBuffer::scanForPendingMessages(uint32_t receiver, Addr base)
                 uint32_t new_mpsc_offset = mpsc_tails[receiver];
                 Addr dest_mpsc_addr = base + new_mpsc_offset;
 
-                std::memcpy(&pmemAddr[dest_mpsc_addr],
-                            &pmemAddr[slot_base], slotSize);
-                pmemAddr[dest_mpsc_addr + FLAG_OFFSET] = FLAG_COMPLETE;
+                if (isHostRank(receiver)) {
+                    // Init-time adoption straight into the host ring (flag
+                    // set immediately -- this is pre-workload traffic).
+                    std::memcpy(stageBuf.data(), &pmemAddr[slot_base],
+                                slotSize);
+                    stageBuf[FLAG_OFFSET] = FLAG_COMPLETE;
+                    hostRingWrite(hostMpscPa[receiver] + new_mpsc_offset,
+                                  stageBuf.data(), slotSize);
+                    stats.hostDeliveries[receiver]++;
+                } else {
+                    std::memcpy(&pmemAddr[dest_mpsc_addr],
+                                &pmemAddr[slot_base], slotSize);
+                    pmemAddr[dest_mpsc_addr + FLAG_OFFSET] = FLAG_COMPLETE;
+                }
                 pmemAddr[flag_addr] = 0;
 
                 DPRINTF(CXLBUF, "CXL Hardware Buffer: [INIT SCAN] Sender "
